@@ -1,0 +1,48 @@
+@startuml diagrama
+
+class DigitalOut {
+    +pin : Pin
+    +value : DigitalValue
+    +is_high() : bool
+    +is_low() : bool
+    +set_high() : Result<>
+    +set_low() : Result<>
+    +toggle() : Result<>
+    +blink(frequency, duration) : Result<>
+}
+
+class DigitalIn {
+    +pin : Pin
+    +react_to : Flank
+    +debounce_time : u32
+    +wait_for_flank() : void
+    +on_flank(func) : void
+    +get_value() : DigitalValue
+    +is_high() : bool
+    +is_low() : bool
+    +set_debounce() : void
+}
+
+class Pin {
+    -number : u8
+    -protocols : Vector<>
+}
+
+enum Flank {
+    Ascending
+    Descending
+    Both
+}
+
+enum DigitalValue {
+    High
+    Low
+}
+
+DigitalOut "1" -up-> "1" Pin: contains
+DigitalIn "1" -up-> "1" Pin: contains
+DigitalIn "1" --> "1" Flank: use
+DigitalIn "1" --> "1" DigitalValue : use
+DigitalOut "1" --> "1" DigitalValue : use
+
+@enduml
