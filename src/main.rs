@@ -1,47 +1,60 @@
-//! Blinks an LED
-//!
-//! This assumes that a LED is connected to GPIO4.
-//! Depending on your target and the board you are using you should change the pin.
-//! If your board doesn't have on-board LEDs don't forget to add an appropriate resistor.
-//!
-use std::sync::atomic::{AtomicBool, Ordering};
-use esp_idf_svc::
-use esp_idf_svc::hal::delay::FreeRtos;
 use esp_idf_svc::hal::gpio::*;
 use esp_idf_svc::hal::peripherals::Peripherals;
+use esp_idf_svc::hal::delay::FreeRtos;
+use std::sync::atomic::{AtomicBool, Ordering};
 
-static FLAG: AtomicBool = AtomicBool::new(false);
+static FLAG: bool = AtomicBool::new(false);
 
-fn main() -> ! {
-  esp_idf_svc::sys::link_patches();
+//mod microcontroller;
+mod  digital;
 
-  let dp = Peripherals::take().unwrap();
-
-  let mut button = PinDriver::input(dp.pins.gpio0).unwrap();
-  button.set_pull(Pull::Up).unwrap();
-
-  button.set_interrupt_type(InterruptType::AnyEdge).unwrap();
-
-  unsafe {
-    button.subscribe(gpio_int_callback).unwrap();
-  }
-
-  button.enable_interrupt().unwrap();
-
-  let mut count = 0_u32;
-  
-  loop {
-    if FLAG.load(Ordering::Relaxed) {
-      FLAG.store(false, Ordering::Relaxed);
-      count = count.wrapping_add(1);
-
-      println!("Press Count {}", count);
-      FreeRtos::delay_ms(200_u32);
-      button.enable_interrupt().unwrap();
-    } 
-  }
+fn main(){
+    FLAG.store(val, order);
+    
+    esp_idf_svc::sys::link_patches();
+    let peripherals = Peripherals::take().unwrap();
+    
+    let mut button = PinDriver::input(peripherals.pins.gpio9).unwrap();
+    button.set_pull(Pull::Down).unwrap();
+    button.set_interrupt_type(InterruptType::PosEdge).unwrap();
+    let mut count: i32 = 0;
+    
+    unsafe {
+        button.subscribe(callback).unwrap();
+    }
+    
+    button.enable_interrupt().unwrap();
+    
+    loop {
+        if FLAG.load(Ordering::Relaxed) {
+          FLAG.store(false, Ordering::Relaxed);
+          count = count.wrapping_add(1);
+    
+          println!("Press Count {}", count);
+          FreeRtos::delay_ms(200_u32);
+        }
+        button.enable_interrupt().unwrap();
+        FreeRtos::delay_ms(20_u32);
+    }
+    
+}
+    
+fn callback() {
+    FLAG.store(true, Ordering::Relaxed);
 }
 
-fn gpio_int_callback() {
-  FLAG.store(true, Ordering::Relaxed);
+fn suma(a:u8, b:u8)-> u8{
+    a+b
+}
+
+fn suma3(a:u8, b:u8, c:u8)-> u8{
+    a+b+c
+}
+
+
+fn nuestro_main(){
+    micro = "micro";
+    micro.set_digital_in(9, Pull::Up, callback);
+
+    micro.loop()
 }
