@@ -1,17 +1,18 @@
 use esp_idf_svc::hal::gpio::*;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
-struct DigitalIn<T:Pin>{
-    pin_driver: PinDriver<T, Input>,
+pub struct DigitalIn<'a>{
+    pin_driver: PinDriver<'a, AnyIOPin, Input>,
     react_to: Flank,
     debounce_time: u32, //cantidad de microsegundos
     read_interval: u32,
-    keep_triggering: AtomicBool,
+    keep_triggering: Arc<AtomicBool>,
     subscribed: bool,
 }
 
 
-enum Flank {
+pub enum Flank {
     Ascending,
     Descending,
     Both,
@@ -61,8 +62,8 @@ impl DigitalOut{
 */
 
 
-impl DigitalIn {
-    fn new<T: Pin>(flank: Flank, pin: T, pull_type: Pull, interrupt_type: InterruptType) -> DigitalIn { //flank default: asc
+impl <'a>DigitalIn<'a> {
+    pub fn new(flank: Flank, pin: AnyIOPin, pull_type: Pull, interrupt_type: InterruptType) -> Self { //flank default: asc
         let mut digital_in = PinDriver::input(pin).unwrap();
         digital_in.set_pull(pull_type).unwrap();
         digital_in.set_interrupt_type(interrupt_type).unwrap();
@@ -71,12 +72,12 @@ impl DigitalIn {
             react_to: flank, 
             debounce_time: 0, 
             read_interval: 0, 
-            keep_triggering: AtomicBool::new(false),
+            keep_triggering: Arc::new(AtomicBool::new(false)),
             subscribed: false,
         }
     }
 
-    fn trigger_on_flank<F: FnMut() + Send + 'static>(&mut self , func: F){
+    pub fn trigger_on_flank<F: FnMut() + Send + 'static>(&mut self , func: F){
         unsafe {
             self.pin_driver.subscribe(func).unwrap();
         }
@@ -85,13 +86,13 @@ impl DigitalIn {
         self.pin_driver.enable_interrupt().unwrap();
     }
     
-    fn trigger_on_flank_first_n_times<F: FnMut() + Send + 'static>(self, amount_of_times: usize , func:F){
+    pub fn trigger_on_flank_first_n_times<F: FnMut() + Send + 'static>(&mut self, mut amount_of_times: usize , mut func:F){
         if amount_of_times == 0 {
             return
         }
 
-        let keep_triggering = &self.keep_triggering;
-        cljr = move || {
+        let keep_triggering = self.keep_triggering.clone();
+        let wrapper = move || {
             if amount_of_times == 0{
                 keep_triggering.store(false, Ordering::Relaxed);
                 return
@@ -99,11 +100,10 @@ impl DigitalIn {
             amount_of_times -= 1;
             func()
         };
-        
-        self.trigger_on_flank(cljr)
+        self.trigger_on_flank(wrapper)
     }
     
-    fn enable_interrupt(&mut self){
+    pub fn enable_interrupt(&mut self){
         if ! self.subscribed {
             return
         }
@@ -115,15 +115,15 @@ impl DigitalIn {
         }
     }
     
-    fn get_level() -> DigitalValue{
+    pub fn get_level(&self) -> Level{
         self.pin_driver.get_level()
     }    
 
-    fn is_high(self) -> bool{
+    pub fn is_high(&self) -> bool{
         self.pin_driver.get_level() == Level::High
     }
     
-    fn is_low(self) -> bool{
+    pub fn is_low(&self) -> bool{
         self.pin_driver.get_level() == Level::Low
     }
     
