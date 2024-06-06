@@ -3,12 +3,11 @@ use std::sync::Arc;
 use esp_idf_svc::hal::prelude::*;
 use esp_idf_svc::hal::gpio::*;
 use esp_idf_svc::hal::peripherals::Peripherals;
-pub use esp_idf_svc::hal::gpio::{InterruptType, Pull};
 use esp_idf_svc::hal::delay::FreeRtos;
 use esp_idf_svc::hal::timer::{TIMER00, TimerDriver, TimerConfig};
 
 
-use crate::digital::{DigitalIn, Flank};
+use crate::digital::{DigitalIn, Pull, };
 
 pub struct Microcontroller<'a>{
     peripherals: HashMap<u32, AnyIOPin>,
@@ -33,7 +32,7 @@ impl <'a>Microcontroller<'a>{
 
     pub fn set_pin_as_digital_in(&mut self, pin_num: u32, pull_type: Pull, interrupt_type: InterruptType)-> &mut DigitalIn<'a>{
         let pin = self._get_pin(pin_num);
-        let mut digital_in = DigitalIn::new(self.timer_driver.take().unwrap(), pin, pull_type, interrupt_type);
+        let mut digital_in = DigitalIn::new(self.timer_driver.take().unwrap(), pin, interrupt_type);
         self.drivers.insert(pin_num, digital_in);
         return self.drivers.get_mut(&pin_num).unwrap()
     }
