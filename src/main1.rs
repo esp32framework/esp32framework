@@ -32,7 +32,6 @@ fn main(){
         button.enable_interrupt().unwrap();
         FreeRtos::delay_ms(20_u32);
     }
-    
 }
 
 fn callback(){
