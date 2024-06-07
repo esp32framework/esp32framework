@@ -11,7 +11,7 @@ fn main(){
 
     let mut button = PinDriver::input(peripherals.pins.gpio9).unwrap();
     
-    button.set_pull(Pull::Down).unwrap();
+    //button.set_pull(Pull::Down).unwrap();
     button.set_interrupt_type(InterruptType::PosEdge).unwrap();
     let mut count: i32 = 0;
     
