@@ -12,7 +12,6 @@ use crate::digital::{DigitalIn, Pull, };
 pub struct Microcontroller<'a>{
     peripherals: HashMap<u32, AnyIOPin>,
     timer_driver: Option<TimerDriver<'a>>,
-    drivers: HashMap<u32, DigitalIn<'a>>, //va a haber que hacer un tipo de dato generico
 }
 
 impl <'a>Microcontroller<'a>{
@@ -22,7 +21,6 @@ impl <'a>Microcontroller<'a>{
         Microcontroller{
             peripherals: pins,
             timer_driver: Some(TimerDriver::new(timer, &TimerConfig::new()).unwrap()),
-            drivers: HashMap::new()
         }
     }
 
@@ -30,11 +28,9 @@ impl <'a>Microcontroller<'a>{
         self.peripherals.remove(&pin_num).unwrap()
     }
 
-    pub fn set_pin_as_digital_in(&mut self, pin_num: u32, interrupt_type: InterruptType)-> &mut DigitalIn<'a>{
+    pub fn set_pin_as_digital_in(&mut self, pin_num: u32, interrupt_type: InterruptType)-> DigitalIn<'a>{
         let pin = self._get_pin(pin_num);
-        let mut digital_in = DigitalIn::new(self.timer_driver.take().unwrap(), pin, interrupt_type).unwrap();
-        self.drivers.insert(pin_num, digital_in);
-        return self.drivers.get_mut(&pin_num).unwrap()
+        return DigitalIn::new(self.timer_driver.take().unwrap(), pin, interrupt_type).unwrap();
     }
     
     /*
@@ -46,18 +42,11 @@ impl <'a>Microcontroller<'a>{
     }
     */
     
-    pub fn run<F: FnMut()>(&mut self, mut func: F){
-        loop{
-            func();
-            self.update_every_loop()
-        }   
-    }
-    
-    fn update_every_loop(&mut self){
-        for driver in self.drivers.values_mut(){
+    pub fn update(&mut self, drivers: Vec<&mut DigitalIn>){
+        for driver in drivers{
             driver.update_interrupt();
         }
-        FreeRtos::delay_ms(20_u32);
+        FreeRtos::delay_ms(10_u32);
     }
 }
 

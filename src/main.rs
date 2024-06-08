@@ -30,21 +30,22 @@ fn callback(){
 
 fn main(){
     let mut micro = Microcontroller::new();
-    let digital_in = micro.set_pin_as_digital_in(9, InterruptType::NegEdge);
-    digital_in.set_pull(Pull::Down);
+    let mut digital_in = micro.set_pin_as_digital_in(9, InterruptType::NegEdge);
+    digital_in.set_pull(Pull::Down).unwrap();
     digital_in.set_debounce(2000);
-    digital_in.trigger_on_flank(callback);
+    digital_in.trigger_on_flank(callback).unwrap();
     let mut count: i32 = 0;
 
-    let do_every_loop = move || {
+    loop {
         if FLAG.load(Ordering::Relaxed) {
             FLAG.store(false, Ordering::Relaxed);
             count = count.wrapping_add(1);
       
             println!("Press Count {}", count);
             FreeRtos::delay_ms(200_u32);
-          }
-    };
-
-    micro.run(do_every_loop);
+        }
+        //println!("{:?}", digital_in.get_level());
+        //FreeRtos::delay_ms(20_u32);
+        micro.update(vec![&mut digital_in])
+    }
 }
