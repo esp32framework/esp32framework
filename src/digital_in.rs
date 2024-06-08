@@ -16,7 +16,6 @@ pub struct DigitalIn<'a>{
     pin_driver: PinDriver<'a, AnyIOPin, Input>,
     timer_driver: TimerDriver<'a>,
     interrupt_type: InterruptType,
-    read_interval: u32,
     interrupt_update_code: Arc<AtomicInterruptUpdateCode>,
     user_callback: fn()->(),
     debounce_ms: Option<u32>,
@@ -73,14 +72,11 @@ impl <'a>DigitalIn<'a> {
     pub fn new(timer_driver: TimerDriver<'a>, pin: AnyIOPin, interrupt_type: InterruptType) -> Result<DigitalIn, DigitalInError> { //flank default: asc
         let mut pin_driver = PinDriver::input(pin).map_err(|_| DigitalInError::CannotSetPinAsInput)?;
         pin_driver.set_interrupt_type(interrupt_type).map_err(|_| DigitalInError::InvalidPin)?;
-        _ = pin_driver.set_pull(DEFAULT_PULL);
-        //_ = self.pin_driver.set_pull(DEFAULT_PULL);
     
         Ok(DigitalIn{
             pin_driver: pin_driver,
             timer_driver: timer_driver,
             interrupt_type: interrupt_type, 
-            read_interval: 0, 
             interrupt_update_code: Arc::from(InterruptUpdate::None.get_atomic_code()),
             debounce_ms: None,
             user_callback: || -> () {},
@@ -224,46 +220,3 @@ impl <'a>DigitalIn<'a> {
         
     }
 }
-/*
-struct DigitalOut{
-    pin: Pin,
-    value: DigitalValue
-}
-
-#[derive(Eq, PartialEq)]
-enum DigitalValue {
-    High,
-    Low
-}
-
-impl DigitalOut{
-    fn new() -> DigitalOut {
-        
-    }
-    
-    fn is_high(self) -> bool{
-        return self.value == DigitalValue::High
-    }
-
-    fn is_low(self) -> bool{
-        return self.value == DigitalValue::Low
-    }
-    
-    fn set_high(self) -> Result<>{
-        self.value = DigitalValue::High
-    }
-    
-    fn set_low(self) -> Result<>{
-        self.value = DigitalValue::Low
-    }
-    
-    fn toggle(self) -> Result<>{
-        //self.value = 
-    }
-    
-    // fn blink(self, frequency, duration) -> Result<>{
-        
-    // }
-}
-
-*/

@@ -7,7 +7,8 @@ use esp_idf_svc::hal::delay::FreeRtos;
 use esp_idf_svc::hal::timer::{TIMER00, TimerDriver, TimerConfig};
 
 
-use crate::digital::{DigitalIn, Pull, };
+use crate::digital_in::{DigitalIn, Pull, InterruptType};
+use crate::digital_out::DigitalOut;
 
 pub struct Microcontroller<'a>{
     peripherals: HashMap<u32, AnyIOPin>,
@@ -30,17 +31,15 @@ impl <'a>Microcontroller<'a>{
 
     pub fn set_pin_as_digital_in(&mut self, pin_num: u32, interrupt_type: InterruptType)-> DigitalIn<'a>{
         let pin = self._get_pin(pin_num);
-        return DigitalIn::new(self.timer_driver.take().unwrap(), pin, interrupt_type).unwrap();
+        DigitalIn::new(self.timer_driver.take().unwrap(), pin, interrupt_type).unwrap()
     }
     
-    /*
-    fn set_pin_as_digital_out(self, pin: u32) {
-        let pin = _get_pin(pin);
-        self.peripherals.pins.into();
-        let mut digital_out = PinDriver::output(self.peripherals.pins.pin);
-        digital_out(pin)
+    
+    pub fn set_pin_as_digital_out(&mut self, pin: u32) -> DigitalOut<'a> {
+        let pin = self._get_pin(pin);
+        DigitalOut::new(pin).unwrap()
     }
-    */
+    
     
     pub fn update(&mut self, drivers: Vec<&mut DigitalIn>){
         for driver in drivers{
@@ -54,10 +53,14 @@ fn get_peripherals()->(HashMap<u32, AnyIOPin>, TIMER00){
     let dp = Peripherals::take().unwrap();
     let gpio9 = dp.pins.gpio9.downgrade();
     let gpio10 = dp.pins.gpio10.downgrade();
+    let gpio20 = dp.pins.gpio20.downgrade();
+    let gpio21 = dp.pins.gpio21.downgrade();
     let timer = dp.timer00;
     let mut dict: HashMap<u32, AnyIOPin> = HashMap::new();
     // inicializar todos
     dict.insert(9, gpio9);
     dict.insert(10,gpio10);
+    dict.insert(20, gpio20);
+    dict.insert(21,gpio21);
     (dict, timer)
 }
