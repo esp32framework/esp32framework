@@ -1,8 +1,8 @@
 use esp_idf_svc::{hal::{delay::FreeRtos, gpio::*}, /*handle::RawHandle,*/ sys::{/*esp_timer_create,*/ EspError, ESP_ERR_INVALID_ARG, ESP_ERR_INVALID_STATE}};
 use std::sync::atomic::{AtomicU8, Ordering};
-use esp_idf_svc::hal::timer::TimerDriver;
 use std::sync::Arc;
 pub use esp_idf_svc::hal::gpio::{InterruptType, Pull};
+use crate::timer_driver::{TimerDriver,TimerDriverError};
 use crate::error_text_parser::map_enable_disable_errors;
 
 type AtomicInterruptUpdateCode = AtomicU8;
@@ -34,11 +34,9 @@ pub enum InterruptUpdate {
 pub enum DigitalInError {
     CannotSetPullForPin,
     CannotSetPinAsInput,
-    CannotSetTimerCounter,
     StateAlreadySet,
-    CouldNotSetTimer,
-    InvalidTimer,
-    InvalidPin
+    InvalidPin,
+    TimerDriverError (TimerDriverError)
 }
 
 impl InterruptUpdate{
@@ -92,17 +90,18 @@ impl <'a>DigitalIn<'a> {
     }
     
     /// time unit: ms
-    fn trigger_if_mantains_after<F: FnMut() + Send + 'static>(&mut self, time_ms:u32, mut func: F)-> Result<impl FnMut() + Send + 'static, DigitalInError>{
+    fn trigger_if_mantains_after<F: FnMut() + Send + 'static>(&mut self, time_micro:u32, mut func: F)-> Result<impl FnMut() + Send + 'static, DigitalInError>{
         
         let interrupt_update_code_ref = self.interrupt_update_code.clone();
         let after_timer_cljr = move || {
             interrupt_update_code_ref.store(InterruptUpdate::TimerReached.get_code(), Ordering::SeqCst);
         };
         
-        unsafe{
-            self.timer_driver.subscribe(after_timer_cljr).map_err(|_| DigitalInError::InvalidTimer)?;
-        }
-        self.timer_driver.set_alarm(((time_ms as u64) * self.timer_driver.tick_hz()/1000) as u64).map_err(|_| DigitalInError::CouldNotSetTimer)?;
+        // unsafe{
+        //     self.timer_driver.subscribe(after_timer_cljr).map_err(|_| DigitalInError::InvalidTimer)?;
+        // }
+        // self.timer_driver.set_alarm(((time_ms as u64) * self.timer_driver.tick_hz()/1000) as u64).map_err(|_| DigitalInError::CouldNotSetTimer)?;
+        self.timer_driver.interrupt_after(time_micro, after_timer_cljr).map_err(|err| DigitalInError::TimerDriverError(err))?;
         
         let interrupt_update_code_ref = self.interrupt_update_code.clone();
         let start_timer_cljr = move || {
@@ -155,17 +154,17 @@ impl <'a>DigitalIn<'a> {
         self._trigger_on_flank(user_callback, callback)
     }
     
-    fn enable_timer_driver(&mut self, enable: bool) -> Result<(),DigitalInError>{
-        if enable{
-            self.timer_driver.set_counter(0).map_err(|_| DigitalInError::CannotSetTimerCounter)?; 
-            self.timer_driver.enable_interrupt().map_err(|_| DigitalInError::CouldNotSetTimer)?;
-        }else{
-            self.timer_driver.disable_interrupt().map_err(|_| DigitalInError::CouldNotSetTimer)?;
-        }
-        self.timer_driver.enable_alarm(enable).map_err(|_| DigitalInError::CouldNotSetTimer)?;
-        self.timer_driver.enable(enable).map_err(|_| DigitalInError::CouldNotSetTimer)?;
-        Ok(())   
-    }
+    // fn enable_timer_driver(&mut self, enable: bool) -> Result<(),DigitalInError>{
+    //     if enable{
+    //         self.timer_driver.set_counter(0).map_err(|_| DigitalInError::CannotSetTimerCounter)?; 
+    //         self.timer_driver.enable_interrupt().map_err(|_| DigitalInError::CouldNotSetTimer)?;
+    //     }else{
+    //         self.timer_driver.disable_interrupt().map_err(|_| DigitalInError::CouldNotSetTimer)?;
+    //     }
+    //     self.timer_driver.enable_alarm(enable).map_err(|_| DigitalInError::CouldNotSetTimer)?;
+    //     self.timer_driver.enable(enable).map_err(|_| DigitalInError::CouldNotSetTimer)?;
+    //     Ok(())   
+    // }
 
     fn timer_reached(&mut self)->Result<(), DigitalInError>{
         let level = match self.interrupt_type {
@@ -180,7 +179,7 @@ impl <'a>DigitalIn<'a> {
             (self.user_callback)();
         }
         
-        self.enable_timer_driver(false)?;
+        self.timer_driver.enable_timer_driver(false).map_err(|err| DigitalInError::TimerDriverError(err))?;
         self.pin_driver.enable_interrupt().map_err(|err| map_enable_disable_errors(err))
     }
 
@@ -191,19 +190,17 @@ impl <'a>DigitalIn<'a> {
         match interrupt_update {
             InterruptUpdate::ExecAndEnablePin => {
                 (self.user_callback)();
-                self.pin_driver.enable_interrupt().map_err(|err| map_enable_disable_errors(err))?;
+                self.pin_driver.enable_interrupt().map_err(|err| map_enable_disable_errors(err))
             },
-            InterruptUpdate::EnableTimerDriver => self.enable_timer_driver(true)?,
-            InterruptUpdate::TimerReached => self.timer_reached()?,
+            InterruptUpdate::EnableTimerDriver => self.timer_driver.enable_timer_driver(true).map_err(|err| DigitalInError::TimerDriverError(err)),
+            InterruptUpdate::TimerReached => self.timer_reached(),
             InterruptUpdate::ExecAndUnsubscribePin => {
                 (self.user_callback)();
-                self.pin_driver.unsubscribe().map_err(|err| map_enable_disable_errors(err))?;
+                self.pin_driver.unsubscribe().map_err(|err| map_enable_disable_errors(err))
                 },
-            InterruptUpdate::UnsubscribeTimerDriver => self.timer_driver.unsubscribe().map_err(|_| DigitalInError::InvalidTimer)?,
-            InterruptUpdate::None => {},
+            InterruptUpdate::UnsubscribeTimerDriver => self.unsubscribe().map_err(|_| DigitalInError::TimerDriverError(err)),
+            InterruptUpdate::None => Ok(()),
         }
-
-        Ok(())
     }
     
     pub fn get_level(&self) -> Level{

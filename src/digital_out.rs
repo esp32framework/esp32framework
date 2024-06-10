@@ -52,7 +52,16 @@ impl <'a>DigitalOut<'a> {
         }
     }
     
-}
-    // pub fn blink(&mut self, loop_period: u32) -> Result<(), DigitalOutError>{
-        
+    /// makes the pin blink for a certain period of time blink_period (ms) and in a certain frecuency (ms)
+    // pub fn blink(&mut self, blink_period: u32, frecuency: u32) -> Result<(), DigitalOutError>{
+
+    //     self
+    //     let mut time = start_time;
+    //     while(time - start_time < loop_period){
+    //         self.toggle();
+
+    //         FreeRtos::delay_ms(frecuency);
+    //     }
+    //     Ok(())
     // }
+}

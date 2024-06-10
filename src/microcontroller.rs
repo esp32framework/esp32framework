@@ -49,18 +49,30 @@ impl <'a>Microcontroller<'a>{
     }
 }
 
-fn get_peripherals()->(HashMap<u32, AnyIOPin>, TIMER00){ 
+fn get_peripherals<T: Timer>()->(HashMap<u32, AnyIOPin>, TIMER00){ 
     let dp = Peripherals::take().unwrap();
-    let gpio9 = dp.pins.gpio9.downgrade();
-    let gpio10 = dp.pins.gpio10.downgrade();
-    let gpio20 = dp.pins.gpio20.downgrade();
-    let gpio21 = dp.pins.gpio21.downgrade();
-    let timer = dp.timer00;
     let mut dict: HashMap<u32, AnyIOPin> = HashMap::new();
-    // inicializar todos
-    dict.insert(9, gpio9);
-    dict.insert(10,gpio10);
-    dict.insert(20, gpio20);
-    dict.insert(21,gpio21);
+    dict.insert(0, dp.pins.gpio0.downgrade());
+    dict.insert(1, dp.pins.gpio1.downgrade());
+    dict.insert(2, dp.pins.gpio2.downgrade());
+    dict.insert(3, dp.pins.gpio3.downgrade());
+    dict.insert(4, dp.pins.gpio4.downgrade());
+    dict.insert(5, dp.pins.gpio5.downgrade());
+    dict.insert(6, dp.pins.gpio6.downgrade());
+    dict.insert(7, dp.pins.gpio7.downgrade());
+    dict.insert(8, dp.pins.gpio8.downgrade());
+    dict.insert(9, dp.pins.gpio9.downgrade());
+    dict.insert(10, dp.pins.gpio10.downgrade());
+    dict.insert(11, dp.pins.gpio11.downgrade());
+    dict.insert(12, dp.pins.gpio12.downgrade());
+    dict.insert(13, dp.pins.gpio13.downgrade());
+    dict.insert(15, dp.pins.gpio15.downgrade());
+    dict.insert(16, dp.pins.gpio16.downgrade());
+    dict.insert(17, dp.pins.gpio17.downgrade());
+    dict.insert(18, dp.pins.gpio18.downgrade());
+    dict.insert(19, dp.pins.gpio19.downgrade());
+    dict.insert(20, dp.pins.gpio20.downgrade());
+    dict.insert(21, dp.pins.gpio21.downgrade());
+    timers = dp.timer00;
     (dict, timer)
 }

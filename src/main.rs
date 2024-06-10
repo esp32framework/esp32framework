@@ -13,6 +13,7 @@ mod microcontroller;
 mod digital_in;
 mod digital_out;
 mod error_text_parser;
+mod timer_driver;
 
 fn callback(){
     FLAG.store(true, Ordering::Relaxed);
