@@ -33,13 +33,15 @@ fn callback(){
 
 fn main(){
     let mut micro = Microcontroller::new();
-    let mut digital_in = micro.set_pin_as_digital_in(9, InterruptType::HighLevel);
-    //let mut digital_out = micro.set_pin_as_digital_out(10);
+    let mut digital_in = micro.set_pin_as_digital_in(20, InterruptType::PosEdge);
+    let mut digital_out = micro.set_pin_as_digital_out(10);
     //digital_in.set_pull(Pull::Down).unwrap();
-    //digital_in.set_debounce(2000);
-    digital_in.trigger_on_flank(callback).unwrap();
+    //digital_in.set_debounce(2000000);
+    //digital_in.trigger_on_flank(callback).unwrap();
     let mut count: i32 = 0;
     
+    digital_out.blink(5, 1000000);
+
     let mut i = 0;
     
     loop {
@@ -52,10 +54,9 @@ fn main(){
         }
         
         //digital_out.toggle().unwrap();
-        //println!("Out: {:?}", digital_out.get_level());
+        println!("Out: {:?}", digital_out.get_level());
         FreeRtos::delay_ms(200_u32);
         println!("In: {:?}", digital_in.get_level());
-        micro.update(vec![&mut digital_in]);
-        
+        micro.update(vec![&mut digital_in], vec![&mut digital_out]);
     }
 }

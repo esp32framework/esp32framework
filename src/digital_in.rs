@@ -90,7 +90,7 @@ impl <'a>DigitalIn<'a> {
     }
     
     /// time unit: ms
-    fn trigger_if_mantains_after<F: FnMut() + Send + 'static>(&mut self, time_micro:u32, mut func: F)-> Result<impl FnMut() + Send + 'static, DigitalInError>{
+    fn trigger_if_mantains_after(&mut self, time_micro:u32)-> Result<impl FnMut() + Send + 'static, DigitalInError>{
         
         let interrupt_update_code_ref = self.interrupt_update_code.clone();
         let after_timer_cljr = move || {
@@ -121,7 +121,7 @@ impl <'a>DigitalIn<'a> {
         self.user_callback = user_callback;
         match self.debounce_ms{
             Some(debounce_ms) => {
-                let wrapper = self.trigger_if_mantains_after(debounce_ms, callback)?;
+                let wrapper = self.trigger_if_mantains_after(debounce_ms)?;
                 self.subscribe_trigger(wrapper)
             },
             None => self.subscribe_trigger(callback),
@@ -166,7 +166,7 @@ impl <'a>DigitalIn<'a> {
     //     Ok(())   
     // }
 
-    fn timer_reached(&mut self)->Result<(), DigitalInError>{
+    fn timer_reached(&mut self) -> Result<(), DigitalInError>{
         let level = match self.interrupt_type {
             InterruptType::PosEdge => Level::High,
             InterruptType::NegEdge => Level::Low,
@@ -179,7 +179,7 @@ impl <'a>DigitalIn<'a> {
             (self.user_callback)();
         }
         
-        self.timer_driver.enable_timer_driver(false).map_err(|err| DigitalInError::TimerDriverError(err))?;
+        self.timer_driver.disable().map_err(|err| DigitalInError::TimerDriverError(err))?;
         self.pin_driver.enable_interrupt().map_err(|err| map_enable_disable_errors(err))
     }
 
@@ -192,13 +192,13 @@ impl <'a>DigitalIn<'a> {
                 (self.user_callback)();
                 self.pin_driver.enable_interrupt().map_err(|err| map_enable_disable_errors(err))
             },
-            InterruptUpdate::EnableTimerDriver => self.timer_driver.enable_timer_driver(true).map_err(|err| DigitalInError::TimerDriverError(err)),
+            InterruptUpdate::EnableTimerDriver => self.timer_driver.enable().map_err(|err| DigitalInError::TimerDriverError(err)),
             InterruptUpdate::TimerReached => self.timer_reached(),
             InterruptUpdate::ExecAndUnsubscribePin => {
                 (self.user_callback)();
                 self.pin_driver.unsubscribe().map_err(|err| map_enable_disable_errors(err))
                 },
-            InterruptUpdate::UnsubscribeTimerDriver => self.unsubscribe().map_err(|_| DigitalInError::TimerDriverError(err)),
+            InterruptUpdate::UnsubscribeTimerDriver => self.timer_driver.unsubscribe().map_err(|err| DigitalInError::TimerDriverError(err)),
             InterruptUpdate::None => Ok(()),
         }
     }
@@ -215,8 +215,8 @@ impl <'a>DigitalIn<'a> {
         self.pin_driver.get_level() == Level::Low
     }
     
-    pub fn set_debounce(&mut self, new_debounce: u32){
-        self.debounce_ms = Some(new_debounce);
+    pub fn set_debounce(&mut self, time_micro: u32){
+        self.debounce_ms = Some(time_micro);
     }
     
     fn set_read_intervals(self, read_interval: u32){
