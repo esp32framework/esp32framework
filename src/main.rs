@@ -1,62 +1,87 @@
-use digital_in::{DigitalIn, InterruptUpdate};
-use error_text_parser::map_enable_disable_errors;
-//use esp_idf_svc::hal::gpio::*;
-//use esp_idf_svc::hal::peripherals::Peripherals;
-use esp_idf_svc::hal::delay::FreeRtos;
-use microcontroller::Microcontroller;
-pub use esp_idf_svc::hal::gpio::{InterruptType, Pull};
-use std::sync::atomic::{AtomicBool, Ordering};
+//! ADC example, reading a value form a pin and printing it on the terminal
+//!
 
-static FLAG: AtomicBool = AtomicBool::new(false);
+//use esp_idf_sys::{self as _}; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 
-mod microcontroller;
-mod digital_in;
+mod analog_in;
 mod digital_out;
-mod error_text_parser;
+mod digital_in;
 mod timer_driver;
+mod microcontroller;
+mod peripherals;
 
-fn callback(){
-    FLAG.store(true, Ordering::Relaxed);
-}
+use std::thread;
+use std::time::Duration;
+
+use esp_idf_svc::hal::adc::config::Config;
+use esp_idf_svc::hal::adc::*;
+use esp_idf_svc::hal::gpio::*;
+//use esp_idf_svc::hal::peripherals;
+use esp_idf_svc::hal::peripherals::Peripherals;
 
 
-//pull up default = 1
-//pull|interrupt|funciona
-//up  |  neg    | si
-//up  |  pos    | si
+// fn a<T: IOPin>(adc_pin: T)-> T{
+//     return adc_pin
+// }
 
-//down|  neg    | al reves
-//down|  pos    | al reves
+// struct OurPeripheral {
+//     gpio0: Option<Gpio0>,
+//     gpio1: Option<Gpio1>
+// }
 
-// up  | neg      | 0
-// dow | neg     | 1
+// impl OurPeripheral{
+//     fn new(){
+//         let peripherals = Peripherals::take().unwrap(); 
+//         OurPeripheral{
+//             gpio0: Some(peripherals.pins.gpio0),
+//             gpio1: Some(peripherals.pins.gpio1),
+//         }
+//     }
 
-fn main(){
-    let mut micro = Microcontroller::new();
-    let mut digital_in = micro.set_pin_as_digital_in(20, InterruptType::PosEdge);
-    let mut digital_out = micro.set_pin_as_digital_out(10);
-    //digital_in.set_pull(Pull::Down).unwrap();
-    //digital_in.set_debounce(2000000);
-    //digital_in.trigger_on_flank(callback).unwrap();
-    let mut count: i32 = 0;
+// }
+
+// fn micro(self){
+//     let a: Gpio0: self.peripherals.gpio0.take();
+// }
+
+// impl OurPin for esp_idf_svc::hal::gpio::Gpio0{
     
-    digital_out.blink(5, 1000000);
+// }
 
-    let mut i = 0;
+// impl OurPin for Gpio1{
+// }
+
+
+// fn perf<O: IOPin>(a: bool)-> impl AN{
+//     let peripherals = Peripherals::take().unwrap();
+//     peripherals.i2c0
+//     if a{
+//         return peripherals.pins.gpio19
+//     }
+//     return peripherals.pins.gpio0
+
+// }
+
+fn main() {
+    let peripherals = Peripherals::take().unwrap();
+    //let mut adc = AdcDriver::new(peripherals.adc1, &Config::new().calibration(true)).unwrap();
+    let mut pin = peripherals.pins.gpio6;
+    let mut pin2 = peripherals.pins.gpio7;
+    let pin3 = peripherals.i2c0;
+    let pi43 = peripherals.i2s0;
+    // let adc_pin= a(pin);
     
     loop {
-        if FLAG.load(Ordering::Relaxed) {
-            FLAG.store(false, Ordering::Relaxed);
-            count = count.wrapping_add(1);
-            
-            println!("Press Count {}", count);
-            FreeRtos::delay_ms(200_u32);
-        }
-        
-        //digital_out.toggle().unwrap();
-        println!("Out: {:?}", digital_out.get_level());
-        FreeRtos::delay_ms(200_u32);
-        println!("In: {:?}", digital_in.get_level());
-        micro.update(vec![&mut digital_in], vec![&mut digital_out]);
+        println!("No exploto");
+        thread::sleep(Duration::from_millis(200));
     }
+
+    // configuring pin to analog read, you can regulate the adc input voltage range depending on your need
+    // for this example we use the attenuation of 11db which sets the input voltage range to around 0-3.6V
+    // let mut adc_pin: esp_idf_svc::hal::adc::AdcChannelDriver<{ attenuation::DB_11 }, _> =
+    //     AdcChannelDriver::new(adc_pin).unwrap();
+    // loop {
+    //     thread::sleep(Duration::from_millis(10));
+    //     println!("ADC value: {}", adc.read(&mut adc_pin).unwrap());
+    // }
 }

@@ -97,7 +97,7 @@ impl <'a>DigitalOut<'a> {
 
         let interrupt_update_code_ref = self.interrupt_update_code.clone();
         let callback = move || {
-            if (amount_of_blinks == 0) {
+            if amount_of_blinks == 0 {
                 interrupt_update_code_ref.store(InterruptUpdate::FinishedBlinking.get_code(), Ordering::SeqCst);
             }else{
                 amount_of_blinks -= 1;
