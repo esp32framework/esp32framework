@@ -1,6 +1,7 @@
-use esp_idf_svc::hal::timer;
+use esp_idf_svc::{hal::timer, sys::EspError};
 use crate::timer_driver::timer::TimerConfig;
-use esp_idf_svc::hal::peripheral::Peripheral;
+use esp_idf_svc::hal::peripheral;
+use crate::peripherals::Peripheral;
 
 pub struct TimerDriver<'a> {
     driver: timer::TimerDriver<'a>
@@ -16,8 +17,18 @@ pub enum TimerDriverError {
 
 
 impl <'a>TimerDriver<'a>{
-    pub fn new<T: timer::Timer>(timer: impl Peripheral<P = T> + 'a)->Result<TimerDriver<'a>, TimerDriverError> {
-        let driver = timer::TimerDriver::new(timer, &TimerConfig::new()).map_err(|_| TimerDriverError::InvalidTimer)?;
+    //pub fn new<T: timer::Timer>(timer: impl Peripheral<P = T> + 'a)->Result<TimerDriver<'a>, TimerDriverError> {
+    pub fn new(timer: Peripheral) -> Result<TimerDriver<'a>, TimerDriverError> {
+        let driver = match timer{
+            Peripheral::Timer(timer_num) => 
+                match timer_num{
+                    0 => timer::TimerDriver::new(unsafe{timer::TIMER00::new()}, &TimerConfig::new()),
+                    1 => timer::TimerDriver::new(unsafe{timer::TIMER10::new()}, &TimerConfig::new()),
+                    _ => return Err(TimerDriverError::InvalidTimer),
+                }.map_err(|_| TimerDriverError::InvalidTimer)?,
+            _ => return Err(TimerDriverError::InvalidTimer),
+        };
+
         Ok(TimerDriver{driver})
     }
     

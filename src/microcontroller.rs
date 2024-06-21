@@ -14,34 +14,30 @@ use crate::digital_in::{DigitalIn, Pull, InterruptType};
 use crate::digital_out::DigitalOut;
 use crate::timer_driver::TimerDriver;
 use crate::analog_in:: AnalogIn;
-use crate::peripherals::Peripherals
+use crate::peripherals::Peripherals;
 
 pub struct Microcontroller<'a> {
     peripherals: Peripherals,
     timer_driver: Vec<TimerDriver<'a>>,
     adc_driver: Option<AdcDriver<'a, ADC1>>,
-    adc: ADC1
 }
 
 impl <'a>Microcontroller<'a>{
     pub fn new() -> Self {
         esp_idf_svc::sys::link_patches();
-        let (peripherals, timers, adc) = get_peripherals();
+        let mut peripherals = Peripherals::new();
+        let timer0 = peripherals.get_timer(0);
+        let timer1 = peripherals.get_timer(1);
         Microcontroller{
             peripherals: peripherals,
-            timer_driver: vec![TimerDriver::new(timers.0).unwrap(), TimerDriver::new(timers.1).unwrap()],
+            timer_driver: vec![TimerDriver::new(timer0).unwrap(), TimerDriver::new(timer1).unwrap()],
             adc_driver: None,
-            adc: adc
         }
     }
 
-    fn _get_pin(&mut self, pin_num: u32)->AnyIOPin{
-        self.peripherals.remove(&pin_num).unwrap()
-    }
-
-    pub fn set_pin_as_digital_in(&mut self, pin_num: u32, interrupt_type: InterruptType)-> DigitalIn<'a>{
-        let pin = self._get_pin(pin_num);
-        DigitalIn::new(self.timer_driver.pop().unwrap(), pin, interrupt_type).unwrap()
+    pub fn set_pin_as_digital_in(&mut self, pin_num: usize, interrupt_type: InterruptType)-> DigitalIn<'a> {
+        let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
+        DigitalIn::new(self.timer_driver.pop().unwrap(), pin_peripheral, interrupt_type).unwrap()
     }
     
     
