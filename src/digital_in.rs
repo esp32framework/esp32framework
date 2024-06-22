@@ -1,4 +1,4 @@
-use esp_idf_svc::{hal::{delay::FreeRtos, gpio::*, peripheral}, /*handle::RawHandle,*/ sys::{/*esp_timer_create,*/ EspError, ESP_ERR_INVALID_ARG, ESP_ERR_INVALID_STATE}};
+use esp_idf_svc::{hal::{delay::FreeRtos, gpio::*}, /*handle::RawHandle,*/ sys::{/*esp_timer_create,*/ EspError, ESP_ERR_INVALID_ARG, ESP_ERR_INVALID_STATE}};
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 pub use esp_idf_svc::hal::gpio::{InterruptType, Pull};
@@ -37,6 +37,7 @@ pub enum DigitalInError {
     CannotSetPinAsInput,
     StateAlreadySet,
     InvalidPin,
+    InvalidPeripheral,
     TimerDriverError (TimerDriverError)
 }
 
@@ -68,14 +69,12 @@ impl InterruptUpdate{
 /// Create a new DigitalIn for a Pin, and define an iterruptType to watch for.
 /// By default pull is set to Down
 impl <'a>DigitalIn<'a> {
-    pub fn new(timer_driver: TimerDriver<'a>, pin: Peripheral, interrupt_type: InterruptType) -> Result<DigitalIn, DigitalInError> { //flank default: asc
-
-
-        let mut pin_driver = pin_driver_from_peripheral();
-        let mut pin_driver = PinDriver::input(pin).map_err(|_| DigitalInError::CannotSetPinAsInput)?;
+    pub fn new(timer_driver: TimerDriver<'a>, per: Peripheral, interrupt_type: InterruptType) -> Result<DigitalIn, DigitalInError> { //flank default: asc
+        let gpio = per.into_any_io_pin().map_err(|_| DigitalInError::InvalidPeripheral)?;
+        let mut pin_driver = PinDriver::input(gpio).map_err(|_| DigitalInError::CannotSetPinAsInput)?;
         pin_driver.set_interrupt_type(interrupt_type).map_err(|_| DigitalInError::InvalidPin)?;
 
-        let mut digital_in = DigitalIn{
+        let mut digital_in = DigitalIn {
             pin_driver: pin_driver,
             timer_driver: timer_driver,
             interrupt_type: interrupt_type, 
@@ -87,29 +86,6 @@ impl <'a>DigitalIn<'a> {
         digital_in.set_pull(Pull::Down).unwrap();
         //dig_in.set_pull(Pull::Down)?;
         return Ok(digital_in)
-    }
-
-    fn pin_driver_from_peripheral(peripheral: Peripheral) -> PinDriver<'a, AnyIOPin, Input>{
-        match peripheral {
-            Peripheral::Pin(pin_num) => match pin_num{
-                1 => PinDriver::input();
-            
-            
-                7 =>
-                8 =>
-                9 =>
-                10 =>
-                11 =>
-                12 =>
-                13 =>
-                14 =>
-                15 =>
-                16 =>
-
-            }
-            _ => return ;
-        }
-        todo!();
     }
 
     pub fn set_pull(&mut self, pull_type: Pull)-> Result<(), DigitalInError>{

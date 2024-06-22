@@ -9,6 +9,7 @@ mod digital_in;
 mod timer_driver;
 mod microcontroller;
 mod peripherals;
+mod error_text_parser;
 
 use std::thread;
 use std::time::Duration;

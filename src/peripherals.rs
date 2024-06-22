@@ -1,5 +1,5 @@
 use std::mem;
-use esp_idf_svc::hal::timer;
+use esp_idf_svc::hal::gpio::*;
 
 const PIN_COUNT: usize = 24;
 const TIMERS_COUNT: usize = 2;
@@ -8,15 +8,16 @@ const DIGITAL_PINS_BOUNDS: (usize, usize) = (0,23);
 const ANALOG_PINS_BOUNDS: (usize, usize) = (0, 6);
 const TIMER_BOUND: (usize, usize) = (0,1);
 
+#[derive(Debug)]
+pub enum PeripheralError {
+    NotAPin
+}
+
 pub enum Peripheral{
     Pin(u8),
     Timer(u8),
     Adc,
     None
-}
-
-pub enum Pin{
-    gpio(Gpio0)
 }
 
 impl Default for Peripheral {
@@ -28,6 +29,39 @@ impl Default for Peripheral {
 impl Peripheral {
     fn take(&mut self) -> Peripheral {
         mem::take(self)
+    }
+
+    pub fn into_any_io_pin(self) -> Result<AnyIOPin, PeripheralError> {
+        let pin = match self {
+            Peripheral::Pin(pin_num) => match pin_num{
+                0 => unsafe {Gpio0::new().downgrade()},
+                1 => unsafe {Gpio1::new().downgrade()},
+                2 => unsafe {Gpio2::new().downgrade()},
+                3 => unsafe {Gpio3::new().downgrade()},
+                4 => unsafe {Gpio4::new().downgrade()},
+                5 => unsafe {Gpio5::new().downgrade()},
+                6 => unsafe {Gpio6::new().downgrade()},
+                7 => unsafe {Gpio7::new().downgrade()},
+                8 => unsafe {Gpio8::new().downgrade()},
+                9 => unsafe {Gpio9::new().downgrade()},
+                10 => unsafe {Gpio10::new().downgrade()},
+                11 => unsafe {Gpio11::new().downgrade()},
+                12 => unsafe {Gpio12::new().downgrade()},
+                13 => unsafe {Gpio13::new().downgrade()},
+                15 => unsafe {Gpio15::new().downgrade()},
+                16 => unsafe {Gpio16::new().downgrade()},
+                17 => unsafe {Gpio17::new().downgrade()},
+                18 => unsafe {Gpio18::new().downgrade()},
+                19 => unsafe {Gpio19::new().downgrade()},
+                20 => unsafe {Gpio20::new().downgrade()},
+                21 => unsafe {Gpio21::new().downgrade()},
+                22 => unsafe {Gpio22::new().downgrade()},
+                23 => unsafe {Gpio23::new().downgrade()},
+                _ => return Err(PeripheralError::NotAPin)
+            },
+            _ => return Err(PeripheralError::NotAPin),
+        };
+        Ok(pin)
     }
 }
 
@@ -76,3 +110,4 @@ impl Peripherals {
         self.adc.take()
     }
 }
+

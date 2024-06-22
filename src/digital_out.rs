@@ -3,8 +3,9 @@ use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 pub use esp_idf_svc::hal::gpio::{InterruptType, Pull};
 
-use crate::error_text_parser::map_enable_disable_errors;
+// use crate::error_text_parser::map_enable_disable_errors;
 use crate::timer_driver::{TimerDriver,TimerDriverError};
+use crate::peripherals::Peripheral;
 
 type AtomicInterruptUpdateCode = AtomicU8;
 
@@ -12,6 +13,7 @@ type AtomicInterruptUpdateCode = AtomicU8;
 pub enum DigitalOutError{
     CannotSetPinAsOutput,
     InvalidPin,
+    InvalidPeripheral,
     TimerDriverError(TimerDriverError)
 }
 
@@ -50,8 +52,9 @@ impl InterruptUpdate{
 }
 
 impl <'a>DigitalOut<'a> {
-    pub fn new(pin: AnyIOPin, timer_driver: TimerDriver<'a>) -> Result<DigitalOut<'a>, DigitalOutError>{
-        let pin_driver = PinDriver::output(pin).map_err(|_| DigitalOutError::CannotSetPinAsOutput)?;
+    pub fn new(per: Peripheral, timer_driver: TimerDriver<'a>) -> Result<DigitalOut<'a>, DigitalOutError>{
+        let gpio = per.into_any_io_pin().map_err(|_| DigitalOutError::InvalidPeripheral)?;
+        let pin_driver = PinDriver::output(gpio).map_err(|_| DigitalOutError::CannotSetPinAsOutput)?;
 
         Ok(DigitalOut {
             pin_driver: pin_driver,

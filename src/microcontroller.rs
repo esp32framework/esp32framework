@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use attenuation::adc_atten_t;
 use config::Resolution;
 use esp_idf_svc::hal::adc::ADC1;
 use esp_idf_svc::hal::prelude::*;
@@ -41,17 +42,23 @@ impl <'a>Microcontroller<'a>{
     }
     
     
-    pub fn set_pin_as_digital_out(&mut self, pin: u32) -> DigitalOut<'a> {
-        let pin = self._get_pin(pin);
-        DigitalOut::new(pin, self.timer_driver.pop().unwrap()).unwrap()
+    pub fn set_pin_as_digital_out(&mut self, pin_num: usize) -> DigitalOut<'a> {
+        let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
+        DigitalOut::new(pin_peripheral, self.timer_driver.pop().unwrap()).unwrap()
     }
     
-    pub fn set_pin_as_analog_in(&mut self, pin: u32, resolution: Resolution, attenuation: attenuation::adc_atten_t) -> AnalogIn<'a> {
+    fn start_adc_driver(&mut self, resolution: Resolution) {
+        if let None = self.adc_driver{
+            self.peripherals.get_adc();
+            self.adc_driver = Some(AdcDriver::new(unsafe{ADC1::new()}, &Config::new().resolution(resolution).calibration(true)).unwrap());
+        }
+    }
+    
+    pub fn set_pin_as_analog_in<const A: adc_atten_t, ADC: Adc>(&mut self, pin_num: usize, resolution: Resolution, attenuation: attenuation::adc_atten_t) -> AnalogIn<'a, A, ADC> {
+        let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
+        self.start_adc_driver(resolution);
         
-        let pin = self._get_pin(pin);
-        let mut adc_driver = AdcDriver::new(self.adc, &Config::new().resolution(resolution) .calibration(true)).unwrap();
-        
-        AnalogIn::new(pin,attenuation,adc_driver).unwrap()
+        AnalogIn::new(pin_peripheral,attenuation, &mut self.adc_driver.unwrap()).unwrap()
     }
     
     //pub fn set_pin_as_analog_out()
