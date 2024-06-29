@@ -1,0 +1,1 @@
+- Siempre se inicializa el adcDriver, ver de solo inicializarloc cuando el usuario lo necesita

@@ -16,8 +16,7 @@ use crate::peripherals::Peripheral;
 
 pub struct AnalogIn<'a, const A: adc_atten_t, ADC: Adc>{ 
     adc_channel_driver: AnalogChannels<'a, A>,
-    adc_driver_ref: &'a mut AdcDriver<'a, ADC>,
-    //adc_channel: ???, En el ESP32-C6 hay 6 channels. GPIO0 a GPIO6
+    adc_driver_ref: &'a mut Option<AdcDriver<'a, ADC>>,
 }
 
 enum AnalogChannels<'a, const A: adc_atten_t>{
@@ -38,28 +37,25 @@ enum Attenuation{
 }
 
 #[derive(Debug)]
-enum AnalogInError{
-    InvalidPin,
+pub enum AnalogInError{
+    MissingAdcDriver,
+    InvalidPin
 }
 
 impl <'a, const A: adc_atten_t, ADC: Adc> AnalogIn<'a, A, ADC> {
-    pub fn new(pin: Peripheral, atten: Attenuation, adc_driver: &'a mut AdcDriver<'a, ADC>) -> Result<AnalogIn<'a, A, ADC>, AnalogInError> {
-        match atten{
-            Attenuation::High => AnalogIn::new_channel::<{attenuation::DB_11}>(pin),
-            Attenuation::Intermidiate => AnalogIn::new_channel::<{attenuation::DB_6}>(pin),
-            Attenuation::Low => AnalogIn::new_channel::<{attenuation::DB_2_5}>(pin),
-            _ => AnalogIn::new_channel::<{attenuation::NONE}>(pin),
-        };
+    pub fn new(pin: Peripheral, adc_driver: &'a mut Option<AdcDriver<'a, ADC>>) -> Result<AnalogIn<'a, A, ADC>, AnalogInError> {
         
+        if let None = adc_driver {
+            return Err(AnalogInError::MissingAdcDriver)
+        }
         
         Ok(AnalogIn {
-            adc_channel_driver: adc_channel_driver,
+            adc_channel_driver: AnalogIn::<A, ADC>::new_channel(pin)?,
             adc_driver_ref: adc_driver,
         })
-
     }
 
-    fn new_channel<const B: adc_atten_t>(pin: Peripheral) -> Result<AnalogChannels<'a, B>, AnalogInError> {
+    pub fn new_channel<const B: adc_atten_t>(pin: Peripheral) -> Result<AnalogChannels<'a, B>, AnalogInError> {
         let mut adc_channel_driver: AnalogChannels<'a, B> = match pin {
             Peripheral::Pin(pin_num) => match pin_num {
                 0 => AnalogChannels::Channel0(AdcChannelDriver::new(unsafe {Gpio0::new()}).unwrap()),
