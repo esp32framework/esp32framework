@@ -14,9 +14,9 @@ use crate::peripherals::Peripheral;
 // const DEFAULT_RESOLUTION: u16 = ADC_BITWIDTH_DEFAULT ;
 // const DEFAULT_WIDTH: u16 = ADC_BITWIDTH_DEFAULT;
 
-pub struct AnalogIn<'a, const A: adc_atten_t, ADC: Adc>{ 
+pub struct AnalogIn<'a, const A: adc_atten_t>{ 
     adc_channel_driver: AnalogChannels<'a, A>,
-    adc_driver_ref: &'a mut Option<AdcDriver<'a, ADC>>,
+    adc_driver_ref: &'a mut Option<AdcDriver<'a, ADC1>>,
 }
 
 enum AnalogChannels<'a, const A: adc_atten_t>{
@@ -39,18 +39,19 @@ enum Attenuation{
 #[derive(Debug)]
 pub enum AnalogInError{
     MissingAdcDriver,
-    InvalidPin
+    InvalidPin,
+    ErrorReading
 }
 
-impl <'a, const A: adc_atten_t, ADC: Adc> AnalogIn<'a, A, ADC> {
-    pub fn new(pin: Peripheral, adc_driver: &'a mut Option<AdcDriver<'a, ADC>>) -> Result<AnalogIn<'a, A, ADC>, AnalogInError> {
+impl <'a, const A: adc_atten_t> AnalogIn<'a, A> {
+    pub fn new(pin: Peripheral, adc_driver: &'a mut Option<AdcDriver<'a, ADC1>>) -> Result<AnalogIn<'a, A>, AnalogInError> {
         
         if let None = adc_driver {
             return Err(AnalogInError::MissingAdcDriver)
         }
         
         Ok(AnalogIn {
-            adc_channel_driver: AnalogIn::<A, ADC>::new_channel(pin)?,
+            adc_channel_driver: AnalogIn::<A>::new_channel(pin)?,
             adc_driver_ref: adc_driver,
         })
     }
@@ -73,8 +74,19 @@ impl <'a, const A: adc_atten_t, ADC: Adc> AnalogIn<'a, A, ADC> {
     }
     
 
-    fn digital_read() {
-
+    fn digital_read(&mut self) -> Result<u16, AnalogInError> {
+        match self.adc_driver_ref{
+            Some(adc_driver_ref) => match &mut self.adc_channel_driver {
+                AnalogChannels::Channel0(ref mut adc_channel_driver) => adc_driver_ref.read(adc_channel_driver),
+                AnalogChannels::Channel1(ref mut adc_channel_driver) => adc_driver_ref.read(adc_channel_driver),
+                AnalogChannels::Channel2(ref mut adc_channel_driver) => adc_driver_ref.read(adc_channel_driver),
+                AnalogChannels::Channel3(ref mut adc_channel_driver) => adc_driver_ref.read(adc_channel_driver),
+                AnalogChannels::Channel4(ref mut adc_channel_driver) => adc_driver_ref.read(adc_channel_driver),
+                AnalogChannels::Channel5(ref mut adc_channel_driver) => adc_driver_ref.read(adc_channel_driver),
+                AnalogChannels::Channel6(ref mut adc_channel_driver) => adc_driver_ref.read(adc_channel_driver),
+            }.map_err(|_| AnalogInError::ErrorReading),
+            None => Err(AnalogInError::MissingAdcDriver)
+        } 
     }
 
     fn digital_write() {

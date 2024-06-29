@@ -65,24 +65,20 @@ use esp_idf_svc::hal::peripherals::Peripherals;
 
 fn main() {
     let peripherals = Peripherals::take().unwrap();
-    //let mut adc = AdcDriver::new(peripherals.adc1, &Config::new().calibration(true)).unwrap();
+    let mut adc = AdcDriver::new(peripherals.adc1, &Config::new().calibration(true)).unwrap();
     let mut pin = peripherals.pins.gpio6;
-    let mut pin2 = peripherals.pins.gpio7;
-    let pin3 = peripherals.i2c0;
-    let pi43 = peripherals.i2s0;
+    // let mut pin2 = peripherals.pins.gpio7;
+    // let pin3 = peripherals.i2c0;
+    // let pi43 = peripherals.i2s0;
     // let adc_pin= a(pin);
-    
-    loop {
-        println!("No exploto");
-        thread::sleep(Duration::from_millis(200));
-    }
+
 
     // configuring pin to analog read, you can regulate the adc input voltage range depending on your need
     // for this example we use the attenuation of 11db which sets the input voltage range to around 0-3.6V
-    // let mut adc_pin: esp_idf_svc::hal::adc::AdcChannelDriver<{ attenuation::DB_11 }, _> =
-    //     AdcChannelDriver::new(adc_pin).unwrap();
-    // loop {
-    //     thread::sleep(Duration::from_millis(10));
-    //     println!("ADC value: {}", adc.read(&mut adc_pin).unwrap());
-    // }
+    let mut adc_pin: esp_idf_svc::hal::adc::AdcChannelDriver<{ attenuation::DB_11 }, _> =
+        AdcChannelDriver::new(pin).unwrap();
+    loop {
+        thread::sleep(Duration::from_millis(10));
+        println!("ADC value: {}", adc.read(&mut adc_pin).unwrap());
+    }
 }

@@ -55,24 +55,24 @@ impl <'a>Microcontroller<'a>{
         }
     }
     
-    pub fn set_pin_as_analog_in_low_atten(&'a mut self, pin_num: usize, resolution: Resolution, attenuation: attenuation::adc_atten_t) -> AnalogIn<'a, {attenuation::adc_atten_t_ADC_ATTEN_DB_2_5}, ADC1> {
+    pub fn set_pin_as_analog_in_low_atten(&'a mut self, pin_num: usize, resolution: Resolution, attenuation: attenuation::adc_atten_t) -> AnalogIn<'a, {attenuation::adc_atten_t_ADC_ATTEN_DB_2_5}> {
         let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
-        AnalogIn::<'a, {attenuation::DB_2_5}, ADC1>::new(pin_peripheral, &mut self.adc_driver).unwrap()
+        AnalogIn::<'a, {attenuation::DB_2_5}>::new(pin_peripheral, &mut self.adc_driver).unwrap()
     }
 
-    pub fn set_pin_as_analog_in_medium_atten(&'a mut self, pin_num: usize, resolution: Resolution, attenuation: attenuation::adc_atten_t) -> AnalogIn<'a, {attenuation::adc_atten_t_ADC_ATTEN_DB_6}, ADC1> {
+    pub fn set_pin_as_analog_in_medium_atten(&'a mut self, pin_num: usize, resolution: Resolution, attenuation: attenuation::adc_atten_t) -> AnalogIn<'a, {attenuation::adc_atten_t_ADC_ATTEN_DB_6}> {
         let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
-        AnalogIn::<'a, {attenuation::DB_6}, ADC1>::new(pin_peripheral, &mut self.adc_driver).unwrap()
+        AnalogIn::<'a, {attenuation::DB_6}>::new(pin_peripheral, &mut self.adc_driver).unwrap()
     }
 
-    pub fn set_pin_as_analog_in_high_atten(&'a mut self, pin_num: usize, resolution: Resolution, attenuation: attenuation::adc_atten_t) -> AnalogIn<'a, {attenuation::adc_atten_t_ADC_ATTEN_DB_11}, ADC1> {
+    pub fn set_pin_as_analog_in_high_atten(&'a mut self, pin_num: usize, resolution: Resolution, attenuation: attenuation::adc_atten_t) -> AnalogIn<'a, {attenuation::adc_atten_t_ADC_ATTEN_DB_11}> {
         let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
-        AnalogIn::<'a, {attenuation::DB_11}, ADC1>::new(pin_peripheral, &mut self.adc_driver).unwrap()
+        AnalogIn::<'a, {attenuation::DB_11}>::new(pin_peripheral, &mut self.adc_driver).unwrap()
     }
     
-    pub fn set_pin_as_analog_in_no_atten(&'a mut self, pin_num: usize, resolution: Resolution, attenuation: attenuation::adc_atten_t) -> AnalogIn<'a, {attenuation::adc_atten_t_ADC_ATTEN_DB_0}, ADC1> {
+    pub fn set_pin_as_analog_in_no_atten(&'a mut self, pin_num: usize, resolution: Resolution, attenuation: attenuation::adc_atten_t) -> AnalogIn<'a, {attenuation::adc_atten_t_ADC_ATTEN_DB_0}> {
         let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
-        AnalogIn::<'a, {attenuation::adc_atten_t_ADC_ATTEN_DB_0}, ADC1>::new(pin_peripheral, &mut self.adc_driver).unwrap()
+        AnalogIn::<'a, {attenuation::adc_atten_t_ADC_ATTEN_DB_0}>::new(pin_peripheral, &mut self.adc_driver).unwrap()
     }
 
 
