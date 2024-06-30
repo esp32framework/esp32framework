@@ -1,5 +1,4 @@
 use std::pin::Pin;
-
 use esp_idf_svc::hal::adc::attenuation::adc_atten_t;
 use esp_idf_svc::hal::adc;
 use esp_idf_svc::hal::adc::config::Config;
@@ -13,6 +12,8 @@ use crate::peripherals::Peripheral;
 // Resolucion son bits
 // const DEFAULT_RESOLUTION: u16 = ADC_BITWIDTH_DEFAULT ;
 // const DEFAULT_WIDTH: u16 = ADC_BITWIDTH_DEFAULT;
+
+const MAX_DIGITAL_VAL: u16 = 4095;
 
 pub struct AnalogIn<'a, const A: adc_atten_t>{ 
     adc_channel_driver: AnalogChannels<'a, A>,
@@ -73,9 +74,9 @@ impl <'a, const A: adc_atten_t> AnalogIn<'a, A> {
         Ok(adc_channel_driver)
     }
     
-
-    fn digital_read(&mut self) -> Result<u16, AnalogInError> {
-        match self.adc_driver_ref{
+    /// Returns a digital value read from an analog pin
+    fn read(&mut self) -> Result<u16, AnalogInError> {
+        let mut read_value = match self.adc_driver_ref{
             Some(adc_driver_ref) => match &mut self.adc_channel_driver {
                 AnalogChannels::Channel0(ref mut adc_channel_driver) => adc_driver_ref.read(adc_channel_driver),
                 AnalogChannels::Channel1(ref mut adc_channel_driver) => adc_driver_ref.read(adc_channel_driver),
@@ -84,16 +85,41 @@ impl <'a, const A: adc_atten_t> AnalogIn<'a, A> {
                 AnalogChannels::Channel4(ref mut adc_channel_driver) => adc_driver_ref.read(adc_channel_driver),
                 AnalogChannels::Channel5(ref mut adc_channel_driver) => adc_driver_ref.read(adc_channel_driver),
                 AnalogChannels::Channel6(ref mut adc_channel_driver) => adc_driver_ref.read(adc_channel_driver),
+            }.map_err(|_| AnalogInError::ErrorReading)?,
+            None => Err(AnalogInError::MissingAdcDriver)?
+        };
+        if read_value > MAX_DIGITAL_VAL {
+            read_value = MAX_DIGITAL_VAL;
+        }
+        Ok(read_value)
+    }
+    
+    //TODO: max_in_time, min_in_time, bigger_than, lower_than
+
+    /// Returns the raw value read from an analog pin 
+    fn read_raw(&mut self) -> Result<u16, AnalogInError> {//TODO: podriamos hacer un metodo para el enum que reciba una funcion y la ejecute por cada rama, asi no repetimos codigo con read nomal.
+        match self.adc_driver_ref{
+            Some(adc_driver_ref) => match &mut self.adc_channel_driver {
+                AnalogChannels::Channel0(ref mut adc_channel_driver) => adc_driver_ref.read_raw(adc_channel_driver),
+                AnalogChannels::Channel1(ref mut adc_channel_driver) => adc_driver_ref.read_raw(adc_channel_driver),
+                AnalogChannels::Channel2(ref mut adc_channel_driver) => adc_driver_ref.read_raw(adc_channel_driver),
+                AnalogChannels::Channel3(ref mut adc_channel_driver) => adc_driver_ref.read_raw(adc_channel_driver),
+                AnalogChannels::Channel4(ref mut adc_channel_driver) => adc_driver_ref.read_raw(adc_channel_driver),
+                AnalogChannels::Channel5(ref mut adc_channel_driver) => adc_driver_ref.read_raw(adc_channel_driver),
+                AnalogChannels::Channel6(ref mut adc_channel_driver) => adc_driver_ref.read_raw(adc_channel_driver),
             }.map_err(|_| AnalogInError::ErrorReading),
             None => Err(AnalogInError::MissingAdcDriver)
-        } 
+        }
     }
 
-    fn digital_write() {
-
-    }
-
-    fn smooth_digital_read(_samples: u32) {
-        // Se lee samples veces, se suma todo y se divide por sample
+    /// Reads *samples* times using read to smooth the value
+    fn smooth_read(&mut self, samples: u16) -> Result<u16, AnalogInError> {
+        let mut smooth_val: u16 = 0;
+        for _ in 0..samples {
+            let read_val = self.read()?;
+            smooth_val += read_val;
+        }
+        let result = smooth_val / samples;
+        Ok(result)
     }
 }
