@@ -6,6 +6,8 @@ use esp_idf_svc::hal::gpio::*;
 use esp_idf_svc::hal::adc::*;
 use esp_idf_svc::hal::peripherals;
 use esp_idf_svc::sys::adc_bitwidth_t;
+
+use crate::microcontroller::SharableAdcDriver;
 use crate::peripherals::Peripheral;
 
 // Atenuacion es DB
@@ -17,7 +19,7 @@ const MAX_DIGITAL_VAL: u16 = 4095;
 
 pub struct AnalogIn<'a, const A: adc_atten_t>{ 
     adc_channel_driver: AnalogChannels<'a, A>,
-    adc_driver_ref: &'a mut Option<AdcDriver<'a, ADC1>>,
+    adc_driver_ref: SharableAdcDriver<'a>,
 }
 
 enum AnalogChannels<'a, const A: adc_atten_t>{
@@ -45,10 +47,12 @@ pub enum AnalogInError{
 }
 
 impl <'a, const A: adc_atten_t> AnalogIn<'a, A> {
-    pub fn new(pin: Peripheral, adc_driver: &'a mut Option<AdcDriver<'a, ADC1>>) -> Result<AnalogIn<'a, A>, AnalogInError> {
-        
-        if let None = adc_driver {
-            return Err(AnalogInError::MissingAdcDriver)
+    pub fn new(pin: Peripheral, adc_driver: SharableAdcDriver<'a>) -> Result<AnalogIn<'a, A>, AnalogInError> {
+        {
+            let driver = adc_driver.borrow_mut();
+            if let None = *driver {
+                return Err(AnalogInError::MissingAdcDriver)
+            }
         }
         
         Ok(AnalogIn {
@@ -75,16 +79,17 @@ impl <'a, const A: adc_atten_t> AnalogIn<'a, A> {
     }
     
     /// Returns a digital value read from an analog pin
-    fn read(&mut self) -> Result<u16, AnalogInError> {
-        let mut read_value = match self.adc_driver_ref{
-            Some(adc_driver_ref) => match &mut self.adc_channel_driver {
-                AnalogChannels::Channel0(ref mut adc_channel_driver) => adc_driver_ref.read(adc_channel_driver),
-                AnalogChannels::Channel1(ref mut adc_channel_driver) => adc_driver_ref.read(adc_channel_driver),
-                AnalogChannels::Channel2(ref mut adc_channel_driver) => adc_driver_ref.read(adc_channel_driver),
-                AnalogChannels::Channel3(ref mut adc_channel_driver) => adc_driver_ref.read(adc_channel_driver),
-                AnalogChannels::Channel4(ref mut adc_channel_driver) => adc_driver_ref.read(adc_channel_driver),
-                AnalogChannels::Channel5(ref mut adc_channel_driver) => adc_driver_ref.read(adc_channel_driver),
-                AnalogChannels::Channel6(ref mut adc_channel_driver) => adc_driver_ref.read(adc_channel_driver),
+    pub fn read(&mut self) -> Result<u16, AnalogInError> {
+        let mut adc_driver_ref = self.adc_driver_ref.borrow_mut();
+        let mut read_value = match *adc_driver_ref{
+            Some(ref mut adc_driver) => match &mut self.adc_channel_driver {
+                AnalogChannels::Channel0(ref mut adc_channel_driver) => adc_driver.read(adc_channel_driver),
+                AnalogChannels::Channel1(ref mut adc_channel_driver) => adc_driver.read(adc_channel_driver),
+                AnalogChannels::Channel2(ref mut adc_channel_driver) => adc_driver.read(adc_channel_driver),
+                AnalogChannels::Channel3(ref mut adc_channel_driver) => adc_driver.read(adc_channel_driver),
+                AnalogChannels::Channel4(ref mut adc_channel_driver) => adc_driver.read(adc_channel_driver),
+                AnalogChannels::Channel5(ref mut adc_channel_driver) => adc_driver.read(adc_channel_driver),
+                AnalogChannels::Channel6(ref mut adc_channel_driver) => adc_driver.read(adc_channel_driver),
             }.map_err(|_| AnalogInError::ErrorReading)?,
             None => Err(AnalogInError::MissingAdcDriver)?
         };
@@ -97,29 +102,30 @@ impl <'a, const A: adc_atten_t> AnalogIn<'a, A> {
     //TODO: max_in_time, min_in_time, bigger_than, lower_than
 
     /// Returns the raw value read from an analog pin 
-    fn read_raw(&mut self) -> Result<u16, AnalogInError> {//TODO: podriamos hacer un metodo para el enum que reciba una funcion y la ejecute por cada rama, asi no repetimos codigo con read nomal.
-        match self.adc_driver_ref{
-            Some(adc_driver_ref) => match &mut self.adc_channel_driver {
-                AnalogChannels::Channel0(ref mut adc_channel_driver) => adc_driver_ref.read_raw(adc_channel_driver),
-                AnalogChannels::Channel1(ref mut adc_channel_driver) => adc_driver_ref.read_raw(adc_channel_driver),
-                AnalogChannels::Channel2(ref mut adc_channel_driver) => adc_driver_ref.read_raw(adc_channel_driver),
-                AnalogChannels::Channel3(ref mut adc_channel_driver) => adc_driver_ref.read_raw(adc_channel_driver),
-                AnalogChannels::Channel4(ref mut adc_channel_driver) => adc_driver_ref.read_raw(adc_channel_driver),
-                AnalogChannels::Channel5(ref mut adc_channel_driver) => adc_driver_ref.read_raw(adc_channel_driver),
-                AnalogChannels::Channel6(ref mut adc_channel_driver) => adc_driver_ref.read_raw(adc_channel_driver),
+    pub fn read_raw(&mut self) -> Result<u16, AnalogInError> {
+        let mut adc_driver_ref = self.adc_driver_ref.borrow_mut();
+        match *adc_driver_ref{
+            Some(ref mut adc_driver) => match &mut self.adc_channel_driver {
+                AnalogChannels::Channel0(ref mut adc_channel_driver) => adc_driver.read_raw(adc_channel_driver),
+                AnalogChannels::Channel1(ref mut adc_channel_driver) => adc_driver.read_raw(adc_channel_driver),
+                AnalogChannels::Channel2(ref mut adc_channel_driver) => adc_driver.read_raw(adc_channel_driver),
+                AnalogChannels::Channel3(ref mut adc_channel_driver) => adc_driver.read_raw(adc_channel_driver),
+                AnalogChannels::Channel4(ref mut adc_channel_driver) => adc_driver.read_raw(adc_channel_driver),
+                AnalogChannels::Channel5(ref mut adc_channel_driver) => adc_driver.read_raw(adc_channel_driver),
+                AnalogChannels::Channel6(ref mut adc_channel_driver) => adc_driver.read_raw(adc_channel_driver),
             }.map_err(|_| AnalogInError::ErrorReading),
             None => Err(AnalogInError::MissingAdcDriver)
         }
     }
-
+    
     /// Reads *samples* times using read to smooth the value
-    fn smooth_read(&mut self, samples: u16) -> Result<u16, AnalogInError> {
+    pub fn smooth_read(&mut self, amount_of_samples: u16) -> Result<u16, AnalogInError> {
         let mut smooth_val: u16 = 0;
-        for _ in 0..samples {
+        for _ in 0..amount_of_samples {
             let read_val = self.read()?;
             smooth_val += read_val;
         }
-        let result = smooth_val / samples;
+        let result = smooth_val / amount_of_samples;
         Ok(result)
     }
 }
