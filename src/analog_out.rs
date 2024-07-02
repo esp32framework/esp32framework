@@ -35,30 +35,3 @@ impl AnalogOut {
         
     }
 }
-
-impl AnalogIn {
-    fn new() -> AnalogIn {
-        
-    }
-
-    fn trigger_when(self, condition :AnalogicTriggerCondition, func){
-    
-    }
-
-    fn trigger_first_n_times(self, condition :AnalogicTriggerCondition, amount_of_times: usize, func){
-    
-    }
-
-    fn read(self)->usize{
-        
-    }
-
-    fn set_frequency(self){
-
-    }
-
-    fn set_resolution(self){
-        
-    }
-}
-

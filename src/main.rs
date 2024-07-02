@@ -1,8 +1,4 @@
-//! ADC example, reading a value form a pin and printing it on the terminal
-//!
-
-//use esp_idf_sys::{self as _}; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
-
+/*
 mod analog_in;
 mod digital_out;
 mod digital_in;
@@ -21,41 +17,100 @@ use esp_idf_svc::hal::gpio::*;
 //use esp_idf_svc::hal::peripherals;
 use esp_idf_svc::hal::peripherals::Peripherals;
 use microcontroller::Microcontroller;
+*/
 
-/// Main for analog in with esp hal
-// fn main() {
-//     let peripherals = Peripherals::take().unwrap();
-//     let mut adc = AdcDriver::new(peripherals.adc1, &Config::new().calibration(true)).unwrap();
-//     let mut pin = peripherals.pins.gpio6;
-//     // let mut pin2 = peripherals.pins.gpio7;
-//     // let pin3 = peripherals.i2c0;
-//     // let pi43 = peripherals.i2s0;
-//     // let adc_pin= a(pin);
+use esp_idf_svc::hal::delay::FreeRtos;
+use esp_idf_svc::hal::ledc::*;
+use esp_idf_svc::hal::peripherals::Peripherals;
+use esp_idf_svc::hal::prelude::*;
 
+fn main() {
+    esp_idf_svc::sys::link_patches();
 
-//     // configuring pin to analog read, you can regulate the adc input voltage range depending on your need
-//     // for this example we use the attenuation of 11db which sets the input voltage range to around 0-3.6V
-//     let mut adc_pin: esp_idf_svc::hal::adc::AdcChannelDriver<{ attenuation::DB_11 }, _> =
-//         AdcChannelDriver::new(pin).unwrap();
-//     loop {
-//         thread::sleep(Duration::from_millis(10));
-//         println!("ADC value: {}", adc.read(&mut adc_pin).unwrap());
-//     }
-// }
+    println!("Configuring output channels");
 
-///  Main for our analog
-fn main(){
-    let mut micro = Microcontroller::new();
-    let mut analog_in = micro.set_pin_as_analog_in_low_atten(0);
+    let peripherals = Peripherals::take().unwrap();
+
+    // Configurar canales LEDC para cada color del LED RGB
+    let mut red_channel = LedcDriver::new(
+        peripherals.ledc.channel0,
+        LedcTimerDriver::new(
+            peripherals.ledc.timer0,
+            &config::TimerConfig::new().frequency(1000.Hz().into()),  // Frecuencia para rojo (1 kHz)
+        ).unwrap(),
+        peripherals.pins.gpio12,  // GPIO 12 para el color rojo
+    ).unwrap();
+
+    let mut green_channel = LedcDriver::new(
+        peripherals.ledc.channel1,
+        LedcTimerDriver::new(
+            peripherals.ledc.timer1,
+            &config::TimerConfig::new().frequency(1000.Hz().into()),  // Frecuencia para verde (1 kHz)
+        ).unwrap(),
+        peripherals.pins.gpio13,  // GPIO 13 para el color verde
+    ).unwrap();
+
+    let mut blue_channel = LedcDriver::new(
+        peripherals.ledc.channel2,
+        LedcTimerDriver::new(
+            peripherals.ledc.timer2,
+            &config::TimerConfig::new().frequency(1000.Hz().into()),  // Frecuencia para azul (1 kHz)
+        ).unwrap(),
+        peripherals.pins.gpio14,  // GPIO 14 para el color azul
+    ).unwrap();
+
+    println!("Starting color change loop");
+
+    let max_duty = red_channel.get_max_duty();
+
     loop {
-        let read = analog_in.read().unwrap();
-        let raw_read = analog_in.read_raw().unwrap();
-        let smooth_read = analog_in.smooth_read(20).unwrap();
-        println!("READ: {read} | RAW: {raw_read} | SMOOTH: {smooth_read}");
-        FreeRtos::delay_ms(500_u32);
-        micro.update(vec![], vec![]);
+        // Cambio de color gradual
+        for duty in 0..=max_duty {
+            red_channel.set_duty(duty).unwrap();
+            FreeRtos::delay_ms(5);
+        }
+        for duty in (0..=max_duty).rev() {
+            red_channel.set_duty(duty).unwrap();
+            FreeRtos::delay_ms(5);
+        }
+
+        for duty in 0..=max_duty {
+            green_channel.set_duty(duty).unwrap();
+            FreeRtos::delay_ms(5);
+        }
+        for duty in (0..=max_duty).rev() {
+            green_channel.set_duty(duty).unwrap();
+            FreeRtos::delay_ms(5);
+        }
+
+        for duty in 0..=max_duty {
+            blue_channel.set_duty(duty).unwrap();
+            FreeRtos::delay_ms(5);
+        }
+        for duty in (0..=max_duty).rev() {
+            blue_channel.set_duty(duty).unwrap();
+            FreeRtos::delay_ms(5);
+        }
     }
-    //drop(analog_in);
-    //println!("{:?}", micro);
-    //drop(micro);
 }
+
+
+/* output
+Starting duty-cycle loop
+Duty 0/5
+Duty 1/5
+Duty 2/5
+Duty 3/5
+Duty 4/5
+Duty 5/5
+Duty 0/5
+Duty 1/5
+Duty 2/5
+Duty 3/5
+Duty 4/5
+Duty 5/5
+Duty 0/5
+Duty 1/5
+Duty 2/5
+Duty 3/5
+ */
