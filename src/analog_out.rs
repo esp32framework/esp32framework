@@ -5,12 +5,6 @@ struct AnalogOut {
     
 }
 
-struct AnalogIn {
-    pin: Pin,
-    resolution: usize, // cantidad de bytes de representacion del voltaje
-    frequency: usize,
-}
-
 enum AnalogicTriggerCondition{
     InRange(u32,u32),
     OutOfRange(u32,u32),
