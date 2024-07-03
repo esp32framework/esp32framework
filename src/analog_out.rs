@@ -4,6 +4,9 @@ use esp_idf_svc::hal::prelude::*;
 use esp_idf_svc::sys::ESP_FAIL;
 use crate::peripherals::Peripheral;
 
+const DEFAULT_FREC: u32 = 10000;
+const DEFAULT_RESOLUTION: u32 = 14;
+
 pub struct AnalogOut<'a> {
     driver: LedcDriver<'a>
 }
@@ -23,6 +26,10 @@ impl <'a>AnalogOut<'a> {
     pub fn new(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral, freq_hz: u32, resolution: u32) -> Result<AnalogOut<'a>, AnalogOutError> {
         let resolution = AnalogOut::create_resolution(resolution);
         let config = &config::TimerConfig::new().frequency(freq_hz.Hz().into()).resolution(resolution);
+        AnalogOut::_new(peripheral_channel, timer, gpio_pin, config)
+    }
+    
+    pub fn _new(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral, config: &config::TimerConfig )-> Result<AnalogOut<'a>, AnalogOutError> {
 
         let timer_driver = AnalogOut::create_timer_driver(timer, config)?;
         let gpio = gpio_pin.into_any_io_pin().map_err(|_| AnalogOutError::InvalidPeripheral)?;
@@ -36,6 +43,10 @@ impl <'a>AnalogOut<'a> {
         }.map_err(|_| AnalogOutError::InvalidArg)?;
 
         Ok(AnalogOut{driver: pwm_driver})
+    }
+
+    pub fn default(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral) -> Result<AnalogOut<'a>, AnalogOutError>{
+        AnalogOut::_new(peripheral_channel, timer, gpio_pin, &config::TimerConfig::new())
     }
 
     fn create_resolution(resolution: u32) -> Resolution{

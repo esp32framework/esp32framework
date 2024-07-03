@@ -98,6 +98,12 @@ impl <'a>Microcontroller<'a>{
         AnalogOut::<'a>::new(pwm_channel, pwm_timer, pin_peripheral, freq_hz, resolution).unwrap()
     } 
 
+    pub fn set_pin_as_default_analog_out(&mut self, pin_num: usize, freq_hz: u32, resolution: u32) -> AnalogOut<'a> {
+        let (pwm_channel, pwm_timer) = self.peripherals.get_next_pwm();
+        let pin_peripheral = self.peripherals.get_pwm_pin(pin_num);
+        AnalogOut::<'a>::default(pwm_channel, pwm_timer, pin_peripheral).unwrap()
+    }
+
     // pub fn set_pin_as_analog_in<const A: adc_atten_t, ADC: Adc>(&mut self, pin_num: usize, resolution: Resolution, attenuation: attenuation::adc_atten_t) -> AnalogIn<'a, A, ADC> {
     //     let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
     //     self.start_adc_driver(resolution);
