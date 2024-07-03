@@ -1,13 +1,6 @@
-mod analog_in;
-mod digital_out;
-mod digital_in;
-mod timer_driver;
+mod gpio;
+mod utils;
 mod microcontroller;
-mod peripherals;
-mod error_text_parser;
-mod analog_out;
-mod analog_in_pwm;
-
 /*
 
 use std::thread;
