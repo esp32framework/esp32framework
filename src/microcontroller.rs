@@ -98,7 +98,7 @@ impl <'a>Microcontroller<'a>{
         AnalogOut::<'a>::new(pwm_channel, pwm_timer, pin_peripheral, freq_hz, resolution).unwrap()
     } 
 
-    pub fn set_pin_as_default_analog_out(&mut self, pin_num: usize, freq_hz: u32, resolution: u32) -> AnalogOut<'a> {
+    pub fn set_pin_as_default_analog_out(&mut self, pin_num: usize) -> AnalogOut<'a> {
         let (pwm_channel, pwm_timer) = self.peripherals.get_next_pwm();
         let pin_peripheral = self.peripherals.get_pwm_pin(pin_num);
         AnalogOut::<'a>::default(pwm_channel, pwm_timer, pin_peripheral).unwrap()
