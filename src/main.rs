@@ -1,4 +1,3 @@
-/*
 mod analog_in;
 mod digital_out;
 mod digital_in;
@@ -6,6 +5,8 @@ mod timer_driver;
 mod microcontroller;
 mod peripherals;
 mod error_text_parser;
+mod analog_out;
+/*
 
 use std::thread;
 use std::time::Duration;
@@ -19,98 +20,107 @@ use esp_idf_svc::hal::peripherals::Peripherals;
 use microcontroller::Microcontroller;
 */
 
+use microcontroller::Microcontroller;
+use digital_in::{InterruptType, DigitalIn};
+
 use esp_idf_svc::hal::delay::FreeRtos;
 use esp_idf_svc::hal::ledc::*;
 use esp_idf_svc::hal::peripherals::Peripherals;
 use esp_idf_svc::hal::prelude::*;
 
-fn main() {
-    esp_idf_svc::sys::link_patches();
 
-    println!("Configuring output channels");
 
+
+/*
+fn main(){
+    let mut micro = Microcontroller::new();
+    println!("Configuring output channel");
+    
+    let frec = 10;
+
+    // Set ledC to create a PWM signal
     let peripherals = Peripherals::take().unwrap();
-
-    // Configurar canales LEDC para cada color del LED RGB
-    let mut red_channel = LedcDriver::new(
+    let mut channel = LedcDriver::new(
         peripherals.ledc.channel0,
         LedcTimerDriver::new(
             peripherals.ledc.timer0,
-            &config::TimerConfig::new().frequency(1000.Hz().into()),  // Frecuencia para rojo (1 kHz)
+            &config::TimerConfig::new().frequency((100).kHz().into()).resolution(Resolution::Bits5),
         ).unwrap(),
-        peripherals.pins.gpio12,  // GPIO 12 para el color rojo
+        peripherals.pins.gpio4,
     ).unwrap();
 
-    let mut green_channel = LedcDriver::new(
-        peripherals.ledc.channel1,
-        LedcTimerDriver::new(
-            peripherals.ledc.timer1,
-            &config::TimerConfig::new().frequency(1000.Hz().into()),  // Frecuencia para verde (1 kHz)
-        ).unwrap(),
-        peripherals.pins.gpio13,  // GPIO 13 para el color verde
-    ).unwrap();
+    let digital_in = micro.set_pin_as_digital_in(5, InterruptType::PosEdge);
+    
+    println!("Starting duty-cycle loop");
 
-    let mut blue_channel = LedcDriver::new(
-        peripherals.ledc.channel2,
-        LedcTimerDriver::new(
-            peripherals.ledc.timer2,
-            &config::TimerConfig::new().frequency(1000.Hz().into()),  // Frecuencia para azul (1 kHz)
-        ).unwrap(),
-        peripherals.pins.gpio14,  // GPIO 14 para el color azul
-    ).unwrap();
+    let max_duty = channel.get_max_duty();
+    for numerator in [0, 1, 2, 3, 4, 5].iter().cycle() {
+        println!("Duty {numerator}/5");
+        channel.set_duty(max_duty * numerator / 5).unwrap();
+        
+        for i in 0..3{
+            let second_method = second_read_method(frec, &digital_in, numerator);
+            let first_method = first_read_method(2* frec * 1000, &digital_in, numerator);
+            println!("Percentage sent {}, on read {}:  percentage 1st method: {} %   |   percentage 2nd method: {} %", numerator, i, first_method, second_method);
+        }
 
-    println!("Starting color change loop");
-
-    let max_duty = red_channel.get_max_duty();
+        FreeRtos::delay_ms(500);
+    }
 
     loop {
-        // Cambio de color gradual
-        for duty in 0..=max_duty {
-            red_channel.set_duty(duty).unwrap();
-            FreeRtos::delay_ms(5);
-        }
-        for duty in (0..=max_duty).rev() {
-            red_channel.set_duty(duty).unwrap();
-            FreeRtos::delay_ms(5);
-        }
+        FreeRtos::delay_ms(1000);
+    }
+}*/
 
-        for duty in 0..=max_duty {
-            green_channel.set_duty(duty).unwrap();
-            FreeRtos::delay_ms(5);
-        }
-        for duty in (0..=max_duty).rev() {
-            green_channel.set_duty(duty).unwrap();
-            FreeRtos::delay_ms(5);
-        }
 
-        for duty in 0..=max_duty {
-            blue_channel.set_duty(duty).unwrap();
-            FreeRtos::delay_ms(5);
+fn main(){
+    let mut micro = Microcontroller::new();
+    println!("Configuring output channel");
+    
+    let frec = 10;
+    let pin = 4; // :() 
+    let resolution = 12; //:(
+    let mut analog_out = micro.set_pin_as_analog_out(pin, frec * 1000, resolution);
+    let digital_in = micro.set_pin_as_digital_in(5, InterruptType::PosEdge);
+    
+    println!("Starting duty-cycle loop");
+
+    for ratio in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0].iter().cycle() {
+        println!("Duty {ratio}");
+        analog_out.set_high_level_output_ratio(*ratio as f32).unwrap();
+        
+        for i in 0..3 {
+            let second_method = second_read_method(frec, &digital_in);
+            let first_method = first_read_method(2* frec * 1000, &digital_in);
+            println!("Percentage sent {}, on read {}:  percentage 1st method: {} %   |   percentage 2nd method: {} %", ratio, i, first_method, second_method);
         }
-        for duty in (0..=max_duty).rev() {
-            blue_channel.set_duty(duty).unwrap();
-            FreeRtos::delay_ms(5);
-        }
+        FreeRtos::delay_ms(500);
+    }
+
+    loop {
+        FreeRtos::delay_ms(1000);
     }
 }
 
+fn second_read_method(frec: u32, digital_in: &DigitalIn)-> f32{
+    let mut reads = 0.0;
+    let amount_of_reads = 100;
+    for _i in 0..amount_of_reads{
+        reads += first_read_method(2* frec, digital_in)
+    }
+    return reads / (amount_of_reads as f32)
+}
 
-/* output
-Starting duty-cycle loop
-Duty 0/5
-Duty 1/5
-Duty 2/5
-Duty 3/5
-Duty 4/5
-Duty 5/5
-Duty 0/5
-Duty 1/5
-Duty 2/5
-Duty 3/5
-Duty 4/5
-Duty 5/5
-Duty 0/5
-Duty 1/5
-Duty 2/5
-Duty 3/5
- */
+
+fn first_read_method(reading: u32, digital_in: &DigitalIn)-> f32{
+    let mut highs = 0;
+    for _num in 0..(reading){
+        if digital_in.is_high(){
+            highs += 1
+        }
+    } 
+    let a: f32 = (highs as f32) / (reading as f32);
+    
+    return a
+}
+
