@@ -4,26 +4,31 @@ use crate::{
     timer_driver::TimerDriver,
     peripherals::Peripheral,
 };
+use esp_idf_svc::hal::ledc::config::TimerConfig;
 
 const FREQUENCY_TO_SAMPLING_RATIO: u32 = 2;
-
 
 pub struct AnalogInPwm<'a> {
     digital_in: DigitalIn<'a>,
     sampling: u32
 }
 
-enum AnalogInPwmError {
+#[derive(Debug)]
+pub enum AnalogInPwmError {
     DigitalDriverError(DigitalInError)
 }
 
 impl <'a>AnalogInPwm<'a> {
-    pub fn new(timer_driver: TimerDriver<'a>, per: Peripheral, interrupt_type: InterruptType, frequency_hz: u32) -> Result<Self, AnalogInPwmError> {
-        let digital_in = DigitalIn::new(timer_driver, per, interrupt_type).map_err(|e| AnalogInPwmError::DigitalDriverError(e))?;
+    pub fn new(timer_driver: TimerDriver<'a>, per: Peripheral, frequency_hz: u32) -> Result<Self, AnalogInPwmError> {
+        let digital_in = DigitalIn::new(timer_driver, per, InterruptType::AnyEdge).map_err(|e| AnalogInPwmError::DigitalDriverError(e))?;
         Ok(AnalogInPwm {
             digital_in,
             sampling: FREQUENCY_TO_SAMPLING_RATIO * frequency_hz
         })
+    }
+
+    pub fn default(timer_driver: TimerDriver<'a>, per: Peripheral)->Result<Self, AnalogInPwmError> {
+        Self::new(timer_driver, per, TimerConfig::new().frequency.into())
     }
 
     pub fn set_sampling(&mut self, sampling: u32){

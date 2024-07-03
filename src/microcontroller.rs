@@ -14,6 +14,7 @@ use std::cell::RefCell;
 
 pub type SharableAdcDriver<'a> = Rc<RefCell<Option<AdcDriver<'a, ADC1>>>>;
 
+use crate::analog_in_pwm::AnalogInPwm;
 use crate::digital_in::{DigitalIn, Pull, InterruptType};
 use crate::digital_out::DigitalOut;
 use crate::timer_driver::TimerDriver;
@@ -58,7 +59,6 @@ impl <'a>Microcontroller<'a>{
         let mut adc_driver = self.adc_driver.borrow_mut();
         if let None = *adc_driver {
             self.peripherals.get_adc();
-            
             let driver = AdcDriver::new(unsafe{ADC1::new()}, &Config::new().resolution(Resolution::Resolution12Bit).calibration(true)).unwrap();
             adc_driver.replace(driver); 
         }
@@ -104,6 +104,20 @@ impl <'a>Microcontroller<'a>{
         AnalogOut::<'a>::default(pwm_channel, pwm_timer, pin_peripheral).unwrap()
     }
 
+
+    pub fn set_pin_as_analog_in_pwm(&mut self, pin_num: usize, freq_hz: u32) -> AnalogInPwm<'a> {
+        
+        let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
+        let timer_driver = self.timer_driver.pop().unwrap();
+        AnalogInPwm::new(timer_driver, pin_peripheral, freq_hz).unwrap()
+    }
+    
+    pub fn set_pin_as_default_analog_in_pwm(&mut self, pin_num: usize) -> AnalogInPwm<'a> {
+        let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
+        let timer_driver = self.timer_driver.pop().unwrap();
+        AnalogInPwm::default(timer_driver, pin_peripheral).unwrap()
+    }
+    
     // pub fn set_pin_as_analog_in<const A: adc_atten_t, ADC: Adc>(&mut self, pin_num: usize, resolution: Resolution, attenuation: attenuation::adc_atten_t) -> AnalogIn<'a, A, ADC> {
     //     let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
     //     self.start_adc_driver(resolution);

@@ -78,10 +78,12 @@ fn main(){
     println!("Configuring output channel");
     
     let frec = 10;
-    let pin = 4; // :() 
-    let resolution = 12; //:(
+    let pin = 4; 
+    let resolution = 12;
     let mut analog_out = micro.set_pin_as_analog_out(pin, frec * 1000, resolution);
-    let digital_in = micro.set_pin_as_digital_in(5, InterruptType::PosEdge);
+    
+    let pin_num = 5;
+    let analog_in_pwm = micro.set_pin_as_analog_in_pwm(pin_num, frec * 1000);
     
     println!("Starting duty-cycle loop");
 
@@ -90,9 +92,8 @@ fn main(){
         analog_out.set_high_level_output_ratio(*ratio as f32).unwrap();
         
         for i in 0..3 {
-            let second_method = second_read_method(frec, &digital_in);
-            let first_method = first_read_method(2* frec * 1000, &digital_in);
-            println!("Percentage sent {}, on read {}:  percentage 1st method: {} %   |   percentage 2nd method: {} %", ratio, i, first_method, second_method);
+            let read_val = analog_in_pwm.read();
+            println!("Percentage sent {}, on read {}:  percentage received: {} %", ratio, i, read_val);
         }
         FreeRtos::delay_ms(500);
     }
@@ -102,24 +103,24 @@ fn main(){
     }
 }
 
-fn second_read_method(frec: u32, digital_in: &DigitalIn)-> f32{
-    let mut reads = 0.0;
-    let amount_of_reads = 100;
-    for _i in 0..amount_of_reads{
-        reads += first_read_method(2* frec, digital_in)
-    }
-    return reads / (amount_of_reads as f32)
-}
+// fn second_read_method(frec: u32, digital_in: &DigitalIn)-> f32{
+//     let mut reads = 0.0;
+//     let amount_of_reads = 100;
+//     for _i in 0..amount_of_reads{
+//         reads += first_read_method(2* frec, digital_in)
+//     }
+//     return reads / (amount_of_reads as f32)
+// }
 
-fn first_read_method(reading: u32, digital_in: &DigitalIn)-> f32{
-    let mut highs = 0;
-    for _num in 0..(reading){
-        if digital_in.is_high(){
-            highs += 1
-        }
-    } 
-    let a: f32 = (highs as f32) / (reading as f32);
+// fn first_read_method(reading: u32, digital_in: &DigitalIn)-> f32{
+//     let mut highs = 0;
+//     for _num in 0..(reading){
+//         if digital_in.is_high(){
+//             highs += 1
+//         }
+//     } 
+//     let a: f32 = (highs as f32) / (reading as f32);
     
-    return a
-}
+//     return a
+// }
 
