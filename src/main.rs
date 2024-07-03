@@ -6,6 +6,8 @@ mod microcontroller;
 mod peripherals;
 mod error_text_parser;
 mod analog_out;
+mod analog_in_pwm;
+
 /*
 
 use std::thread;
@@ -28,9 +30,6 @@ use esp_idf_svc::hal::ledc::*;
 use esp_idf_svc::hal::peripherals::Peripherals;
 use esp_idf_svc::hal::prelude::*;
 
-
-
-
 /*
 fn main(){
     let mut micro = Microcontroller::new();
@@ -39,6 +38,7 @@ fn main(){
     let frec = 10;
 
     // Set ledC to create a PWM signal
+
     let peripherals = Peripherals::take().unwrap();
     let mut channel = LedcDriver::new(
         peripherals.ledc.channel0,
@@ -110,7 +110,6 @@ fn second_read_method(frec: u32, digital_in: &DigitalIn)-> f32{
     }
     return reads / (amount_of_reads as f32)
 }
-
 
 fn first_read_method(reading: u32, digital_in: &DigitalIn)-> f32{
     let mut highs = 0;
