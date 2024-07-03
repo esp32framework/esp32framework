@@ -17,7 +17,8 @@ pub type SharableAdcDriver<'a> = Rc<RefCell<Option<AdcDriver<'a, ADC1>>>>;
 use crate::digital_in::{DigitalIn, Pull, InterruptType};
 use crate::digital_out::DigitalOut;
 use crate::timer_driver::TimerDriver;
-use crate::analog_in::{AnalogIn};
+use crate::analog_in::AnalogIn;
+use crate::analog_out::AnalogOut;
 use crate::peripherals::Peripherals;
 
 pub struct Microcontroller<'a> {
@@ -85,12 +86,23 @@ impl <'a>Microcontroller<'a>{
     }
 
     /// Sets pin as analog input with attenuation set to 0dB  
-    pub fn set_pin_as_analog_in_no_atten(& mut self, pin_num: usize) -> AnalogIn<'a, {attenuation::adc_atten_t_ADC_ATTEN_DB_0}> {
+    pub fn set_pin_as_analog_in_no_atten(&mut self, pin_num: usize) -> AnalogIn<'a, {attenuation::adc_atten_t_ADC_ATTEN_DB_0}> {
         self.start_adc_driver();
         let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
         AnalogIn::<'a, {attenuation::adc_atten_t_ADC_ATTEN_DB_0}>::new(pin_peripheral, self.adc_driver.clone()).unwrap()
     }
 
+    pub fn set_pin_as_analog_out(&mut self, pin_num: usize, freq_hz: u32, resolution: u32) -> AnalogOut<'a> {
+        let (pwm_channel, pwm_timer) = self.peripherals.get_next_pwm();
+        let pin_peripheral = self.peripherals.get_pwm_pin(pin_num);
+        AnalogOut::<'a>::new(pwm_channel, pwm_timer, pin_peripheral, freq_hz, resolution).unwrap()
+    } 
+
+    pub fn set_pin_as_default_analog_out(&mut self, pin_num: usize) -> AnalogOut<'a> {
+        let (pwm_channel, pwm_timer) = self.peripherals.get_next_pwm();
+        let pin_peripheral = self.peripherals.get_pwm_pin(pin_num);
+        AnalogOut::<'a>::default(pwm_channel, pwm_timer, pin_peripheral).unwrap()
+    }
 
     // pub fn set_pin_as_analog_in<const A: adc_atten_t, ADC: Adc>(&mut self, pin_num: usize, resolution: Resolution, attenuation: attenuation::adc_atten_t) -> AnalogIn<'a, A, ADC> {
     //     let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
