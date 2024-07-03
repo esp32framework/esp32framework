@@ -1,26 +1,21 @@
-use std::collections::HashMap;
 use std::rc::Rc;
-use std::sync::Arc;
-use attenuation::adc_atten_t;
 use config::Resolution;
 use esp_idf_svc::hal::adc::ADC1;
-use esp_idf_svc::hal::prelude::*;
 use esp_idf_svc::hal::gpio::*;
 use esp_idf_svc::hal::adc::*;
 use esp_idf_svc::hal::adc::config::Config;
 use esp_idf_svc::hal::delay::FreeRtos;
-use esp_idf_svc::hal::timer::{TIMER00, TIMER10};
 use std::cell::RefCell;
 
 pub type SharableAdcDriver<'a> = Rc<RefCell<Option<AdcDriver<'a, ADC1>>>>;
 
-use crate::analog_in_pwm::AnalogInPwm;
-use crate::digital_in::{DigitalIn, Pull, InterruptType};
-use crate::digital_out::DigitalOut;
-use crate::timer_driver::TimerDriver;
-use crate::analog_in::AnalogIn;
-use crate::analog_out::AnalogOut;
-use crate::peripherals::Peripherals;
+use crate::gpio::{analog_in_pwm::AnalogInPwm,
+    digital_in::DigitalIn,
+    digital_out::DigitalOut, 
+    analog_in::AnalogIn, 
+    analog_out::AnalogOut};
+use crate::utils::timer_driver::TimerDriver;
+use crate::microcontroller::peripherals::Peripherals;
 
 pub struct Microcontroller<'a> {
     peripherals: Peripherals,
@@ -118,16 +113,7 @@ impl <'a>Microcontroller<'a>{
         AnalogInPwm::default(timer_driver, pin_peripheral).unwrap()
     }
     
-    // pub fn set_pin_as_analog_in<const A: adc_atten_t, ADC: Adc>(&mut self, pin_num: usize, resolution: Resolution, attenuation: attenuation::adc_atten_t) -> AnalogIn<'a, A, ADC> {
-    //     let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
-    //     self.start_adc_driver(resolution);
-        
-    //     AnalogIn::new(pin_peripheral,attenuation, &mut self.adc_driver.unwrap()).unwrap()
-    // }
-    
-    //pub fn set_pin_as_analog_out()
-    
-    pub fn update(&mut self, drivers_in: Vec<&mut DigitalIn>, drivers_out: Vec<&mut DigitalOut>){
+    pub fn update(&mut self, drivers_in: Vec<&mut DigitalIn>, drivers_out: Vec<&mut DigitalOut>) {
         for driver in drivers_in{
             driver.update_interrupt();
         }

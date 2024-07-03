@@ -1,5 +1,5 @@
 use std::mem;
-use esp_idf_svc::hal::{gpio::*, ledc};
+use esp_idf_svc::hal::gpio::*;
 
 const PIN_COUNT: usize = 24;
 const TIMERS_COUNT: usize = 2;

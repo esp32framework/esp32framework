@@ -1,11 +1,8 @@
-use esp_idf_svc::hal::gpio::Gpio0;
+// use esp_idf_svc::hal::gpio::Gpio0;
 use esp_idf_svc::hal::ledc::*;
 use esp_idf_svc::hal::prelude::*;
 use esp_idf_svc::sys::ESP_FAIL;
-use crate::peripherals::Peripheral;
-
-const DEFAULT_FREC: u32 = 10000;
-const DEFAULT_RESOLUTION: u32 = 14;
+use crate::microcontroller::peripherals::Peripheral;
 
 pub struct AnalogOut<'a> {
     driver: LedcDriver<'a>

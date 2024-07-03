@@ -1,7 +1,6 @@
-use esp_idf_svc::{hal::timer, sys::EspError};
-use crate::timer_driver::timer::TimerConfig;
-use esp_idf_svc::hal::peripheral;
-use crate::peripherals::Peripheral;
+use esp_idf_svc::hal::timer;
+use crate::utils::timer_driver::timer::TimerConfig;
+use crate::microcontroller::peripherals::Peripheral;
 
 pub struct TimerDriver<'a> {
     driver: timer::TimerDriver<'a>

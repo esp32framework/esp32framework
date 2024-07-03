@@ -1,14 +1,16 @@
+/*
 use std::pin::Pin;
-use esp_idf_svc::hal::adc::attenuation::adc_atten_t;
-use esp_idf_svc::hal::adc;
-use esp_idf_svc::hal::adc::config::Config;
-use esp_idf_svc::hal::gpio::*;
-use esp_idf_svc::hal::adc::*;
 use esp_idf_svc::hal::peripherals;
 use esp_idf_svc::sys::adc_bitwidth_t;
+use esp_idf_svc::hal::adc;
+use esp_idf_svc::hal::adc::config::Config;
+*/
+use esp_idf_svc::hal::adc::attenuation::adc_atten_t;
+use esp_idf_svc::hal::gpio::*;
+use esp_idf_svc::hal::adc::*;
 
-use crate::microcontroller::SharableAdcDriver;
-use crate::peripherals::Peripheral;
+use crate::microcontroller::microcontroller::SharableAdcDriver;
+use crate::microcontroller::peripherals::Peripheral;
 
 // Atenuacion es DB
 // Resolucion son bits
@@ -32,7 +34,7 @@ enum AnalogChannels<'a, const A: adc_atten_t>{
     Channel6(AdcChannelDriver<'a, A, Gpio6>),  
 }
 
-enum Attenuation{
+enum Attenuation {
     High,
     Intermidiate,
     Low,

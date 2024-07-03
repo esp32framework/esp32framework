@@ -1,27 +1,26 @@
-mod gpio;
-mod utils;
-mod microcontroller;
-/*
 
+/*
 use std::thread;
 use std::time::Duration;
-
 use esp_idf_svc::hal::adc::config::Config;
 use esp_idf_svc::hal::adc::*;
 use esp_idf_svc::hal::delay::FreeRtos;
 use esp_idf_svc::hal::gpio::*;
-//use esp_idf_svc::hal::peripherals;
+use esp_idf_svc::hal::peripherals;
 use esp_idf_svc::hal::peripherals::Peripherals;
 use microcontroller::Microcontroller;
-*/
-
-use microcontroller::Microcontroller;
-use digital_in::{InterruptType, DigitalIn};
-
-use esp_idf_svc::hal::delay::FreeRtos;
 use esp_idf_svc::hal::ledc::*;
 use esp_idf_svc::hal::peripherals::Peripherals;
 use esp_idf_svc::hal::prelude::*;
+*/
+mod gpio;
+mod utils;
+mod microcontroller;
+use crate::microcontroller::microcontroller::Microcontroller;
+use crate::gpio::digital_in::{InterruptType, DigitalIn};
+
+use esp_idf_svc::hal::delay::FreeRtos;
+
 
 /*
 fn main(){

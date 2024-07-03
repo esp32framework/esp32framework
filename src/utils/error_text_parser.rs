@@ -1,6 +1,6 @@
 use esp_idf_svc::sys::{EspError, ESP_ERR_INVALID_STATE};
 
-use crate::digital_in::DigitalInError;
+use crate::gpio::digital_in::DigitalInError;
 
 // use esp_idf_svc::sys::*;
 

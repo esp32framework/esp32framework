@@ -3,14 +3,14 @@
 
 //use esp_idf_sys::{self as _}; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 
-mod analog_in;
-mod digital_out;
-mod digital_in;
-mod timer_driver;
-mod microcontroller;
-mod peripherals;
-mod error_text_parser;
-
+// mod analog_in;
+// mod digital_out;
+// mod digital_in;
+// mod timer_driver;
+// mod microcontroller;
+// mod peripherals;
+// mod error_text_parser;
+use esp32framework::microcontroller::*;
 use std::thread;
 use std::time::Duration;
 
@@ -20,7 +20,7 @@ use esp_idf_svc::hal::delay::FreeRtos;
 use esp_idf_svc::hal::gpio::*;
 //use esp_idf_svc::hal::peripherals;
 use esp_idf_svc::hal::peripherals::Peripherals;
-use microcontroller::Microcontroller;
+// use microcontroller::Microcontroller;
 
 /// Main for analog in with esp hal
 // fn main() {
@@ -31,8 +31,6 @@ use microcontroller::Microcontroller;
 //     // let pin3 = peripherals.i2c0;
 //     // let pi43 = peripherals.i2s0;
 //     // let adc_pin= a(pin);
-
-
 //     // configuring pin to analog read, you can regulate the adc input voltage range depending on your need
 //     // for this example we use the attenuation of 11db which sets the input voltage range to around 0-3.6V
 //     let mut adc_pin: esp_idf_svc::hal::adc::AdcChannelDriver<{ attenuation::DB_11 }, _> =
@@ -45,7 +43,7 @@ use microcontroller::Microcontroller;
 
 ///  Main for our analog
 fn main(){
-    let mut micro = Microcontroller::new();
+    let mut micro = microcontroller::Microcontroller::new();
     let mut analog_in = micro.set_pin_as_analog_in_low_atten(0);
     loop {
         let read = analog_in.read().unwrap();

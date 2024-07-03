@@ -13,7 +13,7 @@ use esp_idf_svc::hal::peripheral::Peripheral;
 use esp_idf_svc::hal::{prelude::*, ledc::{LEDC, LedcTimer, config, LedcChannel, LedcDriver, LedcTimerDriver}};
 use esp_idf_svc::hal::peripherals::Peripherals;
 
-mod digital;
+// mod digital;
 
 static FLAG: AtomicBool = AtomicBool::new(false);
 static LED_FLAG: AtomicBool = AtomicBool::new(false);
@@ -68,7 +68,7 @@ fn button(mut dp: Peripherals){
   let a = dp.pins.gpio0;
 
   let pin: Gpio9 = dp.pins.gpio9;
-  let a = PinDriver::output(pin).unwrap();
+  let mut a = PinDriver::output(pin).unwrap();
   a.set_high();
 
   let mut button = PinDriver::input(dp.pins.gpio9).unwrap();  

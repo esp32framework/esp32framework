@@ -1,8 +1,7 @@
 use crate::{
-    analog_in::AnalogIn, 
-    digital_in::{DigitalIn, DigitalInError, InterruptType}, 
-    timer_driver::TimerDriver,
-    peripherals::Peripheral,
+    // gpio::analog_in::AnalogIn, 
+    gpio::digital_in::{DigitalIn, DigitalInError, InterruptType}, microcontroller::peripherals::Peripheral, 
+    utils::timer_driver::TimerDriver
 };
 use esp_idf_svc::hal::ledc::config::TimerConfig;
 

@@ -1,12 +1,10 @@
-use esp_idf_svc::{hal::gpio::*, sys::{EspError, ESP_ERR_INVALID_ARG, ESP_ERR_INVALID_STATE}};
+use esp_idf_svc::hal::gpio::*;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
-pub use esp_idf_svc::hal::gpio::{InterruptType, Pull};
 
 // use crate::error_text_parser::map_enable_disable_errors;
-use crate::timer_driver::{TimerDriver,TimerDriverError};
-use crate::peripherals::Peripheral;
-
+use crate::utils::timer_driver::{TimerDriver,TimerDriverError};
+use crate::microcontroller::peripherals::Peripheral;
 type AtomicInterruptUpdateCode = AtomicU8;
 
 #[derive(Debug)]
