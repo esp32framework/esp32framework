@@ -5,6 +5,7 @@ mod timer_driver;
 mod microcontroller;
 mod peripherals;
 mod error_text_parser;
+mod analog_in_pwm;
 /*
 
 use std::thread;
