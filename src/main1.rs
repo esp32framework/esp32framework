@@ -76,6 +76,8 @@ fn main(){
     
     let pin_num = 5;
     let analog_in_pwm = micro.set_pin_as_analog_in_pwm(pin_num, frec * 1000);
+    let mut adc_analog_in = micro.set_pin_as_analog_in_high_atten(6);
+
     
     println!("Starting duty-cycle loop");
 
@@ -85,6 +87,9 @@ fn main(){
         
         for i in 0..3 {
             let read_val = analog_in_pwm.read();
+            let read_adc_val = adc_analog_in.read().unwrap();
+            let read_raw_adc_val = adc_analog_in.read_raw().unwrap();
+            println!("Read1 {} | Reas Raw {}", read_adc_val, read_raw_adc_val);  
             println!("Percentage sent {}, on read {}:  percentage received: {} %", ratio, i, read_val);
         }
         FreeRtos::delay_ms(500);
@@ -116,3 +121,14 @@ fn main(){
 //     return a
 // }
 
+
+
+
+
+// 2,33333333333333333333333333333333987139847932847932478
+
+// 2,3333333
+
+// [0; 3,3]    2**6.5 
+
+// [0; 3,3] 

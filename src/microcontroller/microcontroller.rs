@@ -37,9 +37,9 @@ impl <'a>Microcontroller<'a>{
         }
     }
 
-    pub fn set_pin_as_digital_in(&mut self, pin_num: usize, interrupt_type: InterruptType)-> DigitalIn<'a> {
+    pub fn set_pin_as_digital_in(&mut self, pin_num: usize)-> DigitalIn<'a> {
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
-        DigitalIn::new(self.timer_driver.pop().unwrap(), pin_peripheral, interrupt_type).unwrap()
+        DigitalIn::new(self.timer_driver.pop().unwrap(), pin_peripheral).unwrap()
     }
     
     
@@ -121,5 +121,9 @@ impl <'a>Microcontroller<'a>{
             driver.update_interrupt();
         }
         FreeRtos::delay_ms(10_u32);
+    }
+    
+    pub fn sleep(&mut self, miliseconds:u32){
+        FreeRtos::delay_ms(miliseconds);
     }
 }
