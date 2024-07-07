@@ -107,7 +107,7 @@ impl <'a>DigitalIn<'a> {
         
         Ok(start_timer_cljr)
     }
-    fn subscribe_trigger<F: FnMut() + Send + 'static>(&mut self, func: F) -> Result<(), DigitalInError>{
+    fn subscribe_trigger<F: FnMut() + Send + 'static>(&mut self, func: F) -> Result<(), DigitalInError> {
         unsafe {
             self.pin_driver.subscribe(func).map_err(|err| map_enable_disable_errors(err))?;
         }
@@ -125,7 +125,7 @@ impl <'a>DigitalIn<'a> {
         }
     }
     
-    pub fn trigger_on_flank(&mut self , user_callback: fn()->())->Result<(), DigitalInError>{
+    pub fn trigger_on_flank(&mut self , user_callback: fn()->()) -> Result<(), DigitalInError>{
         let interrupt_update_code_ref= self.interrupt_update_code.clone();
         let callback = move ||{
             interrupt_update_code_ref.store(InterruptUpdate::ExecAndEnablePin.get_code(), Ordering::SeqCst);
