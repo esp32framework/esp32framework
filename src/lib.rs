@@ -2,5 +2,5 @@ pub mod microcontroller{
     pub mod microcontroller;
     pub mod peripherals;
 }
-mod gpio;
+pub mod gpio;
 mod utils;

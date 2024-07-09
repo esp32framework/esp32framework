@@ -103,7 +103,7 @@ impl <'a>Microcontroller<'a>{
     pub fn set_pin_as_analog_in_pwm(&mut self, pin_num: usize, freq_hz: u32) -> AnalogInPwm<'a> {
         
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
-        let timer_driver = self.timer_driver.pop().unwrap();
+        let timer_driver = self.timer_driver.pop().unwrap();            // TODO: Add a better error. If there is no timers a text should sayy this
         AnalogInPwm::new(timer_driver, pin_peripheral, freq_hz).unwrap()
     }
     

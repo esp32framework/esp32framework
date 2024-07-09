@@ -47,13 +47,13 @@ fn main(){
     // Config C
     // Out: frequency: 20 kHz | resolution: 12 bits
     // In:  frequency: 5 kHz
-    let output_pin_c = 0; 
-    let output_freq_c = 20 * 1000;
-    let output_res_c = 12;
-    let mut analog_out_c = micro.set_pin_as_analog_out(pin, output_freq, output_res);
-    let input_pin_c = 1;
-    let input_freq_c = 5 * 1000;
-    let analog_in_pwm_c = micro.set_pin_as_analog_in_pwm(input_pin, freq_a);
+    // let output_pin_c = 0; 
+    // let output_freq_c = 20 * 1000;
+    // let output_res_c = 12;
+    // let mut analog_out_c = micro.set_pin_as_analog_out(pin, output_freq, output_res);
+    // let input_pin_c = 1;
+    // let input_freq_c = 5 * 1000;
+    // let analog_in_pwm_c = micro.set_pin_as_analog_in_pwm(input_pin, freq_a);
 
     // Config D
     // Out: frequency: 7 kHz | resolution: 12 bits
@@ -90,5 +90,6 @@ fn read_config(analog_out: AnalogOut, analog_in_pwm: Analog_in, duty: f64, confi
     for i in 0..3 {
         let read_val = analog_in_pwm.read();
         let line = format!("Config [{}] with duty [{}]: [{}]", config, duty, read_val); // Maybe i should also put the iteration number or make a mean
+        println!(line)
     }
 }

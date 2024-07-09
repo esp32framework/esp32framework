@@ -13,13 +13,13 @@ use esp_idf_svc::hal::ledc::*;
 use esp_idf_svc::hal::peripherals::Peripherals;
 use esp_idf_svc::hal::prelude::*;
 */
-mod gpio;
-mod utils;
-mod microcontroller;
-use crate::microcontroller::microcontroller::Microcontroller;
-use crate::gpio::digital_in::{InterruptType, DigitalIn};
+// mod gpio;
+// mod utils;
+// mod microcontroller;
+// use crate::microcontroller::microcontroller::Microcontroller;
+// use crate::gpio::digital_in::{InterruptType, DigitalIn};
 
-use esp_idf_svc::hal::delay::FreeRtos;
+// use esp_idf_svc::hal::delay::FreeRtos;
 
 
 /*
@@ -65,35 +65,35 @@ fn main(){
 }*/
 
 
-fn main(){
-    let mut micro = Microcontroller::new();
-    println!("Configuring output channel");
+// fn main(){
+//     let mut micro = Microcontroller::new();
+//     println!("Configuring output channel");
     
-    let frec = 10;
-    let pin = 4; 
-    let resolution = 12;
-    let mut analog_out = micro.set_pin_as_analog_out(pin, frec * 1000, resolution);
+//     let frec = 10;
+//     let pin = 4; 
+//     let resolution = 12;
+//     let mut analog_out = micro.set_pin_as_analog_out(pin, frec * 1000, resolution);
     
-    let pin_num = 5;
-    let analog_in_pwm = micro.set_pin_as_analog_in_pwm(pin_num, frec * 1000);
+//     let pin_num = 5;
+//     let analog_in_pwm = micro.set_pin_as_analog_in_pwm(pin_num, frec * 1000);
     
-    println!("Starting duty-cycle loop");
+//     println!("Starting duty-cycle loop");
 
-    for ratio in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0].iter().cycle() {
-        println!("Duty {ratio}");
-        analog_out.set_high_level_output_ratio(*ratio as f32).unwrap();
+//     for ratio in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0].iter().cycle() {
+//         println!("Duty {ratio}");
+//         analog_out.set_high_level_output_ratio(*ratio as f32).unwrap();
         
-        for i in 0..3 {
-            let read_val = analog_in_pwm.read();
-            println!("Percentage sent {}, on read {}:  percentage received: {} %", ratio, i, read_val);
-        }
-        FreeRtos::delay_ms(500);
-    }
+//         for i in 0..3 {
+//             let read_val = analog_in_pwm.read();
+//             println!("Percentage sent {}, on read {}:  percentage received: {} %", ratio, i, read_val);
+//         }
+//         FreeRtos::delay_ms(500);
+//     }
 
-    loop {
-        FreeRtos::delay_ms(1000);
-    }
-}
+//     loop {
+//         FreeRtos::delay_ms(1000);
+//     }
+// }
 
 // fn second_read_method(frec: u32, digital_in: &DigitalIn)-> f32{
 //     let mut reads = 0.0;
@@ -116,3 +116,105 @@ fn main(){
 //     return a
 // }
 
+/*
+This main intends to test the percentage of error of our implementation for
+reading the PWM signals.
+Different intensity levels of PWM signals will be written on a pin A, that pin
+will be physically connected with pin B, and we will be reading the values received
+on pin B.
+All these data will be collected and then be analyzed with the intention of getting
+a percentage of the error.
+*/
+
+use rand::prelude::*;
+use esp32framework::{gpio::{analog_in_pwm::AnalogInPwm, analog_out::AnalogOut}, microcontroller::*};
+
+use esp_idf_svc::hal::delay::FreeRtos;
+
+fn main(){
+    let mut micro = microcontroller::Microcontroller::new();
+    
+    // Different sets of configurations will be tested for the input and output
+    
+    // Config A: 
+    // Out: frequency: 10 kHz | resolution: 12 bits
+    // In:  frequency: 10 kHz
+    let output_pin_a = 4; 
+    let output_freq_a = 10 * 1000;
+    let output_res_a = 12;
+    let mut analog_out_a = micro.set_pin_as_analog_out(output_pin_a, output_freq_a, output_res_a);
+    let input_pin_a = 5;
+    let input_freq_a = 10 * 1000;
+    let analog_in_pwm_a = micro.set_pin_as_analog_in_pwm(input_pin_a, input_freq_a);
+
+    // Config B
+    // Out: frequency: 15 kHz | resolution: 12 bits
+    // In:  frequency: 5 kHz
+    let output_pin_b = 2; 
+    let output_freq_b = 15 * 1000;
+    let output_res_b = 12;
+    let mut analog_out_b = micro.set_pin_as_analog_out(output_pin_b, output_freq_b, output_res_b);
+    let input_pin_b = 3;
+    let input_freq_b = 5 * 1000;
+    let analog_in_pwm_b = micro.set_pin_as_analog_in_pwm(input_pin_b, input_freq_b);
+
+    // Config C
+    // Out: frequency: 15 kHz | resolution: 12 bits
+    // In:  frequency: 5 kHz
+    // let output_pin_c = 0; 
+    // let output_freq_c = 15 * 1000;
+    // let output_res_c = 12;
+    // let mut analog_out_c = micro.set_pin_as_analog_out(output_pin_c, output_freq_c, output_res_c);
+    // let input_pin_c = 1;
+    // let input_freq_c = 10 * 1000;
+    // let analog_in_pwm_c = micro.set_pin_as_analog_in_pwm(input_pin_c, input_freq_c);
+
+    // Config D
+    // Out: frequency: 7 kHz | resolution: 12 bits
+    // In:  frequency: 14 kHz
+    // let output_freq_d = 7 * 1000;
+    // let output_res_d = 12;
+    // let output_pin_d = ??; 
+    // let mut analog_out_d = micro.set_pin_as_analog_out(pin, output_freq, output_res);
+    // let input_pin_d = ??;
+    // let input_freq_d = 14 * 1000;
+    // let analog_in_pwm_d = micro.set_pin_as_analog_in_pwm(input_pin, freq_a);
+
+    
+    println!("Starting duty-cycle loop");
+    let mut random_generator = rand::thread_rng();
+    
+    // for ratio in [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0].iter().cycle() {
+    //     // Read of Config A
+    //     read_config(&mut analog_out_a, &analog_in_pwm_a, ratio, "A");
+    //     // Read of Config B
+    //     read_config(&mut analog_out_b, &analog_in_pwm_b, ratio, "B");
+    //     // Read of COnfig C
+    //     // read_config(&mut analog_out_c, &analog_in_pwm_c, ratio, "C");
+
+    //     FreeRtos::delay_ms(1000);
+    // }
+    println!("iteration,frequency_in,frequency_out,resolution_out,ratio,read_val");
+    loop {
+        let duty = random_generator.gen_range(0..1000);
+        let ratio: f32 = duty as f32 / 1000 as f32;
+
+        // Read of Config A
+        read_config(&mut analog_out_a, &analog_in_pwm_a, &ratio, &input_freq_a, &output_freq_a, &output_res_a);
+
+        // Read of Config B
+        read_config(&mut analog_out_b, &analog_in_pwm_b, &ratio, &input_freq_b, &output_freq_b, &output_res_b);
+
+        FreeRtos::delay_ms(400);
+    }
+}
+
+fn read_config(analog_out: &mut AnalogOut, analog_in_pwm: &AnalogInPwm, ratio: &f32, frequency_in: &u32, frequency_out: &u32, resolution_out: &u32) {
+    analog_out.set_high_level_output_ratio(*ratio).unwrap();
+    for i in 0..5 {
+        let read_val = analog_in_pwm.read();
+        // let line = format!("Iteration [{}] | Frequency IN [{}] | Frequency OUT [{}] | Resolution OUT [{}] | Ratio [{}] | Read Val [{}]", i, frequency_in, frequency_out, resolution_out, ratio, read_val); // Maybe i should also put the iteration number or make a mean
+        let line = format!("{},{},{},{},{},{}", i, frequency_in, frequency_out, resolution_out, ratio, read_val); // Maybe i should also put the iteration number or make a mean
+        println!("{}",line);
+    }
+}
