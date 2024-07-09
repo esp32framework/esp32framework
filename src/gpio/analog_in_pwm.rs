@@ -19,7 +19,7 @@ pub enum AnalogInPwmError {
 
 impl <'a>AnalogInPwm<'a> {
     pub fn new(timer_driver: TimerDriver<'a>, per: Peripheral, frequency_hz: u32) -> Result<Self, AnalogInPwmError> {
-        let digital_in = DigitalIn::new(timer_driver, per, InterruptType::AnyEdge).map_err(|e| AnalogInPwmError::DigitalDriverError(e))?;
+        let digital_in = DigitalIn::new(timer_driver, per).map_err(|e| AnalogInPwmError::DigitalDriverError(e))?;
         Ok(AnalogInPwm {
             digital_in,
             sampling: FREQUENCY_TO_SAMPLING_RATIO * frequency_hz

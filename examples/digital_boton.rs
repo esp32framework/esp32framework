@@ -12,7 +12,7 @@ fn main(){
     let mut button = PinDriver::input(peripherals.pins.gpio9).unwrap();
     
     //button.set_pull(Pull::Down).unwrap();
-    button.set_interrupt_type(InterruptType::PosEdge).unwrap();
+    button.set_interrupt_type(InterruptType::NegEdge).unwrap();
     let mut count: i32 = 0;
     
     unsafe {
@@ -24,13 +24,17 @@ fn main(){
     loop {
         if FLAG.load(Ordering::Relaxed) {
             FLAG.store(false, Ordering::Relaxed);
+            FreeRtos::delay_ms(200_u32);
+            if !button.is_low(){
+                continue;
+            }
+
             count = count.wrapping_add(1);
             
             println!("Press Count {}", count);
-            FreeRtos::delay_ms(200_u32);
         }
         button.enable_interrupt().unwrap();
-        FreeRtos::delay_ms(20_u32);
+        FreeRtos::delay_ms(200_u32);
     }
 }
 

@@ -15,6 +15,7 @@ pub enum PeripheralError {
     NotAPin
 }
 
+/// Represents the esp32 Peripheral allowing to instanciate diferent Peripheral Types 
 pub enum Peripheral{
     Pin(u8),
     Timer(u8),
@@ -35,6 +36,8 @@ impl Peripheral {
         mem::take(self)
     }
 
+    /// If the Peripheral is a Pin returns the corresponding AnyIoPin. 
+    /// If not it returns PeripheralError::NotAPin
     pub fn into_any_io_pin(self) -> Result<AnyIOPin, PeripheralError> {
         let pin = match self {
             Peripheral::Pin(pin_num) => match pin_num{
@@ -69,7 +72,10 @@ impl Peripheral {
     }
 }
 
-
+/// Represents the available peripherals in the esp32C6 and provides a way to get each particular
+/// peripheral. Subsequent gets of the same peripheral will return Peripheral::None. On some cases
+/// the same peripheral can be obatained by different getters, but only the first one will return the
+/// pin. 
 pub struct Peripherals {
     pins: [Peripheral;PIN_COUNT],
     timers: [Peripheral; TIMERS_COUNT],
