@@ -139,46 +139,46 @@ fn main(){
     // Config A: 
     // Out: frequency: 10 kHz | resolution: 12 bits
     // In:  frequency: 10 kHz
-    let output_pin_a = 4; 
-    let output_freq_a = 10 * 1000;
-    let output_res_a = 12;
-    let mut analog_out_a = micro.set_pin_as_analog_out(output_pin_a, output_freq_a, output_res_a);
-    let input_pin_a = 5;
-    let input_freq_a = 10 * 1000;
-    let analog_in_pwm_a = micro.set_pin_as_analog_in_pwm(input_pin_a, input_freq_a);
+    // let output_pin_a = 4; 
+    // let output_freq_a = 10 * 1000;
+    // let output_res_a = 12;
+    // let mut analog_out_a = micro.set_pin_as_analog_out(output_pin_a, output_freq_a, output_res_a);
+    // let input_pin_a = 5;
+    // let input_freq_a = 10 * 1000;
+    // let analog_in_pwm_a = micro.set_pin_as_analog_in_pwm(input_pin_a, input_freq_a);
 
-    // Config B
-    // Out: frequency: 15 kHz | resolution: 12 bits
-    // In:  frequency: 5 kHz
-    let output_pin_b = 2; 
-    let output_freq_b = 15 * 1000;
-    let output_res_b = 12;
-    let mut analog_out_b = micro.set_pin_as_analog_out(output_pin_b, output_freq_b, output_res_b);
-    let input_pin_b = 3;
-    let input_freq_b = 5 * 1000;
-    let analog_in_pwm_b = micro.set_pin_as_analog_in_pwm(input_pin_b, input_freq_b);
+    // // Config B
+    // // Out: frequency: 15 kHz | resolution: 12 bits
+    // // In:  frequency: 5 kHz
+    // let output_pin_b = 2; 
+    // let output_freq_b = 15 * 1000;
+    // let output_res_b = 12;
+    // let mut analog_out_b = micro.set_pin_as_analog_out(output_pin_b, output_freq_b, output_res_b);
+    // let input_pin_b = 3;
+    // let input_freq_b = 5 * 1000;
+    // let analog_in_pwm_b = micro.set_pin_as_analog_in_pwm(input_pin_b, input_freq_b);
 
     // Config C
     // Out: frequency: 15 kHz | resolution: 12 bits
     // In:  frequency: 5 kHz
-    // let output_pin_c = 0; 
-    // let output_freq_c = 15 * 1000;
-    // let output_res_c = 12;
-    // let mut analog_out_c = micro.set_pin_as_analog_out(output_pin_c, output_freq_c, output_res_c);
-    // let input_pin_c = 1;
-    // let input_freq_c = 10 * 1000;
-    // let analog_in_pwm_c = micro.set_pin_as_analog_in_pwm(input_pin_c, input_freq_c);
+    let output_pin_a = 2; 
+    let output_freq_a = 15 * 1000;
+    let output_res_a = 12;
+    let mut analog_out_a = micro.set_pin_as_analog_out(output_pin_a, output_freq_a, output_res_a);
+    let input_pin_a = 3;
+    let input_freq_a = 10 * 1000;
+    let analog_in_pwm_a = micro.set_pin_as_analog_in_pwm(input_pin_a, input_freq_a);
 
     // Config D
     // Out: frequency: 7 kHz | resolution: 12 bits
     // In:  frequency: 14 kHz
-    // let output_freq_d = 7 * 1000;
-    // let output_res_d = 12;
-    // let output_pin_d = ??; 
-    // let mut analog_out_d = micro.set_pin_as_analog_out(pin, output_freq, output_res);
-    // let input_pin_d = ??;
-    // let input_freq_d = 14 * 1000;
-    // let analog_in_pwm_d = micro.set_pin_as_analog_in_pwm(input_pin, freq_a);
+    let output_freq_b = 5 * 1000;
+    let output_res_b = 12;
+    let output_pin_b = 4; 
+    let mut analog_out_b = micro.set_pin_as_analog_out(output_pin_b, output_freq_b, output_res_b);
+    let input_pin_b = 5;
+    let input_freq_b = 15 * 1000;
+    let analog_in_pwm_b = micro.set_pin_as_analog_in_pwm(input_pin_b, input_freq_b);
 
     
     println!("Starting duty-cycle loop");
@@ -205,7 +205,7 @@ fn main(){
         // Read of Config B
         read_config(&mut analog_out_b, &analog_in_pwm_b, &ratio, &input_freq_b, &output_freq_b, &output_res_b);
 
-        FreeRtos::delay_ms(400);
+        FreeRtos::delay_ms(200);
     }
 }
 
