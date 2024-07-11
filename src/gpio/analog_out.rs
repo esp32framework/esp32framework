@@ -1,12 +1,16 @@
-// use esp_idf_svc::hal::gpio::Gpio0;
 use esp_idf_svc::hal::ledc::*;
 use esp_idf_svc::hal::prelude::*;
 use esp_idf_svc::sys::ESP_FAIL;
 use crate::microcontroller::peripherals::Peripheral;
+use crate::utils::timer_driver::TimerDriver;
+use crate::utils::timer_driver::TimerDriverError;
+use std::sync::atomic::AtomicBool;
+use std::sync::{
+    Arc,
+    atomic::{AtomicU8, AtomicU32, Ordering}
+};
 
-pub struct AnalogOut<'a> {
-    driver: LedcDriver<'a>
-}
+type AtomicInterruptUpdateCode = AtomicU8;
 
 #[derive(Debug)]
 pub enum AnalogOutError{
@@ -15,37 +19,109 @@ pub enum AnalogOutError{
     InvalidPeripheral,
     InvalidFrequencyOrDuty,
     ErrorSettingOutput,
+    TimerDriverError(TimerDriverError)
+}
+
+#[derive(Clone, Copy)]
+enum ExtremeDutyPolicy{
+    BounceBack,
+    Reset,
+    None
+}
+
+#[derive(Clone, Copy)]
+enum FixedChangeType{
+    Increase(ExtremeDutyPolicy),
+    Decrease(ExtremeDutyPolicy),
+    None
+}
+
+/// Driver to handle an analog output for a particular pin
+pub struct AnalogOut<'a> {
+    driver: LedcDriver<'a>,
+    timer_driver: TimerDriver<'a>,
+    pub duty: Arc<AtomicU32>,
+    interrupt_update_code: Arc<AtomicInterruptUpdateCode>,
+    fixed_change_increasing: Arc<AtomicBool>,
+    fixed_change_type: FixedChangeType,
+    amount_of_cycles: Option<u32>,
+}
+
+pub enum InterruptUpdate {
+    ChangeDuty,
+    None
+}
+
+impl FixedChangeType{
+    fn increasing_starting_direction(&self)-> bool{
+        match self{
+            FixedChangeType::Increase(_policy) => true,
+            _ => false
+        }
+    }
+}
+
+impl InterruptUpdate{
+    fn get_code(self)-> u8{
+        self as u8
+    }
+
+    fn get_atomic_code(self)-> AtomicInterruptUpdateCode{
+        AtomicInterruptUpdateCode::new(self.get_code())
+    }
+
+    fn from_code(code:u8)-> Self {
+        match code{
+            0 => InterruptUpdate::ChangeDuty,
+            _ => Self::None,
+        }
+    }
+
+    fn from_atomic_code(atomic_code: Arc<AtomicInterruptUpdateCode>) -> Self {
+        InterruptUpdate::from_code(atomic_code.load(Ordering::Acquire))
+    }
 }
 
 impl <'a>AnalogOut<'a> {
     //TODO: Dejar elegir al usuario low y high resolution, segun que timer
     
-    pub fn new(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral, freq_hz: u32, resolution: u32) -> Result<AnalogOut<'a>, AnalogOutError> {
+    /// Creates a new AnalogOut from a pin number, frequency and resolution.
+    pub fn new(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>, freq_hz: u32, resolution: u32) -> Result<AnalogOut<'a>, AnalogOutError> {
         let resolution = AnalogOut::create_resolution(resolution);
         let config = &config::TimerConfig::new().frequency(freq_hz.Hz().into()).resolution(resolution);
-        AnalogOut::_new(peripheral_channel, timer, gpio_pin, config)
+        AnalogOut::_new(peripheral_channel, timer, gpio_pin, timer_driver, config)
     }
     
-    pub fn _new(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral, config: &config::TimerConfig )-> Result<AnalogOut<'a>, AnalogOutError> {
+    /// Creates a new AnalogOut for a specific pin with a given configuration of frecuency and resolution.
+    pub fn _new(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>, config: &config::TimerConfig )-> Result<AnalogOut<'a>, AnalogOutError> {
 
-        let timer_driver = AnalogOut::create_timer_driver(timer, config)?;
+        let ledc_timer_driver = AnalogOut::create_timer_driver(timer, config)?;
         let gpio = gpio_pin.into_any_io_pin().map_err(|_| AnalogOutError::InvalidPeripheral)?;
         
         let pwm_driver =  match peripheral_channel {
-            Peripheral::PWMChannel(0) => LedcDriver::new(unsafe {CHANNEL0::new()}, timer_driver, gpio),
-            Peripheral::PWMChannel(1) => LedcDriver::new(unsafe {CHANNEL1::new()}, timer_driver, gpio),
-            Peripheral::PWMChannel(2) => LedcDriver::new(unsafe {CHANNEL2::new()}, timer_driver, gpio),
-            Peripheral::PWMChannel(3) => LedcDriver::new(unsafe {CHANNEL3::new()}, timer_driver, gpio),
+            Peripheral::PWMChannel(0) => LedcDriver::new(unsafe {CHANNEL0::new()}, ledc_timer_driver, gpio),
+            Peripheral::PWMChannel(1) => LedcDriver::new(unsafe {CHANNEL1::new()}, ledc_timer_driver, gpio),
+            Peripheral::PWMChannel(2) => LedcDriver::new(unsafe {CHANNEL2::new()}, ledc_timer_driver, gpio),
+            Peripheral::PWMChannel(3) => LedcDriver::new(unsafe {CHANNEL3::new()}, ledc_timer_driver, gpio),
             _ => return Err(AnalogOutError::InvalidPeripheral),
         }.map_err(|_| AnalogOutError::InvalidArg)?;
-
-        Ok(AnalogOut{driver: pwm_driver})
+    
+        Ok(AnalogOut{driver: pwm_driver,
+            timer_driver: timer_driver, 
+            duty: Arc::new(AtomicU32::new(0)), 
+            interrupt_update_code: Arc::new(InterruptUpdate::None.get_atomic_code()),
+            fixed_change_increasing: Arc::new(AtomicBool::new(false)),
+            fixed_change_type: FixedChangeType::None,
+            amount_of_cycles: None,
+        })
     }
 
-    pub fn default(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral) -> Result<AnalogOut<'a>, AnalogOutError>{
-        AnalogOut::_new(peripheral_channel, timer, gpio_pin, &config::TimerConfig::new())
+    /// Creates a new AnalogOut with a default frecuency of 1000Hz and a resolution of 8bits.
+    pub fn default(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>) -> Result<AnalogOut<'a>, AnalogOutError>{
+        AnalogOut::_new(peripheral_channel, timer, gpio_pin, timer_driver, &config::TimerConfig::new())
     }
 
+    /// Creates a new Resolution from a u32 value.
     fn create_resolution(resolution: u32) -> Resolution{
         match resolution {
             0 => Resolution::Bits1,
@@ -66,6 +142,7 @@ impl <'a>AnalogOut<'a> {
         }
     }
 
+    /// Creates a new LedcTimerDriver from a Peripheral::PWMTimer
     fn create_timer_driver(timer: Peripheral, config: &config::TimerConfig) -> Result<LedcTimerDriver<'a>, AnalogOutError> {
         let res = match timer {
             Peripheral::PWMTimer(0) => LedcTimerDriver::new(
@@ -94,16 +171,159 @@ impl <'a>AnalogOut<'a> {
         })
     }
 
+    /// Changes the intensity of the signal using the High-Low level ratio
     pub fn set_high_level_output_ratio(&mut self, high_ratio: f32) -> Result<(), AnalogOutError>{
-        let duty: u32  = ((self.driver.get_max_duty() as f32) * high_ratio) as u32;
+        let duty: u32  = duty_from_high_ratio(self.driver.get_max_duty(), high_ratio);
+        self.duty.store(duty, Ordering::SeqCst);
         self.driver.set_duty(duty).map_err(|_| AnalogOutError::ErrorSettingOutput)
     }
 
-    fn set_frequency(self){
-
-    }
-
-    fn set_resolution(self){
+    fn start_changing_by_fixed_amount(&mut self, fixed_change_type: FixedChangeType, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32)-> Result<(), AnalogOutError>{
+        let interrupt_update_code_ref = self.interrupt_update_code.clone();
+        let duty_ref = self.duty.clone();
+        let increase_direction_ref = self.fixed_change_increasing.clone();
+        self.fixed_change_increasing.store(fixed_change_type.increasing_starting_direction(), Ordering::SeqCst);
+        let max_duty = self.driver.get_max_duty();
         
+        let starting_duty = duty_from_high_ratio(max_duty, starting_high_ratio);
+        duty_ref.store(starting_duty, Ordering::SeqCst);
+
+        let callback = move || {
+            let duty_step = duty_from_high_ratio(max_duty, increace_by_ratio).max(1);
+            let new_duty = if increase_direction_ref.load(Ordering::Acquire){
+                (duty_ref.load(Ordering::Acquire) + duty_step).min(max_duty)
+            }else{
+                let prev_dutty = duty_ref.load(Ordering::Acquire);
+                prev_dutty - prev_dutty.min(duty_step)
+            };
+            duty_ref.store(new_duty, Ordering::SeqCst);
+
+            interrupt_update_code_ref.store(InterruptUpdate::ChangeDuty.get_code(), Ordering::SeqCst)
+        };
+        
+        self.timer_driver.interrupt_after(increase_after_miliseconds, callback).map_err(|err| AnalogOutError::TimerDriverError(err))?;
+        self.timer_driver.enable().map_err(|err| AnalogOutError::TimerDriverError(err))?;
+        self.fixed_change_type = fixed_change_type;
+        Ok(())
     }
+
+    pub fn start_increasing(&mut self, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32)-> Result<(), AnalogOutError>{
+        self.start_changing_by_fixed_amount(FixedChangeType::Increase(ExtremeDutyPolicy::None),
+            increase_after_miliseconds, 
+            increace_by_ratio, 
+            starting_high_ratio)
+    }
+
+    pub fn start_decreasing(&mut self, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32)-> Result<(), AnalogOutError>{
+        self.start_changing_by_fixed_amount(FixedChangeType::Decrease(ExtremeDutyPolicy::None),
+            increase_after_miliseconds, 
+            increace_by_ratio, 
+            starting_high_ratio)
+    }
+
+    pub fn start_increasing_bounce_back(&mut self, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32, amount_of_bounces: Option<u32>)-> Result<(), AnalogOutError>{
+        self.amount_of_cycles = amount_of_bounces;
+        self.start_changing_by_fixed_amount(FixedChangeType::Increase(ExtremeDutyPolicy::BounceBack),
+        increase_after_miliseconds, 
+        increace_by_ratio, 
+        starting_high_ratio)
+    }
+    
+    pub fn start_decreasing_bounce_back(&mut self, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32, amount_of_bounces: Option<u32>)-> Result<(), AnalogOutError>{
+        self.amount_of_cycles = amount_of_bounces;
+        self.start_changing_by_fixed_amount(FixedChangeType::Decrease(ExtremeDutyPolicy::BounceBack),
+        increase_after_miliseconds, 
+        increace_by_ratio, 
+        starting_high_ratio)
+    }
+    
+    pub fn start_increasing_reset(&mut self, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32, amount_of_resets: Option<u32>)-> Result<(), AnalogOutError>{
+        self.amount_of_cycles = amount_of_resets;
+        self.start_changing_by_fixed_amount(FixedChangeType::Increase(ExtremeDutyPolicy::Reset),
+        increase_after_miliseconds, 
+        increace_by_ratio, 
+        starting_high_ratio)
+    }
+    
+    pub fn start_decreasing_intensity_reset(&mut self, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32, amount_of_resets: Option<u32>)-> Result<(), AnalogOutError>{
+        self.amount_of_cycles = amount_of_resets;
+        self.start_changing_by_fixed_amount(FixedChangeType::Decrease(ExtremeDutyPolicy::Reset),
+            increase_after_miliseconds, 
+            increace_by_ratio, 
+            starting_high_ratio)
+    }
+
+    fn turn_around(&mut self){
+        let previouse_direction = self.fixed_change_increasing.load(Ordering::Acquire);
+        self.fixed_change_increasing.store(!previouse_direction, Ordering::SeqCst)
+    }
+    
+    fn attempt_turn_around(&mut self)-> Result<(), AnalogOutError>{
+        match self.amount_of_cycles{
+            Some(bounces) => 
+                if bounces > 0{
+                    self.turn_around();
+                    self.amount_of_cycles.replace(bounces-1);
+                }else{
+                    self.timer_driver.unsubscribe().map_err(|err| AnalogOutError::TimerDriverError(err))?;
+                },
+            None => self.turn_around(),
+        }
+        Ok(())
+    }
+
+    fn reset(&mut self){
+        let increasing_direction = self.fixed_change_increasing.load(Ordering::Acquire);
+        if increasing_direction{
+            self.duty.store(0, Ordering::SeqCst)
+        }else{
+            self.duty.store(self.driver.get_max_duty(), Ordering::SeqCst)
+        }
+    }
+
+    fn attempt_reset(&mut self)-> Result<(), AnalogOutError>{
+        match self.amount_of_cycles{
+            Some(resets) => 
+                if resets > 0{
+                    self.reset();
+                    self.amount_of_cycles.replace(resets-1);
+                }else{
+                    self.timer_driver.unsubscribe().map_err(|err| AnalogOutError::TimerDriverError(err))?;
+                },
+            None => self.reset(),
+        }
+        Ok(())
+    }
+
+    fn change_duty_on_cycle(&mut self)-> Result<(), AnalogOutError>{
+        let duty = self.duty.load(Ordering::Acquire);
+        let prev_duty = self.driver.get_duty();
+        
+        if prev_duty == duty{
+            match self.fixed_change_type {
+                FixedChangeType::Increase(ExtremeDutyPolicy::BounceBack) => self.attempt_turn_around()?,
+                FixedChangeType::Decrease(ExtremeDutyPolicy::BounceBack) => self.attempt_turn_around()?,
+                FixedChangeType::Increase(ExtremeDutyPolicy::Reset) => self.attempt_reset()?,
+                FixedChangeType::Decrease(ExtremeDutyPolicy::Reset) => self.attempt_reset()?,
+                _ => return self.timer_driver.unsubscribe().map_err(|err| AnalogOutError::TimerDriverError(err)),
+            }
+        }
+
+        self.driver.set_duty(duty).map_err(|_| AnalogOutError::ErrorSettingOutput)?;
+        self.timer_driver.enable().map_err(|err| AnalogOutError::TimerDriverError(err))
+    }
+
+    pub fn update_interrupt(&mut self) -> Result<(), AnalogOutError> {
+        let interrupt_update = InterruptUpdate::from_atomic_code(self.interrupt_update_code.clone());
+        self.interrupt_update_code.store(InterruptUpdate::None.get_code(), Ordering::SeqCst);
+
+        if let InterruptUpdate::ChangeDuty = interrupt_update{
+            self.change_duty_on_cycle()?
+        }
+        Ok(())
+    }
+}
+
+fn duty_from_high_ratio(max_duty: u32, high_ratio: f32) -> u32{
+    ((max_duty as f32) * high_ratio) as u32
 }

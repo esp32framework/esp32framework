@@ -1,10 +1,3 @@
-/*
-use std::pin::Pin;
-use esp_idf_svc::hal::peripherals;
-use esp_idf_svc::sys::adc_bitwidth_t;
-use esp_idf_svc::hal::adc;
-use esp_idf_svc::hal::adc::config::Config;
-*/
 use esp_idf_svc::hal::adc::attenuation::adc_atten_t;
 use esp_idf_svc::hal::gpio::*;
 use esp_idf_svc::hal::adc::*;
@@ -12,13 +5,16 @@ use esp_idf_svc::hal::adc::*;
 use crate::microcontroller::microcontroller::SharableAdcDriver;
 use crate::microcontroller::peripherals::Peripheral;
 
-// Atenuacion es DB
-// Resolucion son bits
-// const DEFAULT_RESOLUTION: u16 = ADC_BITWIDTH_DEFAULT ;
-// const DEFAULT_WIDTH: u16 = ADC_BITWIDTH_DEFAULT;
-
 const MAX_DIGITAL_VAL: u16 = 4095;
 
+#[derive(Debug)]
+pub enum AnalogInError{
+    MissingAdcDriver,
+    InvalidPin,
+    ErrorReading
+}
+
+/// Driver for receiving analog inputs from a particular pin
 pub struct AnalogIn<'a, const A: adc_atten_t>{ 
     adc_channel_driver: AnalogChannels<'a, A>,
     adc_driver_ref: SharableAdcDriver<'a>,
@@ -34,6 +30,8 @@ enum AnalogChannels<'a, const A: adc_atten_t>{
     Channel6(AdcChannelDriver<'a, A, Gpio6>),  
 }
 
+/// Attenuation applied to the signal received.
+/// The attenuation is used to correctly map the voltage received to a digital value.
 enum Attenuation {
     High,
     Intermidiate,
@@ -41,14 +39,9 @@ enum Attenuation {
     None
 }
 
-#[derive(Debug)]
-pub enum AnalogInError{
-    MissingAdcDriver,
-    InvalidPin,
-    ErrorReading
-}
 
 impl <'a, const A: adc_atten_t> AnalogIn<'a, A> {
+    /// Create a new AnalogIn for a specific pin.
     pub fn new(pin: Peripheral, adc_driver: SharableAdcDriver<'a>) -> Result<AnalogIn<'a, A>, AnalogInError> {
         {
             let driver = adc_driver.borrow_mut();
@@ -56,14 +49,14 @@ impl <'a, const A: adc_atten_t> AnalogIn<'a, A> {
                 return Err(AnalogInError::MissingAdcDriver)
             }
         }
-        
         Ok(AnalogIn {
             adc_channel_driver: AnalogIn::<A>::new_channel(pin)?,
             adc_driver_ref: adc_driver,
         })
     }
 
-    pub fn new_channel<const B: adc_atten_t>(pin: Peripheral) -> Result<AnalogChannels<'a, B>, AnalogInError> {
+    /// Creates a new analog channel driver for a given pin
+    fn new_channel<const B: adc_atten_t>(pin: Peripheral) -> Result<AnalogChannels<'a, B>, AnalogInError> {
         let adc_channel_driver: AnalogChannels<'a, B> = match pin {
             Peripheral::Pin(pin_num) => match pin_num {
                 0 => AnalogChannels::Channel0(AdcChannelDriver::new(unsafe {Gpio0::new()}).unwrap()),
@@ -80,7 +73,8 @@ impl <'a, const A: adc_atten_t> AnalogIn<'a, A> {
         Ok(adc_channel_driver)
     }
     
-    /// Returns a digital value read from an analog pin
+    /// Returns a digital value read from the analog pin. 
+    /// The value returned is already attenuated and the range possible depends on the attenuation set.
     pub fn read(&mut self) -> Result<u16, AnalogInError> {
         let mut adc_driver_ref = self.adc_driver_ref.borrow_mut();
         let mut read_value = match *adc_driver_ref{
@@ -103,7 +97,8 @@ impl <'a, const A: adc_atten_t> AnalogIn<'a, A> {
     
     //TODO: max_in_time, min_in_time, bigger_than, lower_than
 
-    /// Returns the raw value read from an analog pin 
+    /// Returns the raw value read from an analog pin. 
+    /// The value returned is not attenuated, so its ranges is [0, 4095].
     pub fn read_raw(&mut self) -> Result<u16, AnalogInError> {
         let mut adc_driver_ref = self.adc_driver_ref.borrow_mut();
         match *adc_driver_ref{
@@ -120,7 +115,8 @@ impl <'a, const A: adc_atten_t> AnalogIn<'a, A> {
         }
     }
     
-    /// Reads *samples* times using read to smooth the value
+    /// Reads *amount_of_samples* times from the analog pin and returns the average value.
+    /// It is used to get a more stable value from the analog pin.
     pub fn smooth_read(&mut self, amount_of_samples: u16) -> Result<u16, AnalogInError> {
         let mut smooth_val: u16 = 0;
         for _ in 0..amount_of_samples {

@@ -8,6 +8,18 @@ use crate::microcontroller::peripherals::Peripheral;
 
 type AtomicInterruptUpdateCode = AtomicU8;
 
+#[derive(Debug)]
+pub enum DigitalInError {
+    CannotSetPullForPin,
+    CannotSetPinAsInput,
+    StateAlreadySet,
+    InvalidPin,
+    InvalidPeripheral,
+    NoInterruptTypeSet,
+    CannotSetDebounceOnAnyEdgeInterruptType,
+    TimerDriverError (TimerDriverError)
+}
+
 /// Driver for receiving digital inputs from a particular Pin
 pub struct DigitalIn<'a>{
     pub pin_driver: PinDriver<'a, AnyIOPin, Input>,
@@ -26,18 +38,6 @@ pub enum InterruptUpdate {
     UnsubscribeTimerDriver,
     ExecAndUnsubscribePin,
     None
-}
-
-#[derive(Debug)]
-pub enum DigitalInError {
-    CannotSetPullForPin,
-    CannotSetPinAsInput,
-    StateAlreadySet,
-    InvalidPin,
-    InvalidPeripheral,
-    NoInterruptTypeSet,
-    CannotSetDebounceOnAnyEdgeInterruptType,
-    TimerDriverError (TimerDriverError)
 }
 
 impl InterruptUpdate{
@@ -212,14 +212,17 @@ impl <'a>DigitalIn<'a> {
         }
     }
     
+    /// Gets the current pin level
     pub fn get_level(&self) -> Level{
         self.pin_driver.get_level()
-    }    
+    }
     
+    /// verifies if the pin level is High
     pub fn is_high(&self) -> bool{
         self.pin_driver.get_level() == Level::High
     }
     
+    /// verifies if the pin level is Low
     pub fn is_low(&self) -> bool{
         self.pin_driver.get_level() == Level::Low
     }
