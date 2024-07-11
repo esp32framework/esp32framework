@@ -208,7 +208,7 @@ impl <'a>AnalogOut<'a> {
         Ok(())
     }
 
-    /// Sets the FixedChangeType
+    /// Sets the FixedChangeType to Increase. Stops when maximum ratio is reached.
     pub fn start_increasing(&mut self, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32)-> Result<(), AnalogOutError>{
         self.start_changing_by_fixed_amount(FixedChangeType::Increase(ExtremeDutyPolicy::None),
             increase_after_miliseconds, 
@@ -216,6 +216,7 @@ impl <'a>AnalogOut<'a> {
             starting_high_ratio)
     }
 
+    /// Sets the FixedChangeType to Decrease. Stops when minimum ratio is reached.
     pub fn start_decreasing(&mut self, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32)-> Result<(), AnalogOutError>{
         self.start_changing_by_fixed_amount(FixedChangeType::Decrease(ExtremeDutyPolicy::None),
             increase_after_miliseconds, 
@@ -224,8 +225,8 @@ impl <'a>AnalogOut<'a> {
     }
 
     /// Increases the PWM signal ratio by 'increase_by_ratio', starting from 'starting_high_ratio' value until it reaches the maximum ratio possible. 
-    /// Once the maximum is reached, it bounces back and starts to decrease until the minimum value is reached. This is done 'amount_of_bounces' times
-    /// unless that parameter is set to None, meaning it will do it forever.
+    /// Once the maximum is reached, it bounces back and starts to decrease until the minimum value is reached. Direction changes 'amount_of_bounces' times
+    /// unless that parameter is set to None, meaning it will do it indefinitely.
     pub fn start_increasing_bounce_back(&mut self, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32, amount_of_bounces: Option<u32>)-> Result<(), AnalogOutError>{
         self.amount_of_cycles = amount_of_bounces;
         self.start_changing_by_fixed_amount(FixedChangeType::Increase(ExtremeDutyPolicy::BounceBack),
@@ -234,20 +235,20 @@ impl <'a>AnalogOut<'a> {
         starting_high_ratio)
     }
     
-    /// Decreases the PWM signal ratio by 'increase_by_ratio', starting from 'starting_high_ratio' value until it reaches the minimum ratio possible. 
-    /// Once the minimum is reached, it bounces back and starts to increase until the maximum value is reached. This is done 'amount_of_bounces' times
-    /// unless that parameter is set to None, meaning it will do it forever.
-    pub fn start_decreasing_bounce_back(&mut self, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32, amount_of_bounces: Option<u32>)-> Result<(), AnalogOutError>{
+    /// Decreases the PWM signal ratio by 'decrease_by_ratio', starting from 'starting_high_ratio' value until it reaches the minimum ratio possible. 
+    /// Once the minimum is reached, it bounces back and starts to increase until the maximum value is reached. Direction changes 'amount_of_bounces' times
+    /// unless that parameter is set to None, meaning it will do it indefinitely.
+    pub fn start_decreasing_bounce_back(&mut self, increase_after_miliseconds: u32, decrease_by_ratio: f32, starting_high_ratio: f32, amount_of_bounces: Option<u32>)-> Result<(), AnalogOutError>{
         self.amount_of_cycles = amount_of_bounces;
         self.start_changing_by_fixed_amount(FixedChangeType::Decrease(ExtremeDutyPolicy::BounceBack),
         increase_after_miliseconds, 
-        increace_by_ratio, 
+        decrease_by_ratio, 
         starting_high_ratio)
     }
     
     /// Increses the PWM signal ratio by 'increase_by_ratio', starting from 'starting_high_ratio' value until it reaches the maximum ratio possible. 
     /// Once the maximum is reached, it goes back to the 'starting_high_ratio' and starts to increase once again. This is done 'amount_of_resets' times
-    /// unless that parameter is set to None, meaning it will do it forever.
+    /// unless that parameter is set to None, meaning it will do it indefinitely.
     pub fn start_increasing_reset(&mut self, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32, amount_of_resets: Option<u32>)-> Result<(), AnalogOutError>{
         self.amount_of_cycles = amount_of_resets;
         self.start_changing_by_fixed_amount(FixedChangeType::Increase(ExtremeDutyPolicy::Reset),
@@ -256,38 +257,42 @@ impl <'a>AnalogOut<'a> {
         starting_high_ratio)
     }
     
-    /// Decreases the PWM signal ratio by 'increase_by_ratio', starting from 'starting_high_ratio' value until it reaches the minimum ratio possible. 
+    /// Decreases the PWM signal ratio by 'decrease_by_ratio', starting from 'starting_high_ratio' value until it reaches the minimum ratio possible. 
     /// Once the minimum is reached, it goes back to the 'starting_high_ratio' and starts to increase once again. This is done 'amount_of_resets' times
-    /// unless that parameter is set to None, meaning it will do it forever.
-    pub fn start_decreasing_intensity_reset(&mut self, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32, amount_of_resets: Option<u32>)-> Result<(), AnalogOutError>{
+    /// unless that parameter is set to None, meaning it will do it indefinitely.
+    pub fn start_decreasing_intensity_reset(&mut self, increase_after_miliseconds: u32, decrease_by_ratio: f32, starting_high_ratio: f32, amount_of_resets: Option<u32>)-> Result<(), AnalogOutError>{
         self.amount_of_cycles = amount_of_resets;
         self.start_changing_by_fixed_amount(FixedChangeType::Decrease(ExtremeDutyPolicy::Reset),
             increase_after_miliseconds, 
-            increace_by_ratio, 
+            decrease_by_ratio, 
             starting_high_ratio)
     }
 
+    /// Changes the direction to 'increasing' if the direction is set to 'decreasing' and
+    /// vice versa.
     fn turn_around(&mut self){
         let previouse_direction = self.fixed_change_increasing.load(Ordering::Acquire);
         self.fixed_change_increasing.store(!previouse_direction, Ordering::SeqCst)
     }
     
     /// Amount of cycles can be a None or a Some(bounces). None means the turn around will be done indefinetly.
-    /// Otherwise, the turn around will be done until the 'bounces' value becomes 0.
-    fn attempt_turn_around(&mut self)-> Result<(), AnalogOutError>{
+    /// Otherwise, the turn around will be done until the 'bounces' value becomes 0. Returns false if all the cycles
+    /// were completed.
+    fn attempt_turn_around(&mut self)-> bool {
         match self.amount_of_cycles{
             Some(bounces) => 
                 if bounces > 0{
                     self.turn_around();
                     self.amount_of_cycles.replace(bounces-1);
                 }else{
-                    self.timer_driver.unsubscribe().map_err(|err| AnalogOutError::TimerDriverError(err))?;
+                    return false;
                 },
             None => self.turn_around(),
         }
-        Ok(())
+        true
     }
 
+    /// If direction 'increasing', the duty is set to 0. Otherwise, is set to the maximum duty possible
     fn reset(&mut self){
         let increasing_direction = self.fixed_change_increasing.load(Ordering::Acquire);
         if increasing_direction{
@@ -298,39 +303,47 @@ impl <'a>AnalogOut<'a> {
     }
 
     /// Amount of cycles can be a None or a Some(resets). None means the reset will be done indefinetly.
-    /// Otherwise, the reset will be done until the 'resets' value becomes 0.
-    fn attempt_reset(&mut self)-> Result<(), AnalogOutError>{
+    /// Otherwise, the reset will be done until the 'resets' value becomes 0. Returns false if all the cycles
+    /// were completed.
+    fn attempt_reset(&mut self)-> bool {
         match self.amount_of_cycles{
             Some(resets) => 
                 if resets > 0{
                     self.reset();
                     self.amount_of_cycles.replace(resets-1);
                 }else{
-                    self.timer_driver.unsubscribe().map_err(|err| AnalogOutError::TimerDriverError(err))?;
+                    return false;
                 },
             None => self.reset(),
         }
-        Ok(())
+        true
     }
 
+    /// Handler for InterruptUpdate::ChangeDuty, depending on the ExtremeDutyPolicy 
     fn change_duty_on_cycle(&mut self)-> Result<(), AnalogOutError>{
         let duty = self.duty.load(Ordering::Acquire);
         let prev_duty = self.driver.get_duty();
-        
+        let mut stay_subscribed = true;
+
         if prev_duty == duty{
-            match self.fixed_change_type {
-                FixedChangeType::Increase(ExtremeDutyPolicy::BounceBack) => self.attempt_turn_around()?,
-                FixedChangeType::Decrease(ExtremeDutyPolicy::BounceBack) => self.attempt_turn_around()?,
-                FixedChangeType::Increase(ExtremeDutyPolicy::Reset) => self.attempt_reset()?,
-                FixedChangeType::Decrease(ExtremeDutyPolicy::Reset) => self.attempt_reset()?,
-                _ => return self.timer_driver.unsubscribe().map_err(|err| AnalogOutError::TimerDriverError(err)),
+            stay_subscribed = match self.fixed_change_type {
+                FixedChangeType::Increase(ExtremeDutyPolicy::BounceBack) => self.attempt_turn_around(),
+                FixedChangeType::Decrease(ExtremeDutyPolicy::BounceBack) => self.attempt_turn_around(),
+                FixedChangeType::Increase(ExtremeDutyPolicy::Reset) => self.attempt_reset(),
+                FixedChangeType::Decrease(ExtremeDutyPolicy::Reset) => self.attempt_reset(),
+                _ => false,
             }
         }
 
         self.driver.set_duty(duty).map_err(|_| AnalogOutError::ErrorSettingOutput)?;
-        self.timer_driver.enable().map_err(|err| AnalogOutError::TimerDriverError(err))
+        if stay_subscribed {
+            self.timer_driver.enable().map_err(|err| AnalogOutError::TimerDriverError(err))
+        } else {
+            self.timer_driver.unsubscribe().map_err(|err| AnalogOutError::TimerDriverError(err))
+        }
     }
 
+    /// Handles the diferent type of interrupts.
     pub fn update_interrupt(&mut self) -> Result<(), AnalogOutError> {
         let interrupt_update = InterruptUpdate::from_atomic_code(self.interrupt_update_code.clone());
         self.interrupt_update_code.store(InterruptUpdate::None.get_code(), Ordering::SeqCst);
