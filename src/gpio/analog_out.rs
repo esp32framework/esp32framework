@@ -22,11 +22,17 @@ pub enum AnalogOutError{
     TimerDriverError(TimerDriverError)
 }
 
+#[derive(Clone, Copy)]
+enum ExtremeDutyPolicy{
+    BounceBack,
+    Reset,
+    None
+}
+
+#[derive(Clone, Copy)]
 enum FixedChangeType{
-    Increase,
-    Decrease,
-    IncreaseDecrease,
-    DecreaseIncrease,
+    Increase(ExtremeDutyPolicy),
+    Decrease(ExtremeDutyPolicy),
     None
 }
 
@@ -34,15 +40,25 @@ enum FixedChangeType{
 pub struct AnalogOut<'a> {
     driver: LedcDriver<'a>,
     timer_driver: TimerDriver<'a>,
-    duty: Arc<AtomicU32>,
+    pub duty: Arc<AtomicU32>,
     interrupt_update_code: Arc<AtomicInterruptUpdateCode>,
     fixed_change_increasing: Arc<AtomicBool>,
     fixed_change_type: FixedChangeType,
+    amount_of_cycles: Option<u32>,
 }
 
 pub enum InterruptUpdate {
     ChangeDuty,
     None
+}
+
+impl FixedChangeType{
+    fn increasing_starting_direction(&self)-> bool{
+        match self{
+            FixedChangeType::Increase(_policy) => true,
+            _ => false
+        }
+    }
 }
 
 impl InterruptUpdate{
@@ -95,7 +111,8 @@ impl <'a>AnalogOut<'a> {
             duty: Arc::new(AtomicU32::new(0)), 
             interrupt_update_code: Arc::new(InterruptUpdate::None.get_atomic_code()),
             fixed_change_increasing: Arc::new(AtomicBool::new(false)),
-            fixed_change_type: FixedChangeType::None
+            fixed_change_type: FixedChangeType::None,
+            amount_of_cycles: None,
         })
     }
 
@@ -165,6 +182,7 @@ impl <'a>AnalogOut<'a> {
         let interrupt_update_code_ref = self.interrupt_update_code.clone();
         let duty_ref = self.duty.clone();
         let increase_direction_ref = self.fixed_change_increasing.clone();
+        self.fixed_change_increasing.store(fixed_change_type.increasing_starting_direction(), Ordering::SeqCst);
         let max_duty = self.driver.get_max_duty();
         
         let starting_duty = duty_from_high_ratio(max_duty, starting_high_ratio);
@@ -173,71 +191,125 @@ impl <'a>AnalogOut<'a> {
         let callback = move || {
             let duty_step = duty_from_high_ratio(max_duty, increace_by_ratio).max(1);
             let new_duty = if increase_direction_ref.load(Ordering::Acquire){
-                duty_ref.load(Ordering::Acquire) + duty_step
+                (duty_ref.load(Ordering::Acquire) + duty_step).min(max_duty)
             }else{
-                duty_ref.load(Ordering::Acquire) - duty_step
+                let prev_dutty = duty_ref.load(Ordering::Acquire);
+                prev_dutty - prev_dutty.min(duty_step)
             };
             duty_ref.store(new_duty, Ordering::SeqCst);
 
             interrupt_update_code_ref.store(InterruptUpdate::ChangeDuty.get_code(), Ordering::SeqCst)
         };
         
-        self.timer_driver.interrupt_after(increase_after_miliseconds, callback);
+        self.timer_driver.interrupt_after(increase_after_miliseconds, callback).map_err(|err| AnalogOutError::TimerDriverError(err))?;
         self.timer_driver.enable().map_err(|err| AnalogOutError::TimerDriverError(err))?;
         self.fixed_change_type = fixed_change_type;
         Ok(())
     }
-    /*
-    // makes the pin blink for a certain period of time blink_period (micro sec) and in a certain frecuency_micro (micro sec)
-    pub fn blink(&mut self, mut amount_of_blinks: u32, time_between_states_micro: u32) -> Result<(), DigitalOutError> {
-        amount_of_blinks *= 2;
-        if amount_of_blinks == 0 {
-            return Ok(())
-        }
 
-        let interrupt_update_code_ref = self.interrupt_update_code.clone();
-        let callback = move || {
-            if amount_of_blinks == 0 {
-                interrupt_update_code_ref.store(InterruptUpdate::FinishedBlinking.get_code(), Ordering::SeqCst);
-            }else{
-                amount_of_blinks -= 1;
-                interrupt_update_code_ref.store(InterruptUpdate::KeepBlinking.get_code(), Ordering::SeqCst);
-            }
-        };
-        self.timer_driver.interrupt_after(time_between_states_micro, callback).map_err(|err| DigitalOutError::TimerDriverError(err))?;
-        self.timer_driver.enable().map_err(|err| DigitalOutError::TimerDriverError(err))
+    pub fn start_increasing(&mut self, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32)-> Result<(), AnalogOutError>{
+        self.start_changing_by_fixed_amount(FixedChangeType::Increase(ExtremeDutyPolicy::None),
+            increase_after_miliseconds, 
+            increace_by_ratio, 
+            starting_high_ratio)
+    }
+
+    pub fn start_decreasing(&mut self, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32)-> Result<(), AnalogOutError>{
+        self.start_changing_by_fixed_amount(FixedChangeType::Decrease(ExtremeDutyPolicy::None),
+            increase_after_miliseconds, 
+            increace_by_ratio, 
+            starting_high_ratio)
+    }
+
+    pub fn start_increasing_bounce_back(&mut self, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32, amount_of_bounces: Option<u32>)-> Result<(), AnalogOutError>{
+        self.amount_of_cycles = amount_of_bounces;
+        self.start_changing_by_fixed_amount(FixedChangeType::Increase(ExtremeDutyPolicy::BounceBack),
+        increase_after_miliseconds, 
+        increace_by_ratio, 
+        starting_high_ratio)
     }
     
-    pub fn update_interrupt(&mut self) -> Result<(), DigitalOutError> {
-        let interrupt_update = InterruptUpdate::from_atomic_code(self.interrupt_update_code.clone());
-        self.interrupt_update_code.store(InterruptUpdate::None.get_code(), Ordering::SeqCst);
-        
-        match interrupt_update{
-            InterruptUpdate::FinishedBlinking => {self.timer_driver.unsubscribe().map_err(|err| DigitalOutError::TimerDriverError(err))},
-            InterruptUpdate::KeepBlinking => {
-                self.toggle();
-                self.timer_driver.enable().map_err(|err| DigitalOutError::TimerDriverError(err))
-                }
-                InterruptUpdate::None => Ok(()),
-                }
-            }
-            */
+    pub fn start_decreasing_bounce_back(&mut self, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32, amount_of_bounces: Option<u32>)-> Result<(), AnalogOutError>{
+        self.amount_of_cycles = amount_of_bounces;
+        self.start_changing_by_fixed_amount(FixedChangeType::Decrease(ExtremeDutyPolicy::BounceBack),
+        increase_after_miliseconds, 
+        increace_by_ratio, 
+        starting_high_ratio)
+    }
+    
+    pub fn start_increasing_reset(&mut self, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32, amount_of_resets: Option<u32>)-> Result<(), AnalogOutError>{
+        self.amount_of_cycles = amount_of_resets;
+        self.start_changing_by_fixed_amount(FixedChangeType::Increase(ExtremeDutyPolicy::Reset),
+        increase_after_miliseconds, 
+        increace_by_ratio, 
+        starting_high_ratio)
+    }
+    
+    pub fn start_decreasing_intensity_reset(&mut self, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32, amount_of_resets: Option<u32>)-> Result<(), AnalogOutError>{
+        self.amount_of_cycles = amount_of_resets;
+        self.start_changing_by_fixed_amount(FixedChangeType::Decrease(ExtremeDutyPolicy::Reset),
+            increase_after_miliseconds, 
+            increace_by_ratio, 
+            starting_high_ratio)
+    }
 
     fn turn_around(&mut self){
         let previouse_direction = self.fixed_change_increasing.load(Ordering::Acquire);
         self.fixed_change_increasing.store(!previouse_direction, Ordering::SeqCst)
     }
+    
+    fn attempt_turn_around(&mut self)-> Result<(), AnalogOutError>{
+        match self.amount_of_cycles{
+            Some(bounces) => 
+                if bounces > 0{
+                    self.turn_around();
+                    self.amount_of_cycles.replace(bounces-1);
+                }else{
+                    self.timer_driver.unsubscribe().map_err(|err| AnalogOutError::TimerDriverError(err))?;
+                },
+            None => self.turn_around(),
+        }
+        Ok(())
+    }
+
+    fn reset(&mut self){
+        let increasing_direction = self.fixed_change_increasing.load(Ordering::Acquire);
+        if increasing_direction{
+            self.duty.store(0, Ordering::SeqCst)
+        }else{
+            self.duty.store(self.driver.get_max_duty(), Ordering::SeqCst)
+        }
+    }
+
+    fn attempt_reset(&mut self)-> Result<(), AnalogOutError>{
+        match self.amount_of_cycles{
+            Some(resets) => 
+                if resets > 0{
+                    self.reset();
+                    self.amount_of_cycles.replace(resets-1);
+                }else{
+                    self.timer_driver.unsubscribe().map_err(|err| AnalogOutError::TimerDriverError(err))?;
+                },
+            None => self.reset(),
+        }
+        Ok(())
+    }
 
     fn change_duty_on_cycle(&mut self)-> Result<(), AnalogOutError>{
         let duty = self.duty.load(Ordering::Acquire);
-        self.driver.set_duty(duty).map_err(|_| AnalogOutError::ErrorSettingOutput)?;
-        if duty == self.driver.get_max_duty() || duty == 0{
+        let prev_duty = self.driver.get_duty();
+        
+        if prev_duty == duty{
             match self.fixed_change_type {
-                FixedChangeType::IncreaseDecrease => self.turn_around(),
-                FixedChangeType::DecreaseIncrease => self.turn_around(),
+                FixedChangeType::Increase(ExtremeDutyPolicy::BounceBack) => self.attempt_turn_around()?,
+                FixedChangeType::Decrease(ExtremeDutyPolicy::BounceBack) => self.attempt_turn_around()?,
+                FixedChangeType::Increase(ExtremeDutyPolicy::Reset) => self.attempt_reset()?,
+                FixedChangeType::Decrease(ExtremeDutyPolicy::Reset) => self.attempt_reset()?,
                 _ => return self.timer_driver.unsubscribe().map_err(|err| AnalogOutError::TimerDriverError(err)),
             }
         }
+
+        self.driver.set_duty(duty).map_err(|_| AnalogOutError::ErrorSettingOutput)?;
         self.timer_driver.enable().map_err(|err| AnalogOutError::TimerDriverError(err))
     }
 
