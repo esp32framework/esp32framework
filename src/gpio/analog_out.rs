@@ -178,6 +178,7 @@ impl <'a>AnalogOut<'a> {
         self.driver.set_duty(duty).map_err(|_| AnalogOutError::ErrorSettingOutput)
     }
 
+    /// Creates the proper callback and subscribes it to the TimerDriver
     fn start_changing_by_fixed_amount(&mut self, fixed_change_type: FixedChangeType, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32)-> Result<(), AnalogOutError>{
         let interrupt_update_code_ref = self.interrupt_update_code.clone();
         let duty_ref = self.duty.clone();
@@ -207,6 +208,7 @@ impl <'a>AnalogOut<'a> {
         Ok(())
     }
 
+    /// Sets the FixedChangeType
     pub fn start_increasing(&mut self, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32)-> Result<(), AnalogOutError>{
         self.start_changing_by_fixed_amount(FixedChangeType::Increase(ExtremeDutyPolicy::None),
             increase_after_miliseconds, 
@@ -221,6 +223,9 @@ impl <'a>AnalogOut<'a> {
             starting_high_ratio)
     }
 
+    /// Increases the PWM signal ratio by 'increase_by_ratio', starting from 'starting_high_ratio' value until it reaches the maximum ratio possible. 
+    /// Once the maximum is reached, it bounces back and starts to decrease until the minimum value is reached. This is done 'amount_of_bounces' times
+    /// unless that parameter is set to None, meaning it will do it forever.
     pub fn start_increasing_bounce_back(&mut self, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32, amount_of_bounces: Option<u32>)-> Result<(), AnalogOutError>{
         self.amount_of_cycles = amount_of_bounces;
         self.start_changing_by_fixed_amount(FixedChangeType::Increase(ExtremeDutyPolicy::BounceBack),
@@ -229,6 +234,9 @@ impl <'a>AnalogOut<'a> {
         starting_high_ratio)
     }
     
+    /// Decreases the PWM signal ratio by 'increase_by_ratio', starting from 'starting_high_ratio' value until it reaches the minimum ratio possible. 
+    /// Once the minimum is reached, it bounces back and starts to increase until the maximum value is reached. This is done 'amount_of_bounces' times
+    /// unless that parameter is set to None, meaning it will do it forever.
     pub fn start_decreasing_bounce_back(&mut self, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32, amount_of_bounces: Option<u32>)-> Result<(), AnalogOutError>{
         self.amount_of_cycles = amount_of_bounces;
         self.start_changing_by_fixed_amount(FixedChangeType::Decrease(ExtremeDutyPolicy::BounceBack),
@@ -237,6 +245,9 @@ impl <'a>AnalogOut<'a> {
         starting_high_ratio)
     }
     
+    /// Increses the PWM signal ratio by 'increase_by_ratio', starting from 'starting_high_ratio' value until it reaches the maximum ratio possible. 
+    /// Once the maximum is reached, it goes back to the 'starting_high_ratio' and starts to increase once again. This is done 'amount_of_resets' times
+    /// unless that parameter is set to None, meaning it will do it forever.
     pub fn start_increasing_reset(&mut self, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32, amount_of_resets: Option<u32>)-> Result<(), AnalogOutError>{
         self.amount_of_cycles = amount_of_resets;
         self.start_changing_by_fixed_amount(FixedChangeType::Increase(ExtremeDutyPolicy::Reset),
@@ -245,6 +256,9 @@ impl <'a>AnalogOut<'a> {
         starting_high_ratio)
     }
     
+    /// Decreases the PWM signal ratio by 'increase_by_ratio', starting from 'starting_high_ratio' value until it reaches the minimum ratio possible. 
+    /// Once the minimum is reached, it goes back to the 'starting_high_ratio' and starts to increase once again. This is done 'amount_of_resets' times
+    /// unless that parameter is set to None, meaning it will do it forever.
     pub fn start_decreasing_intensity_reset(&mut self, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32, amount_of_resets: Option<u32>)-> Result<(), AnalogOutError>{
         self.amount_of_cycles = amount_of_resets;
         self.start_changing_by_fixed_amount(FixedChangeType::Decrease(ExtremeDutyPolicy::Reset),
@@ -258,6 +272,8 @@ impl <'a>AnalogOut<'a> {
         self.fixed_change_increasing.store(!previouse_direction, Ordering::SeqCst)
     }
     
+    /// Amount of cycles can be a None or a Some(bounces). None means the turn around will be done indefinetly.
+    /// Otherwise, the turn around will be done until the 'bounces' value becomes 0.
     fn attempt_turn_around(&mut self)-> Result<(), AnalogOutError>{
         match self.amount_of_cycles{
             Some(bounces) => 
@@ -281,6 +297,8 @@ impl <'a>AnalogOut<'a> {
         }
     }
 
+    /// Amount of cycles can be a None or a Some(resets). None means the reset will be done indefinetly.
+    /// Otherwise, the reset will be done until the 'resets' value becomes 0.
     fn attempt_reset(&mut self)-> Result<(), AnalogOutError>{
         match self.amount_of_cycles{
             Some(resets) => 
