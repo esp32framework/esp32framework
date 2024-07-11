@@ -131,6 +131,7 @@ use esp32framework::{gpio::{analog_in_pwm::AnalogInPwm, analog_out::AnalogOut}, 
 
 use esp_idf_svc::hal::delay::FreeRtos;
 
+
 fn main(){
     let mut micro = microcontroller::Microcontroller::new();
     
@@ -184,16 +185,6 @@ fn main(){
     println!("Starting duty-cycle loop");
     let mut random_generator = rand::thread_rng();
     
-    // for ratio in [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0].iter().cycle() {
-    //     // Read of Config A
-    //     read_config(&mut analog_out_a, &analog_in_pwm_a, ratio, "A");
-    //     // Read of Config B
-    //     read_config(&mut analog_out_b, &analog_in_pwm_b, ratio, "B");
-    //     // Read of COnfig C
-    //     // read_config(&mut analog_out_c, &analog_in_pwm_c, ratio, "C");
-
-    //     FreeRtos::delay_ms(1000);
-    // }
     println!("iteration,frequency_in,frequency_out,resolution_out,ratio,read_val");
     loop {
         let duty = random_generator.gen_range(0..1000);

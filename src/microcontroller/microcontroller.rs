@@ -123,14 +123,3 @@ impl <'a>Microcontroller<'a>{
         FreeRtos::delay_ms(10_u32);
     }
 }
-
-/*
-expected_val = 0.5
-read_val = 0.495
-error = expected_val - read_val = 0.005
-
-0.5 -> 100
-0.005 -> (0.005 * 100) / 0.5 = 1
-
-0.49 +- 1.5%
-*/
