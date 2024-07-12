@@ -136,8 +136,20 @@ fn main(){
     let mut micro = microcontroller::Microcontroller::new();
     
     // Different sets of configurations will be tested for the input and output
-    
-    // Config A: 
+
+    // // Config A
+    // // Out: frequency: 10 kHz | resolution: 12 bits
+    // // In:  frequency: 5 kHz
+    // let output_pin_b = 2; 
+    // let output_freq_b = 10 * 1000;
+    // let output_res_b = 12;
+    // let mut analog_out_b = micro.set_pin_as_analog_out(output_pin_b, output_freq_b, output_res_b);
+    // let input_pin_b = 3;
+    // let input_freq_b = 5 * 1000;
+    // let mut analog_in_pwm_b = micro.set_pin_as_analog_in_pwm(input_pin_b, input_freq_b);
+    // analog_in_pwm_b.set_sampling(5000);
+
+    // Config B
     // Out: frequency: 10 kHz | resolution: 12 bits
     // In:  frequency: 10 kHz
     // let output_pin_a = 4; 
@@ -146,40 +158,20 @@ fn main(){
     // let mut analog_out_a = micro.set_pin_as_analog_out(output_pin_a, output_freq_a, output_res_a);
     // let input_pin_a = 5;
     // let input_freq_a = 10 * 1000;
-    // let analog_in_pwm_a = micro.set_pin_as_analog_in_pwm(input_pin_a, input_freq_a);
-
-    // // Config B
-    // // Out: frequency: 15 kHz | resolution: 12 bits
-    // // In:  frequency: 5 kHz
-    // let output_pin_b = 2; 
-    // let output_freq_b = 15 * 1000;
-    // let output_res_b = 12;
-    // let mut analog_out_b = micro.set_pin_as_analog_out(output_pin_b, output_freq_b, output_res_b);
-    // let input_pin_b = 3;
-    // let input_freq_b = 5 * 1000;
-    // let analog_in_pwm_b = micro.set_pin_as_analog_in_pwm(input_pin_b, input_freq_b);
+    // let mut analog_in_pwm_a = micro.set_pin_as_analog_in_pwm(input_pin_a, input_freq_a);
+    // analog_in_pwm_a.set_sampling(10000);
 
     // Config C
-    // Out: frequency: 15 kHz | resolution: 12 bits
-    // In:  frequency: 5 kHz
-    let output_pin_a = 2; 
-    let output_freq_a = 15 * 1000;
-    let output_res_a = 12;
-    let mut analog_out_a = micro.set_pin_as_analog_out(output_pin_a, output_freq_a, output_res_a);
-    let input_pin_a = 3;
-    let input_freq_a = 10 * 1000;
-    let analog_in_pwm_a = micro.set_pin_as_analog_in_pwm(input_pin_a, input_freq_a);
-
-    // Config D
-    // Out: frequency: 7 kHz | resolution: 12 bits
-    // In:  frequency: 14 kHz
-    let output_freq_b = 5 * 1000;
+    // Out: frequency: 10 kHz | resolution: 12 bits
+    // In:  frequency: 20 kHz
+    let output_freq_b = 10 * 1000;
     let output_res_b = 12;
     let output_pin_b = 4; 
     let mut analog_out_b = micro.set_pin_as_analog_out(output_pin_b, output_freq_b, output_res_b);
     let input_pin_b = 5;
-    let input_freq_b = 15 * 1000;
-    let analog_in_pwm_b = micro.set_pin_as_analog_in_pwm(input_pin_b, input_freq_b);
+    let input_freq_b = 20 * 1000;
+    let mut analog_in_pwm_b = micro.set_pin_as_analog_in_pwm(input_pin_b, input_freq_b);
+    analog_in_pwm_b.set_sampling(20000);
 
     
     println!("Starting duty-cycle loop");
@@ -191,18 +183,18 @@ fn main(){
         let ratio: f32 = duty as f32 / 1000 as f32;
 
         // Read of Config A
-        read_config(&mut analog_out_a, &analog_in_pwm_a, &ratio, &input_freq_a, &output_freq_a, &output_res_a);
+        //read_config(&mut analog_out_a, &analog_in_pwm_a, &ratio, &input_freq_a, &output_freq_a, &output_res_a);
 
         // Read of Config B
         read_config(&mut analog_out_b, &analog_in_pwm_b, &ratio, &input_freq_b, &output_freq_b, &output_res_b);
 
-        FreeRtos::delay_ms(200);
+        FreeRtos::delay_ms(50);
     }
 }
 
 fn read_config(analog_out: &mut AnalogOut, analog_in_pwm: &AnalogInPwm, ratio: &f32, frequency_in: &u32, frequency_out: &u32, resolution_out: &u32) {
     analog_out.set_high_level_output_ratio(*ratio).unwrap();
-    for i in 0..5 {
+    for i in 0..1 {
         let read_val = analog_in_pwm.read();
         // let line = format!("Iteration [{}] | Frequency IN [{}] | Frequency OUT [{}] | Resolution OUT [{}] | Ratio [{}] | Read Val [{}]", i, frequency_in, frequency_out, resolution_out, ratio, read_val); // Maybe i should also put the iteration number or make a mean
         let line = format!("{},{},{},{},{},{}", i, frequency_in, frequency_out, resolution_out, ratio, read_val); // Maybe i should also put the iteration number or make a mean
