@@ -37,12 +37,13 @@ impl <'a>Microcontroller<'a>{
         }
     }
 
+    /// Creates a DigitalIn on the ESP pin with number 'pin_num' to read digital inputs.
     pub fn set_pin_as_digital_in(&mut self, pin_num: usize)-> DigitalIn<'a> {
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
         DigitalIn::new(self.timer_driver.pop().unwrap(), pin_peripheral).unwrap()
     }
     
-    
+    /// Creates a DigitalOut on the ESP pin with number 'pin_num' to writee digital outputs.
     pub fn set_pin_as_digital_out(&mut self, pin_num: usize) -> DigitalOut<'a> {
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
         DigitalOut::new(pin_peripheral, self.timer_driver.pop().unwrap()).unwrap()
@@ -87,6 +88,7 @@ impl <'a>Microcontroller<'a>{
         AnalogIn::<'a, {attenuation::adc_atten_t_ADC_ATTEN_DB_0}>::new(pin_peripheral, self.adc_driver.clone()).unwrap()
     }
 
+    /// 
     pub fn set_pin_as_analog_out(&mut self, pin_num: usize, freq_hz: u32, resolution: u32) -> AnalogOut<'a> {
         let (pwm_channel, pwm_timer) = self.peripherals.get_next_pwm();
         let pin_peripheral = self.peripherals.get_pwm_pin(pin_num);
