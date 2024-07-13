@@ -4,6 +4,4 @@
 /Cargo.lock
 wokwi.toml
 diagram.json
-analog_pwm_data.txt
-analog_pwm_data_2.txt
-cleaned_analog_pwm_data.txt
+error_testing_analysis/analog_in_pwm_data
