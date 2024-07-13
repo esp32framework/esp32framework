@@ -190,7 +190,7 @@ impl <'a>AnalogOut<'a> {
         duty_ref.store(starting_duty, Ordering::SeqCst);
 
         let callback = move || {
-            let duty_step = duty_from_high_ratio(max_duty, increace_by_ratio).max(1);
+            let duty_step = duty_from_high_ratio(max_duty, increase_by_ratio).max(1);
             let new_duty = if increase_direction_ref.load(Ordering::Acquire){
                 (duty_ref.load(Ordering::Acquire) + duty_step).min(max_duty)
             }else{
@@ -207,20 +207,20 @@ impl <'a>AnalogOut<'a> {
         self.fixed_change_type = fixed_change_type;
         Ok(())
     }
-
+  
     /// Sets the FixedChangeType to Increase. Stops when maximum ratio is reached.
     pub fn start_increasing(&mut self, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32)-> Result<(), AnalogOutError>{
         self.start_changing_by_fixed_amount(FixedChangeType::Increase(ExtremeDutyPolicy::None),
             increase_after_miliseconds, 
-            increace_by_ratio, 
+            increase_by_ratio, 
             starting_high_ratio)
     }
 
     /// Sets the FixedChangeType to Decrease. Stops when minimum ratio is reached.
-    pub fn start_decreasing(&mut self, increase_after_miliseconds: u32, increace_by_ratio: f32, starting_high_ratio: f32)-> Result<(), AnalogOutError>{
+    pub fn start_decreasing(&mut self, increase_after_miliseconds: u32, decrease_by_ratio: f32, starting_high_ratio: f32)-> Result<(), AnalogOutError>{
         self.start_changing_by_fixed_amount(FixedChangeType::Decrease(ExtremeDutyPolicy::None),
             increase_after_miliseconds, 
-            increace_by_ratio, 
+            decrease_by_ratio, 
             starting_high_ratio)
     }
 
@@ -231,7 +231,7 @@ impl <'a>AnalogOut<'a> {
         self.amount_of_cycles = amount_of_bounces;
         self.start_changing_by_fixed_amount(FixedChangeType::Increase(ExtremeDutyPolicy::BounceBack),
         increase_after_miliseconds, 
-        increace_by_ratio, 
+        increase_by_ratio, 
         starting_high_ratio)
     }
     
@@ -253,7 +253,7 @@ impl <'a>AnalogOut<'a> {
         self.amount_of_cycles = amount_of_resets;
         self.start_changing_by_fixed_amount(FixedChangeType::Increase(ExtremeDutyPolicy::Reset),
         increase_after_miliseconds, 
-        increace_by_ratio, 
+        increase_by_ratio, 
         starting_high_ratio)
     }
     
@@ -264,7 +264,7 @@ impl <'a>AnalogOut<'a> {
         self.amount_of_cycles = amount_of_resets;
         self.start_changing_by_fixed_amount(FixedChangeType::Decrease(ExtremeDutyPolicy::Reset),
             increase_after_miliseconds, 
-            decrease_by_ratio, 
+            decrease_by_ratio,
             starting_high_ratio)
     }
 

@@ -2,23 +2,19 @@ use esp_idf_svc::hal::gpio::*;
 use esp_idf_svc::hal::peripherals::Peripherals;
 use esp_idf_svc::hal::delay::FreeRtos;
 use std::{collections::HashMap, sync::atomic::{AtomicBool, Ordering}};
-
 static FLAG: AtomicBool = AtomicBool::new(false);
 
+/// Example using pin GPIO9 as digital in to count the amount of times a button
+/// is pressed. The signal is configured with a debounce time of 200msec.
 fn main(){
     esp_idf_svc::sys::link_patches();
     let peripherals = Peripherals::take().unwrap();
-
     let mut button = PinDriver::input(peripherals.pins.gpio9).unwrap();
-    
-    //button.set_pull(Pull::Down).unwrap();
     button.set_interrupt_type(InterruptType::NegEdge).unwrap();
     let mut count: i32 = 0;
-    
     unsafe {
         button.subscribe(callback).unwrap();
     }
-    
     button.enable_interrupt().unwrap();
     
     loop {
@@ -28,9 +24,7 @@ fn main(){
             if !button.is_low(){
                 continue;
             }
-
             count = count.wrapping_add(1);
-            
             println!("Press Count {}", count);
         }
         button.enable_interrupt().unwrap();
