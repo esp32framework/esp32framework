@@ -9,11 +9,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use esp_idf_svc::hal::delay::FreeRtos;
 use esp_idf_svc::hal::gpio::*;
 use esp_idf_svc::hal::peripheral::Peripheral;
-//use esp_idf_svc::hal::adc::*;
 use esp_idf_svc::hal::{prelude::*, ledc::{LEDC, LedcTimer, config, LedcChannel, LedcDriver, LedcTimerDriver}};
 use esp_idf_svc::hal::peripherals::Peripherals;
-
-// mod digital;
 
 static FLAG: AtomicBool = AtomicBool::new(false);
 static LED_FLAG: AtomicBool = AtomicBool::new(false);
