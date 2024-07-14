@@ -9,11 +9,11 @@ use std::cell::RefCell;
 
 pub type SharableAdcDriver<'a> = Rc<RefCell<Option<AdcDriver<'a, ADC1>>>>;
 
-use crate::gpio::{analog_in_pwm::AnalogInPwm,
-    digital_in::DigitalIn,
-    digital_out::DigitalOut, 
-    analog_in::AnalogIn, 
-    analog_out::AnalogOut};
+use crate::gpio::{AnalogInPwm,
+    DigitalIn,
+    DigitalOut, 
+    AnalogIn, 
+    AnalogOut};
 use crate::utils::timer_driver::TimerDriver;
 use crate::microcontroller::peripherals::Peripherals;
 
@@ -105,7 +105,7 @@ impl <'a>Microcontroller<'a>{
     pub fn set_pin_as_analog_in_pwm(&mut self, pin_num: usize, freq_hz: u32) -> AnalogInPwm<'a> {
         
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
-        let timer_driver = self.timer_driver.pop().unwrap();
+        let timer_driver = self.timer_driver.pop().unwrap();            // TODO: Add a better error. If there is no timers a text should sayy this
         AnalogInPwm::new(timer_driver, pin_peripheral, freq_hz).unwrap()
     }
     

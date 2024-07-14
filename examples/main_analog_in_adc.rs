@@ -10,7 +10,7 @@
 // mod microcontroller;
 // mod peripherals;
 // mod error_text_parser;
-use esp32framework::microcontroller::*;
+use esp32framework::Microcontroller;
 use std::thread;
 use std::time::Duration;
 
@@ -43,7 +43,7 @@ use esp_idf_svc::hal::peripherals::Peripherals;
 
 ///  Main for our analog
 fn main(){
-    let mut micro = microcontroller::Microcontroller::new();
+    let mut micro = Microcontroller::new();
     let mut analog_in = micro.set_pin_as_analog_in_low_atten(0);
     loop {
         let read = analog_in.read().unwrap();

@@ -17,7 +17,7 @@ mod gpio;
 mod utils;
 mod microcontroller;
 use crate::microcontroller::microcontroller::Microcontroller;
-use crate::gpio::digital_in::{InterruptType, DigitalIn};
+use crate::gpio::{InterruptType, DigitalIn};
 
 use esp_idf_svc::hal::delay::FreeRtos;
 

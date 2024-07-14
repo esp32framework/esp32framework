@@ -30,16 +30,6 @@ enum AnalogChannels<'a, const A: adc_atten_t>{
     Channel6(AdcChannelDriver<'a, A, Gpio6>),  
 }
 
-/// Attenuation applied to the signal received.
-/// The attenuation is used to correctly map the voltage received to a digital value.
-enum Attenuation {
-    High,
-    Intermidiate,
-    Low,
-    None
-}
-
-
 impl <'a, const A: adc_atten_t> AnalogIn<'a, A> {
     /// Create a new AnalogIn for a specific pin.
     pub fn new(pin: Peripheral, adc_driver: SharableAdcDriver<'a>) -> Result<AnalogIn<'a, A>, AnalogInError> {

@@ -1,4 +1,4 @@
-use esp32framework::{Microcontroller, InterruptType};
+use esp32framework::{Microcontroller, gpio::{AnalogIn, InterruptType}};
 use std::{collections::HashMap, sync::atomic::{AtomicBool, Ordering}};
 static FLAG: AtomicBool = AtomicBool::new(false);
 

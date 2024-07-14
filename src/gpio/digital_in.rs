@@ -31,7 +31,7 @@ pub struct DigitalIn<'a>{
 }
 
 /// After an interrupt is triggered an InterruptUpdate will be set and handled
-pub enum InterruptUpdate {
+enum InterruptUpdate {
     ExecAndEnablePin,
     EnableTimerDriver,
     TimerReached,

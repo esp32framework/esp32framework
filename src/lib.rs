@@ -1,7 +1,6 @@
-
 mod microcontroller;
-mod gpio;
+pub mod gpio;
 mod utils;
 
 pub use microcontroller::Microcontroller;
-pub use gpio::digital_in::InterruptType;
+

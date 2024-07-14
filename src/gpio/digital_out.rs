@@ -22,7 +22,7 @@ pub struct DigitalOut<'a>{
 }
 
 /// After an interrupt is triggered an InterruptUpdate will be set and handled
-pub enum InterruptUpdate {
+enum InterruptUpdate {
     FinishedBlinking,
     KeepBlinking,
     None
