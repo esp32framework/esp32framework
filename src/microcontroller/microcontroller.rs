@@ -7,7 +7,6 @@ use esp_idf_svc::hal::adc::config::Config;
 use esp_idf_svc::hal::delay::FreeRtos;
 use esp_idf_svc::hal::i2c;
 use std::cell::RefCell;
-
 pub type SharableAdcDriver<'a> = Rc<RefCell<Option<AdcDriver<'a, ADC1>>>>;
 pub type SharableI2CDriver<'a> = Rc<RefCell<Option<i2c::I2C0>>>;
 
@@ -18,7 +17,8 @@ use crate::gpio::{AnalogInPwm,
     AnalogOut};
 use crate::serial::I2CMaster;
 use crate::utils::timer_driver::TimerDriver;
-use crate::microcontroller::peripherals::Peripherals;
+    
+use crate::microcontroller::peripherals::*;
 
 pub struct Microcontroller<'a> {
     peripherals: Peripherals,
@@ -119,19 +119,21 @@ impl <'a>Microcontroller<'a>{
         let timer_driver = self.timer_driver.pop().unwrap();
         AnalogInPwm::default(timer_driver, pin_peripheral).unwrap()
     }
-
+    
     pub fn set_pins_for_i2c(&mut self, sda_pin: usize, scl_pin: usize) -> I2CMaster<'a> {
         let sda_peripheral = self.peripherals.get_digital_pin(sda_pin);
         let scl_peripheral = self.peripherals.get_digital_pin(scl_pin);
-        
-        if self.peripherals.get_i2c(){
-            I2CMaster::new(sda_peripheral, scl_peripheral, unsafe{i2c::I2C0::new()}).unwrap()
-        }else{
-            Error
-        }
 
-    }
-    
+        match self.peripherals.get_i2c(){
+            Peripheral::I2C => {
+                I2CMaster::new(sda_peripheral, scl_peripheral, unsafe{i2c::I2C0::new()}).unwrap()
+            }
+            _ => {
+                panic!("I2C Driver already taken!");
+            },
+        }
+    } 
+
     pub fn update(&mut self, drivers_in: Vec<&mut DigitalIn>, drivers_out: Vec<&mut DigitalOut>) {
         for driver in drivers_in{
             driver.update_interrupt();
