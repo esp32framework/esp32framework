@@ -1,4 +1,4 @@
-use esp_idf_svc::{hal::{gpio::{InputPin, OutputPin}, i2c::{self, I2cConfig, I2cDriver, I2C0}, units::FromValueType}, sys::{ESP_ERR_INVALID_ARG, ESP_ERR_NO_MEM}};
+use esp_idf_svc::{hal::{i2c::{I2cConfig, I2cDriver, I2cSlaveConfig, I2cSlaveDriver, I2C0}, units::FromValueType}, sys::{ESP_ERR_INVALID_ARG, ESP_ERR_NO_MEM}};
 use crate::microcontroller::peripherals::Peripheral;
 
 
@@ -6,14 +6,15 @@ use crate::microcontroller::peripherals::Peripheral;
 const DEFAULT_BAUDRATE: u32 = 100;
 
 #[derive(Debug)]
-pub enum I2CMasterError {
+pub enum I2CError {
     Temp,
     InvalidPin,
     InvalidPeripheral,
     BufferTooSmall,
     InvalidArg,
     DriverError,
-    NoMoreHeapMemory
+    NoMoreHeapMemory,
+    TimeoutError
 }
 
 pub struct I2CMaster<'a> {
@@ -21,14 +22,14 @@ pub struct I2CMaster<'a> {
 }
 
 impl <'a>I2CMaster<'a> {
-    pub fn new(sda_per: Peripheral, scl_per: Peripheral, i2c: I2C0) -> Result<I2CMaster<'a>, I2CMasterError> { // TODO: What can we do with i2c_per
-        let sda = sda_per.into_any_io_pin().map_err(|_| I2CMasterError::InvalidPin)?;
-        let scl = scl_per.into_any_io_pin().map_err(|_| I2CMasterError::InvalidPin)?;
+    pub fn new(sda_per: Peripheral, scl_per: Peripheral, i2c: I2C0) -> Result<I2CMaster<'a>, I2CError> { // TODO: What can we do with i2c_per
+        let sda = sda_per.into_any_io_pin().map_err(|_| I2CError::InvalidPin)?;
+        let scl = scl_per.into_any_io_pin().map_err(|_| I2CError::InvalidPin)?;
 
         let config = I2cConfig::new().baudrate(DEFAULT_BAUDRATE.kHz().into());
-        let mut driver = I2cDriver::new(i2c, sda, scl, &config).map_err(|error| match error.code() {
-            ESP_ERR_INVALID_ARG => I2CMasterError::InvalidArg,
-            ESP_FAIL => I2CMasterError::DriverError, 
+        let driver = I2cDriver::new(i2c, sda, scl, &config).map_err(|error| match error.code() {
+            ESP_ERR_INVALID_ARG => I2CError::InvalidArg,
+            ESP_FAIL => I2CError::DriverError, 
         })?;
 
         Ok(
@@ -36,26 +37,53 @@ impl <'a>I2CMaster<'a> {
         )
     }
 
-    pub fn read(&mut self, addr: u8, buffer: &mut [u8], timeout: u32) -> Result<(), I2CMasterError> {
+    pub fn read(&mut self, addr: u8, buffer: &mut [u8], timeout: u32) -> Result<(), I2CError> {
         self.driver.read(addr, buffer, timeout).map_err(|error| match error.code() {
-            ESP_ERR_INVALID_ARG => I2CMasterError::InvalidArg,
-            ESP_ERR_NO_MEM => I2CMasterError::BufferTooSmall,
-            ESP_FAIL => I2CMasterError::NoMoreHeapMemory,
+            ESP_ERR_INVALID_ARG => I2CError::InvalidArg,
+            ESP_ERR_NO_MEM => I2CError::BufferTooSmall,
+            ESP_FAIL => I2CError::NoMoreHeapMemory,
         })
     }
 
-    pub fn write(&mut self, addr: u8, bytes_to_write: &[u8], timeout: u32) -> Result<(), I2CMasterError> {
+    pub fn write(&mut self, addr: u8, bytes_to_write: &[u8], timeout: u32) -> Result<(), I2CError> {
         self.driver.write(addr, bytes_to_write, timeout).map_err(|error| match error.code() {
-            ESP_ERR_INVALID_ARG => I2CMasterError::InvalidArg,
-            ESP_ERR_NO_MEM => I2CMasterError::BufferTooSmall,
-            ESP_FAIL => I2CMasterError::NoMoreHeapMemory,
+            ESP_ERR_INVALID_ARG => I2CError::InvalidArg,
+            ESP_ERR_NO_MEM => I2CError::BufferTooSmall,
+            ESP_FAIL => I2CError::NoMoreHeapMemory,
         })
     }
 
-    // pub fn default(baudrate: u32){
-    //     let config = I2cConfig::new().baudrate(DEFAULT_BAUDRATE.kHz().into());
-        
-    //     Self::new() 
-    // }
 }
 
+struct I2CSlave<'a> {
+    driver: I2cSlaveDriver<'a>
+}
+
+impl <'a>I2CSlave<'a> {
+
+    pub fn new(sda_per: Peripheral, scl_per: Peripheral, i2c: I2C0, addr: u8) -> Result<I2CSlave<'a>, I2CError> {
+        let sda = sda_per.into_any_io_pin().map_err(|_| I2CError::InvalidPin)?;
+        let scl = scl_per.into_any_io_pin().map_err(|_| I2CError::InvalidPin)?;
+
+        let config = I2cSlaveConfig::new(); // TODO: Check if the default values work. It has the buffers on 0. Maybe this should be choosen by the user
+        let driver = I2cSlaveDriver::new(i2c, sda, scl, addr, &config).unwrap();
+
+        Ok(
+            I2CSlave { driver }
+        )
+    }
+
+    pub fn read(&mut self, buffer: &mut [u8], timeout: u32) -> Result<usize, I2CError> {
+        self.driver.read(buffer, timeout).map_err(|error| match error.code() {
+            ESP_ERR_TIMEOUT => I2CError::TimeoutError,
+            ESP_FAIL => I2CError::InvalidArg,
+        })
+    }
+
+    pub fn write(&mut self, bytes_to_write: &[u8], timeout: u32) -> Result<usize, I2CError> {
+        self.driver.write(bytes_to_write, timeout).map_err(|error| match error.code() {
+            ESP_ERR_TIMEOUT => I2CError::TimeoutError,
+            ESP_FAIL => I2CError::InvalidArg,
+        })
+    }
+}
