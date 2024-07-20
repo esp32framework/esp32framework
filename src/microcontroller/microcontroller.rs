@@ -5,9 +5,11 @@ use esp_idf_svc::hal::gpio::*;
 use esp_idf_svc::hal::adc::*;
 use esp_idf_svc::hal::adc::config::Config;
 use esp_idf_svc::hal::delay::FreeRtos;
+use esp_idf_svc::hal::i2c;
 use std::cell::RefCell;
 
 pub type SharableAdcDriver<'a> = Rc<RefCell<Option<AdcDriver<'a, ADC1>>>>;
+pub type SharableI2CDriver<'a> = Rc<RefCell<Option<i2c::I2C0>>>;
 
 use crate::gpio::{AnalogInPwm,
     DigitalIn,
@@ -22,6 +24,7 @@ pub struct Microcontroller<'a> {
     peripherals: Peripherals,
     timer_driver: Vec<TimerDriver<'a>>,
     adc_driver: SharableAdcDriver<'a>,
+    i2c_driver: SharableI2CDriver<'a>
 }
 
 impl <'a>Microcontroller<'a>{
@@ -35,6 +38,7 @@ impl <'a>Microcontroller<'a>{
             peripherals: peripherals,
             timer_driver: vec![TimerDriver::new(timer0).unwrap(), TimerDriver::new(timer1).unwrap()],
             adc_driver: Rc::new(RefCell::new(None)),
+            i2c_driver: Rc::new(RefCell::new(None)),
         }
     }
 
@@ -116,12 +120,15 @@ impl <'a>Microcontroller<'a>{
         AnalogInPwm::default(timer_driver, pin_peripheral).unwrap()
     }
 
-    pub fn set_pins_for_i2c(&mut self, sda_pin: usize, scl_pin: usize) {
+    pub fn set_pins_for_i2c(&mut self, sda_pin: usize, scl_pin: usize) -> I2CMaster<'a> {
         let sda_peripheral = self.peripherals.get_digital_pin(sda_pin);
         let scl_peripheral = self.peripherals.get_digital_pin(scl_pin);
-        let i2c = self.peripherals.get_i2c();
-
-        I2CMaster::new(sda_peripheral, scl_peripheral, i2c).unwrap();
+        
+        if self.peripherals.get_i2c(){
+            I2CMaster::new(sda_peripheral, scl_peripheral, unsafe{i2c::I2C0::new()}).unwrap()
+        }else{
+            Error
+        }
 
     }
     
