@@ -14,6 +14,7 @@ use crate::gpio::{AnalogInPwm,
     DigitalOut, 
     AnalogIn, 
     AnalogOut};
+use crate::serial::I2CMaster;
 use crate::utils::timer_driver::TimerDriver;
 use crate::microcontroller::peripherals::Peripherals;
 
@@ -113,6 +114,15 @@ impl <'a>Microcontroller<'a>{
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
         let timer_driver = self.timer_driver.pop().unwrap();
         AnalogInPwm::default(timer_driver, pin_peripheral).unwrap()
+    }
+
+    pub fn set_pins_for_i2c(&mut self, sda_pin: usize, scl_pin: usize) {
+        let sda_peripheral = self.peripherals.get_digital_pin(sda_pin);
+        let scl_peripheral = self.peripherals.get_digital_pin(scl_pin);
+        let i2c = self.peripherals.get_i2c();
+
+        I2CMaster::new(sda_peripheral, scl_peripheral, i2c).unwrap();
+
     }
     
     pub fn update(&mut self, drivers_in: Vec<&mut DigitalIn>, drivers_out: Vec<&mut DigitalOut>) {
