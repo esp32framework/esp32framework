@@ -5,6 +5,7 @@ use esp_idf_svc::hal::gpio::*;
 use esp_idf_svc::hal::adc::*;
 use esp_idf_svc::hal::adc::config::Config;
 use esp_idf_svc::hal::delay::FreeRtos;
+use esp_idf_svc::hal::units::Time;
 use std::cell::RefCell;
 
 pub type SharableAdcDriver<'a> = Rc<RefCell<Option<AdcDriver<'a, ADC1>>>>;
@@ -19,34 +20,44 @@ use crate::microcontroller::peripherals::Peripherals;
 
 pub struct Microcontroller<'a> {
     peripherals: Peripherals,
-    timer_driver: Vec<TimerDriver<'a>>,
+    timer_drivers: Vec<TimerDriver<'a>>,
     adc_driver: SharableAdcDriver<'a>,
 }
 
 impl <'a>Microcontroller<'a>{
     pub fn new() -> Self {
         esp_idf_svc::sys::link_patches();
-        let mut peripherals = Peripherals::new();
-        let timer0 = peripherals.get_timer(0);
-        let timer1 = peripherals.get_timer(1);
+        let peripherals = Peripherals::new();
         
         Microcontroller{
             peripherals: peripherals,
-            timer_driver: vec![TimerDriver::new(timer0).unwrap(), TimerDriver::new(timer1).unwrap()],
+            timer_drivers: vec![],
             adc_driver: Rc::new(RefCell::new(None)),
         }
+    }
+
+    pub fn get_timer_driver(&mut self)-> TimerDriver<'a>{
+        if self.timer_drivers.len() < 2{
+            let timer = self.peripherals.get_timer(self.timer_drivers.len());
+            let timer_driver = TimerDriver::new(timer).unwrap();
+            self.timer_drivers.push(timer_driver.clone());
+            return timer_driver;
+        }
+        let timer_driver = self.timer_drivers.swap_remove(0);
+        self.timer_drivers.push(timer_driver.clone());
+        timer_driver
     }
 
     /// Creates a DigitalIn on the ESP pin with number 'pin_num' to read digital inputs.
     pub fn set_pin_as_digital_in(&mut self, pin_num: usize)-> DigitalIn<'a> {
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
-        DigitalIn::new(self.timer_driver.pop().unwrap(), pin_peripheral).unwrap()
+        DigitalIn::new(self.get_timer_driver(), pin_peripheral).unwrap()
     }
     
     /// Creates a DigitalOut on the ESP pin with number 'pin_num' to writee digital outputs.
     pub fn set_pin_as_digital_out(&mut self, pin_num: usize) -> DigitalOut<'a> {
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
-        DigitalOut::new(pin_peripheral, self.timer_driver.pop().unwrap()).unwrap()
+        DigitalOut::new(pin_peripheral, self.get_timer_driver()).unwrap()
     }
     
     /// Starts an adc driver if no other was started before. Bitwidth is always set to 12, since 
@@ -92,26 +103,26 @@ impl <'a>Microcontroller<'a>{
     pub fn set_pin_as_analog_out(&mut self, pin_num: usize, freq_hz: u32, resolution: u32) -> AnalogOut<'a> {
         let (pwm_channel, pwm_timer) = self.peripherals.get_next_pwm();
         let pin_peripheral = self.peripherals.get_pwm_pin(pin_num);
-        AnalogOut::<'a>::new(pwm_channel, pwm_timer, pin_peripheral, self.timer_driver.pop().unwrap(), freq_hz, resolution).unwrap()
+        AnalogOut::<'a>::new(pwm_channel, pwm_timer, pin_peripheral, self.get_timer_driver(), freq_hz, resolution).unwrap()
     } 
 
     pub fn set_pin_as_default_analog_out(&mut self, pin_num: usize) -> AnalogOut<'a> {
         let (pwm_channel, pwm_timer) = self.peripherals.get_next_pwm();
         let pin_peripheral = self.peripherals.get_pwm_pin(pin_num);
-        AnalogOut::<'a>::default(pwm_channel, pwm_timer, pin_peripheral, self.timer_driver.pop().unwrap()).unwrap()
+        AnalogOut::<'a>::default(pwm_channel, pwm_timer, pin_peripheral, self.get_timer_driver()).unwrap()
     }
 
 
     pub fn set_pin_as_analog_in_pwm(&mut self, pin_num: usize, freq_hz: u32) -> AnalogInPwm<'a> {
         
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
-        let timer_driver = self.timer_driver.pop().unwrap();            // TODO: Add a better error. If there is no timers a text should sayy this
+        let timer_driver = self.get_timer_driver();            // TODO: Add a better error. If there is no timers a text should sayy this
         AnalogInPwm::new(timer_driver, pin_peripheral, freq_hz).unwrap()
     }
     
     pub fn set_pin_as_default_analog_in_pwm(&mut self, pin_num: usize) -> AnalogInPwm<'a> {
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
-        let timer_driver = self.timer_driver.pop().unwrap();
+        let timer_driver = self.get_timer_driver();
         AnalogInPwm::default(timer_driver, pin_peripheral).unwrap()
     }
     

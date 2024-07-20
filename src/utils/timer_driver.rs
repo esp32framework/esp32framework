@@ -1,8 +1,16 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use esp_idf_svc::hal::timer;
 use crate::utils::timer_driver::timer::TimerConfig;
 use crate::microcontroller::peripherals::Peripheral;
 
+#[derive(Clone)]
 pub struct TimerDriver<'a> {
+    inner: Rc<RefCell<_TimerDriver<'a>>>
+}
+
+struct _TimerDriver<'a> {
     driver: timer::TimerDriver<'a>
 }
 
@@ -15,9 +23,9 @@ pub enum TimerDriverError {
 }
 
 
-impl <'a>TimerDriver<'a>{
+impl <'a>_TimerDriver<'a>{
     //pub fn new<T: timer::Timer>(timer: impl Peripheral<P = T> + 'a)->Result<TimerDriver<'a>, TimerDriverError> {
-    pub fn new(timer: Peripheral) -> Result<TimerDriver<'a>, TimerDriverError> {
+    fn new(timer: Peripheral) -> Result<_TimerDriver<'a>, TimerDriverError> {
         let driver = match timer{
             Peripheral::Timer(timer_num) => 
                 match timer_num{
@@ -28,10 +36,10 @@ impl <'a>TimerDriver<'a>{
             _ => return Err(TimerDriverError::InvalidTimer),
         };
 
-        Ok(TimerDriver{driver})
+        Ok(_TimerDriver{driver})
     }
     
-    pub fn interrupt_after<F: FnMut() + Send + 'static>(&mut self, micro_seconds: u32, callback: F)-> Result<(), TimerDriverError>{
+    fn interrupt_after<F: FnMut() + Send + 'static>(&mut self, micro_seconds: u32, callback: F)-> Result<(), TimerDriverError>{
         unsafe{
             self.driver.subscribe(callback).map_err(|_| TimerDriverError::SubscriptionError)?;
         }
@@ -50,15 +58,38 @@ impl <'a>TimerDriver<'a>{
         Ok(())   
     }
 
-    pub fn enable(&mut self) -> Result<(),TimerDriverError>{
+    fn enable(&mut self) -> Result<(),TimerDriverError>{
         self._enable(true)
     }
     
-    pub fn disable(&mut self) -> Result<(),TimerDriverError>{
+    fn disable(&mut self) -> Result<(),TimerDriverError>{
         self._enable(false)
     }
 
-    pub fn unsubscribe(&mut self)  -> Result<(),TimerDriverError> {
+    fn unsubscribe(&mut self)  -> Result<(),TimerDriverError> {
         self.driver.unsubscribe().map_err(|_| TimerDriverError::SubscriptionError)
+    }
+}
+
+impl <'a>TimerDriver<'a>{
+    //pub fn new<T: timer::Timer>(timer: impl Peripheral<P = T> + 'a)->Result<TimerDriver<'a>, TimerDriverError> {
+    pub fn new(timer: Peripheral) -> Result<TimerDriver<'a>, TimerDriverError> {
+        Ok(TimerDriver{inner: Rc::new(RefCell::new(_TimerDriver::new(timer)?))})
+    }
+    
+    pub fn interrupt_after<F: FnMut() + Send + 'static>(&mut self, micro_seconds: u32, callback: F)-> Result<(), TimerDriverError>{
+        self.inner.borrow_mut().interrupt_after(micro_seconds, callback)
+    }
+
+    pub fn enable(&mut self) -> Result<(),TimerDriverError>{
+        self.inner.borrow_mut().enable()
+    }
+    
+    pub fn disable(&mut self) -> Result<(),TimerDriverError>{
+        self.inner.borrow_mut().disable()
+    }
+    
+    pub fn unsubscribe(&mut self)  -> Result<(),TimerDriverError> {
+        self.inner.borrow_mut().unsubscribe()
     }
 }
