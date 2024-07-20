@@ -108,14 +108,12 @@ impl <'a>DigitalOut<'a> {
 
         let interrupt_update_code_ref = self.interrupt_update_code.clone();
         let callback = move || {
-            if amount_of_blinks == 0 {
-                interrupt_update_code_ref.store(InterruptUpdate::FinishedBlinking.get_code(), Ordering::SeqCst);
-            }else{
-                amount_of_blinks -= 1;
-                interrupt_update_code_ref.store(InterruptUpdate::KeepBlinking.get_code(), Ordering::SeqCst);
-            }
+            println!("Blink Callback");
+            interrupt_update_code_ref.store(InterruptUpdate::KeepBlinking.get_code(), Ordering::SeqCst);
+            println!("After Blink Callback");
         };
-        self.timer_driver.interrupt_after(time_between_states_micro, callback).map_err(|err| DigitalOutError::TimerDriverError(err))?;
+
+        self.timer_driver.interrupt_after_n_times(time_between_states_micro, Some(amount_of_blinks), callback).map_err(|err| DigitalOutError::TimerDriverError(err))?;
         self.timer_driver.enable().map_err(|err| DigitalOutError::TimerDriverError(err))
     }
 
@@ -127,8 +125,9 @@ impl <'a>DigitalOut<'a> {
         match interrupt_update{
             InterruptUpdate::FinishedBlinking => {self.timer_driver.unsubscribe().map_err(|err| DigitalOutError::TimerDriverError(err))},
             InterruptUpdate::KeepBlinking => {
-                self.toggle();
-                self.timer_driver.enable().map_err(|err| DigitalOutError::TimerDriverError(err))
+                println!("toggled");
+                self.toggle()
+                //self.timer_driver.enable().map_err(|err| DigitalOutError::TimerDriverError(err))
             }
             InterruptUpdate::None => Ok(()),
         }

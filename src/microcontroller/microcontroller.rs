@@ -67,7 +67,7 @@ impl <'a>Microcontroller<'a>{
         if let None = *adc_driver {
             self.peripherals.get_adc();
             let driver = AdcDriver::new(unsafe{ADC1::new()}, &Config::new().resolution(Resolution::Resolution12Bit).calibration(true)).unwrap();
-            adc_driver.replace(driver); 
+            adc_driver.replace(driver);
         }
     }
 
@@ -127,11 +127,16 @@ impl <'a>Microcontroller<'a>{
     }
     
     pub fn update(&mut self, drivers_in: Vec<&mut DigitalIn>, drivers_out: Vec<&mut DigitalOut>) {
+        //timer_drivers must be updated before other drivers since this may efect the other drivers updates
+        for timer_driver in &mut self.timer_drivers{
+            timer_driver.update_interrupts().unwrap();
+        }
+        
         for driver in drivers_in{
-            driver.update_interrupt();
+            driver.update_interrupt().unwrap();
         }
         for driver in drivers_out{
-            driver.update_interrupt();
+            driver.update_interrupt().unwrap();
         }
         FreeRtos::delay_ms(10_u32);
     }
