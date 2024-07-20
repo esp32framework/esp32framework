@@ -15,7 +15,7 @@ use crate::gpio::{AnalogInPwm,
     DigitalOut, 
     AnalogIn, 
     AnalogOut};
-use crate::serial::I2CMaster;
+use crate::serial::{I2CMaster, I2CSlave};
 use crate::utils::timer_driver::TimerDriver;
     
 use crate::microcontroller::peripherals::*;
@@ -120,13 +120,27 @@ impl <'a>Microcontroller<'a>{
         AnalogInPwm::default(timer_driver, pin_peripheral).unwrap()
     }
     
-    pub fn set_pins_for_i2c(&mut self, sda_pin: usize, scl_pin: usize) -> I2CMaster<'a> {
+    pub fn set_pins_for_i2c_master(&mut self, sda_pin: usize, scl_pin: usize) -> I2CMaster<'a> {
         let sda_peripheral = self.peripherals.get_digital_pin(sda_pin);
         let scl_peripheral = self.peripherals.get_digital_pin(scl_pin);
 
         match self.peripherals.get_i2c(){
             Peripheral::I2C => {
                 I2CMaster::new(sda_peripheral, scl_peripheral, unsafe{i2c::I2C0::new()}).unwrap()
+            }
+            _ => {
+                panic!("I2C Driver already taken!");
+            },
+        }
+    }
+
+    pub fn set_pins_for_i2c_slave(&mut self, sda_pin: usize, scl_pin: usize, slave_addr: u8) -> I2CSlave<'a> {
+        let sda_peripheral = self.peripherals.get_digital_pin(sda_pin);
+        let scl_peripheral = self.peripherals.get_digital_pin(scl_pin);
+
+        match self.peripherals.get_i2c(){
+            Peripheral::I2C => {
+                I2CSlave::new(sda_peripheral, scl_peripheral, unsafe{i2c::I2C0::new()}, slave_addr).unwrap()
             }
             _ => {
                 panic!("I2C Driver already taken!");

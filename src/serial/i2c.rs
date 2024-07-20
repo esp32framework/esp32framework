@@ -55,7 +55,7 @@ impl <'a>I2CMaster<'a> {
 
 }
 
-struct I2CSlave<'a> {
+pub struct I2CSlave<'a> {
     driver: I2cSlaveDriver<'a>
 }
 
