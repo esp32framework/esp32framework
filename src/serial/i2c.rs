@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use esp_idf_svc::{hal::{i2c::{I2cConfig, I2cDriver, I2cSlaveConfig, I2cSlaveDriver, I2C0}, units::FromValueType}, sys::{ESP_ERR_INVALID_ARG, ESP_ERR_NO_MEM, ESP_ERR_TIMEOUT}};
 use crate::microcontroller::peripherals::Peripheral;
 
@@ -93,4 +94,21 @@ impl <'a>I2CSlave<'a> {
             _ => I2CError::InvalidArg,
         })
     }
+
+}
+
+pub trait READER {
+    fn read_and_parse<'b>(&'b mut self) -> HashMap<String,String>;
+}
+
+pub fn show_data(data_reader: &mut impl READER, operation_key: String) {
+    let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
+    match parsed_data.get(&operation_key) {
+        Some(data) => println!("The content is: {:?}", data),
+        None => {println!("Key not found");}
+    }
+}
+
+fn sum(data_reader: impl READER) -> Result<u32, I2CError> {
+    todo!()
 }

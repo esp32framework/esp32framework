@@ -1,9 +1,22 @@
 use std::collections::HashMap;
 
-use esp32framework::{serial::I2CMaster, Microcontroller};
+use esp32framework::{serial::{show_data, I2CMaster, READER}, Microcontroller};
 use esp_idf_svc::hal::delay::BLOCK;
 
 const DS3231_ADDR: u8 = 0x68;
+
+struct Ds3231<'a>{
+    i2c_driver: I2CMaster<'a>
+}
+
+impl<'a> READER for Ds3231<'a> {
+    fn read_and_parse<'b>(&'b mut self) -> HashMap<String,String>{
+        let mut data: [u8; 13] = [0_u8; 13];
+        self.i2c_driver.write(DS3231_ADDR, &[0_u8], BLOCK).unwrap();
+        self.i2c_driver.read(DS3231_ADDR, &mut data, BLOCK).unwrap();
+        parse_read_data(data)
+    } 
+}
 
 #[repr(u8)]
 enum DS3231_REG_DIR {
@@ -94,8 +107,9 @@ fn main() {
     esp_idf_svc::sys::link_patches();
 
     let mut micro = Microcontroller::new();
-    let mut ds3231 = micro.set_pins_for_i2c_master(5,6);
-
+    let mut driver = micro.set_pins_for_i2c_master(5,6);
+    let mut ds3231 = Ds3231{i2c_driver: driver};
+    
     let start_dt = DateTime {
         sec: 0,
         min: 21,
@@ -106,23 +120,23 @@ fn main() {
         yr: 24,
     };
 
-    set_time(&mut ds3231, start_dt.sec, start_dt.min, start_dt.hrs, start_dt.day, start_dt.date, start_dt.month, start_dt.yr);
+    set_time(&mut ds3231.i2c_driver, start_dt.sec, start_dt.min, start_dt.hrs, start_dt.day, start_dt.date, start_dt.month, start_dt.yr);
 
     loop {
-        let mut data: [u8; 13] = [0_u8; 13];
+        // let mut data: [u8; 13] = [0_u8; 13];
 
-        // Set reading address in zero to read seconds,minutes,hours,day,day number, month and year
-        ds3231.write(DS3231_ADDR, &[0_u8], BLOCK).unwrap();
-        ds3231.read(DS3231_ADDR, &mut data, BLOCK).unwrap();
+        // // Set reading address in zero to read seconds,minutes,hours,day,day number, month and year
+        // ds3231.i2c_driver.write(DS3231_ADDR, &[0_u8], BLOCK).unwrap();
+        // ds3231.i2c_driver.read(DS3231_ADDR, &mut data, BLOCK).unwrap();
 
-        println!("{:?}", data);
+        // println!("{:?}", data);
 
-        let parsed_data = parse_read_data(data);
+        // let parsed_data = parse_read_data(data);
 
-        println!("{}, {}/{}/20{}, {:02}:{:02}:{:02}", parsed_data["dow"], parsed_data["day_number"],
-                                                      parsed_data["month"], parsed_data["year"], parsed_data["hrs"], 
-                                                      parsed_data["min"], parsed_data["secs"]);
-
+        // println!("{}, {}/{}/20{}, {:02}:{:02}:{:02}", parsed_data["dow"], parsed_data["day_number"],
+        //                                               parsed_data["month"], parsed_data["year"], parsed_data["hrs"], 
+        //                                               parsed_data["min"], parsed_data["secs"]);
+        show_data(&mut ds3231,"secs".to_string());
         micro.sleep(1000);
     }
 }
