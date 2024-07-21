@@ -2,7 +2,6 @@ use esp_idf_svc::{hal::{i2c::{I2cConfig, I2cDriver, I2cSlaveConfig, I2cSlaveDriv
 use crate::microcontroller::peripherals::Peripheral;
 
 
-
 const DEFAULT_BAUDRATE: u32 = 100;
 
 #[derive(Debug)]
