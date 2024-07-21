@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use esp32framework::{serial::{show_data, I2CMaster, READER}, Microcontroller};
+use esp32framework::{serial::{show_data, read_n_times_and_sum, stop_when_true, I2CMaster, READER}, Microcontroller};
 use esp_idf_svc::hal::delay::BLOCK;
 
 const DS3231_ADDR: u8 = 0x68;
@@ -136,7 +136,19 @@ fn main() {
         // println!("{}, {}/{}/20{}, {:02}:{:02}:{:02}", parsed_data["dow"], parsed_data["day_number"],
         //                                               parsed_data["month"], parsed_data["year"], parsed_data["hrs"], 
         //                                               parsed_data["min"], parsed_data["secs"]);
-        show_data(&mut ds3231,"secs".to_string());
+        // show_data(&mut ds3231,"secs".to_string());
+
+        // match read_n_times_and_sum(&mut ds3231,"secs".to_string(),10, 2000) {
+        //     Ok(res) => println!("El resultado total es: {:?}", res),
+        //     Err(_) => {}
+        // };
+
+        let closure = |s: String| -> bool {
+            s == "10".to_string()
+        };
+        
+        stop_when_true(&mut ds3231, "secs".to_string(), 1000, closure);
+        println!("Ya salio");
         micro.sleep(1000);
     }
 }

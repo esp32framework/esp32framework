@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use esp_idf_svc::{hal::{i2c::{I2cConfig, I2cDriver, I2cSlaveConfig, I2cSlaveDriver, I2C0}, units::FromValueType}, sys::{ESP_ERR_INVALID_ARG, ESP_ERR_NO_MEM, ESP_ERR_TIMEOUT}};
+use esp_idf_svc::{hal::{delay::{Delay, FreeRtos}, i2c::{I2cConfig, I2cDriver, I2cSlaveConfig, I2cSlaveDriver, I2C0}, units::FromValueType}, sys::{ESP_ERR_INVALID_ARG, ESP_ERR_NO_MEM, ESP_ERR_TIMEOUT}};
 use crate::microcontroller::peripherals::Peripheral;
 
 
@@ -14,7 +14,8 @@ pub enum I2CError {
     InvalidArg,
     DriverError,
     NoMoreHeapMemory,
-    TimeoutError
+    TimeoutError,
+    ErrorInReadValue
 }
 
 pub struct I2CMaster<'a> {
@@ -101,14 +102,44 @@ pub trait READER {
     fn read_and_parse<'b>(&'b mut self) -> HashMap<String,String>;
 }
 
-pub fn show_data(data_reader: &mut impl READER, operation_key: String) {
+pub fn show_data(data_reader: &mut impl READER, operation_key: String) -> Result<(), I2CError> {
     let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
     match parsed_data.get(&operation_key) {
         Some(data) => println!("The content is: {:?}", data),
-        None => {println!("Key not found");}
+        None => {return Err(I2CError::ErrorInReadValue);}
     }
+    Ok(())
 }
 
-fn sum(data_reader: impl READER) -> Result<u32, I2CError> {
-    todo!()
+pub fn read_n_times_and_sum(data_reader: &mut impl READER, operation_key: String, times: usize, ms_between_reads: u32) -> Result<i32, I2CError> {
+    let mut total = 0;
+    for _ in 0..times {
+        let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
+        match parsed_data.get(&operation_key) {
+            Some(data) =>  total += data.parse::<i32>().map_err(|_| I2CError::ErrorInReadValue)?,
+            None => {return Err(I2CError::ErrorInReadValue)}
+        }
+        FreeRtos::delay_ms(ms_between_reads);
+    }
+    Ok(total)
+}
+
+/// 
+pub fn stop_when_true<C>(data_reader: &mut impl READER, operation_key: String, ms_between_reads: u32, closure: C) -> Result<(), I2CError> 
+where
+C: Fn(String) -> bool
+{
+    loop {
+        let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
+        match parsed_data.get(&operation_key) {
+            Some(data) =>  {
+                println!("{:?}", data);
+                if closure(data.clone()) {
+                    return Ok(())
+                }
+            },
+            None => {return Err(I2CError::ErrorInReadValue)}
+        }
+        FreeRtos::delay_ms(ms_between_reads);
+    }
 }
