@@ -112,7 +112,7 @@ fn main() {
         month: 7,
         yr: 24,
     };
-
+    
     set_time(&mut ds3231, start_dt.sec, start_dt.min, start_dt.hrs, start_dt.day, start_dt.date, start_dt.month, start_dt.yr);
 
     loop {
