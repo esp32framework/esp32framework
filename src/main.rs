@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use esp32framework::{serial::{show_data, read_n_times_and_sum, stop_when_true, I2CMaster, READER}, Microcontroller};
+use esp32framework::{serial::{read_n_times_and_sum, show_data, stop_when_true, I2CError, I2CMaster, READER}, Microcontroller};
 use esp_idf_svc::hal::delay::BLOCK;
 
 const DS3231_ADDR: u8 = 0x68;
@@ -15,7 +15,20 @@ impl<'a> READER for Ds3231<'a> {
         self.i2c_driver.write(DS3231_ADDR, &[0_u8], BLOCK).unwrap();
         self.i2c_driver.read(DS3231_ADDR, &mut data, BLOCK).unwrap();
         parse_read_data(data)
-    } 
+    }
+
+    fn parse_and_write(&mut self, addr: u8, bytes_to_write: &[u8]) -> Result<(), I2CError> {
+        let parsed_bytes = parse_bytes(bytes_to_write);
+        self.i2c_driver.write(addr, &parsed_bytes, BLOCK)
+    }
+}
+
+fn parse_bytes(bytes: &[u8]) -> Vec<u8> { // TODO: Improve this func. Maybe it is not necessary to create a Vec.
+    let mut serialized_bytes = vec![];
+    for byte in bytes {
+        serialized_bytes.push(decimal_to_bcd(*byte))
+    }
+    serialized_bytes
 }
 
 #[repr(u8)]

@@ -100,6 +100,8 @@ impl <'a>I2CSlave<'a> {
 
 pub trait READER {
     fn read_and_parse<'b>(&'b mut self) -> HashMap<String,String>;
+
+    fn parse_and_write(&mut self, addr: u8, bytes_to_write: &[u8]) -> Result<(), I2CError>;
 }
 
 pub fn show_data(data_reader: &mut impl READER, operation_key: String) -> Result<(), I2CError> {
@@ -133,7 +135,6 @@ C: Fn(String) -> bool
         let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
         match parsed_data.get(&operation_key) {
             Some(data) =>  {
-                println!("{:?}", data);
                 if closure(data.clone()) {
                     return Ok(())
                 }
@@ -142,4 +143,14 @@ C: Fn(String) -> bool
         }
         FreeRtos::delay_ms(ms_between_reads);
     }
+}
+
+pub fn answer_specific_val(data_reader: &mut impl READER, operation_key: String, ms_between_reads: u32, addr: u8, bytes_to_write: &[u8]) { 
+    let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
+        match parsed_data.get(&operation_key) {
+            Some(data) => {
+                data_reader.parse_and_write(addr, bytes_to_write);},
+            None => {}
+        }
+        FreeRtos::delay_ms(ms_between_reads);
 }

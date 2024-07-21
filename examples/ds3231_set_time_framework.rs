@@ -50,14 +50,14 @@ fn write_clock(clock: &mut I2CMaster, time: u8, addr: u8) {
         .unwrap();
 }
 
-fn set_time(clock: &mut I2CMaster, secs: u8, min: u8, hrs: u8, day: u8, date: u8, month: u8, year: u8) {
-    write_clock(clock, secs, DS3231_REG_DIR::Seconds as u8);
-    write_clock(clock, min, DS3231_REG_DIR::Minutes as u8);
-    write_clock(clock, hrs, DS3231_REG_DIR::Hours as u8);
-    write_clock(clock, day, DS3231_REG_DIR::Day as u8);
-    write_clock(clock, date, DS3231_REG_DIR::Date as u8);
-    write_clock(clock, month, DS3231_REG_DIR::Month as u8);
-    write_clock(clock, year, DS3231_REG_DIR::Year as u8);
+fn set_time(clock: &mut I2CMaster, start_dt: DateTime) {
+    write_clock(clock, start_dt.sec, DS3231_REG_DIR::Seconds as u8);
+    write_clock(clock, start_dt.min, DS3231_REG_DIR::Minutes as u8);
+    write_clock(clock, start_dt.hrs, DS3231_REG_DIR::Hours as u8);
+    write_clock(clock, start_dt.day, DS3231_REG_DIR::Day as u8);
+    write_clock(clock, start_dt.date, DS3231_REG_DIR::Date as u8);
+    write_clock(clock, start_dt.month, DS3231_REG_DIR::Month as u8);
+    write_clock(clock, start_dt.yr, DS3231_REG_DIR::Year as u8);
 }
 
 fn parse_read_data(data: [u8; 13] )-> HashMap<String, String>{
@@ -106,7 +106,7 @@ fn main() {
         yr: 24,
     };
 
-    set_time(&mut ds3231, start_dt.sec, start_dt.min, start_dt.hrs, start_dt.day, start_dt.date, start_dt.month, start_dt.yr);
+    set_time(&mut ds3231, start_dt);
 
     loop {
         let mut data: [u8; 13] = [0_u8; 13];
