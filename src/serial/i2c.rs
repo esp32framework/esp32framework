@@ -1,4 +1,4 @@
-use esp_idf_svc::{hal::{i2c::{I2cConfig, I2cDriver, I2cSlaveConfig, I2cSlaveDriver, I2C0}, units::FromValueType}, sys::{ESP_ERR_INVALID_ARG, ESP_ERR_NO_MEM}};
+use esp_idf_svc::{hal::{i2c::{I2cConfig, I2cDriver, I2cSlaveConfig, I2cSlaveDriver, I2C0}, units::FromValueType}, sys::{ESP_ERR_INVALID_ARG, ESP_ERR_NO_MEM, ESP_ERR_TIMEOUT}};
 use crate::microcontroller::peripherals::Peripheral;
 
 
@@ -29,7 +29,7 @@ impl <'a>I2CMaster<'a> {
         let config = I2cConfig::new().baudrate(DEFAULT_BAUDRATE.kHz().into());
         let driver = I2cDriver::new(i2c, sda, scl, &config).map_err(|error| match error.code() {
             ESP_ERR_INVALID_ARG => I2CError::InvalidArg,
-            ESP_FAIL => I2CError::DriverError, 
+            _ => I2CError::DriverError, 
         })?;
 
         Ok(
@@ -41,7 +41,7 @@ impl <'a>I2CMaster<'a> {
         self.driver.read(addr, buffer, timeout).map_err(|error| match error.code() {
             ESP_ERR_INVALID_ARG => I2CError::InvalidArg,
             ESP_ERR_NO_MEM => I2CError::BufferTooSmall,
-            ESP_FAIL => I2CError::NoMoreHeapMemory,
+            _ => I2CError::NoMoreHeapMemory,
         })
     }
 
@@ -49,7 +49,15 @@ impl <'a>I2CMaster<'a> {
         self.driver.write(addr, bytes_to_write, timeout).map_err(|error| match error.code() {
             ESP_ERR_INVALID_ARG => I2CError::InvalidArg,
             ESP_ERR_NO_MEM => I2CError::BufferTooSmall,
-            ESP_FAIL => I2CError::NoMoreHeapMemory,
+            _ => I2CError::NoMoreHeapMemory,
+        })
+    }
+
+    pub fn write_read(&mut self, addr: u8, bytes_to_write: &[u8], buffer: &mut [u8], timeout: u32) -> Result<(), I2CError>{
+        self.driver.write_read(addr, bytes_to_write, buffer, timeout).map_err(|error| match error.code() {
+            ESP_ERR_INVALID_ARG => I2CError::InvalidArg,
+            ESP_ERR_NO_MEM => I2CError::BufferTooSmall,
+            _ => I2CError::NoMoreHeapMemory,
         })
     }
 
@@ -76,14 +84,14 @@ impl <'a>I2CSlave<'a> {
     pub fn read(&mut self, buffer: &mut [u8], timeout: u32) -> Result<usize, I2CError> {
         self.driver.read(buffer, timeout).map_err(|error| match error.code() {
             ESP_ERR_TIMEOUT => I2CError::TimeoutError,
-            ESP_FAIL => I2CError::InvalidArg,
+            _ => I2CError::InvalidArg,
         })
     }
 
     pub fn write(&mut self, bytes_to_write: &[u8], timeout: u32) -> Result<usize, I2CError> {
         self.driver.write(bytes_to_write, timeout).map_err(|error| match error.code() {
             ESP_ERR_TIMEOUT => I2CError::TimeoutError,
-            ESP_FAIL => I2CError::InvalidArg,
+            _ => I2CError::InvalidArg,
         })
     }
 }
