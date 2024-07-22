@@ -127,6 +127,19 @@ pub fn read_n_times_and_sum(data_reader: &mut impl READER, operation_key: String
     }
     Ok(total)
 }
+    
+pub fn read_n_times_and_avg(data_reader: &mut impl READER, operation_key: String, times: usize, ms_between_reads: u32) -> Result<f32, I2CError> {
+    let mut total = 0;
+    for _ in 0..times {
+        let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
+        match parsed_data.get(&operation_key) {
+            Some(data) =>  total += data.parse::<i32>().map_err(|_| I2CError::ErrorInReadValue)?,
+            None => {return Err(I2CError::ErrorInReadValue)}
+        }
+        FreeRtos::delay_ms(ms_between_reads);
+    }
+    Ok((total as f32) / (times as f32))
+}
 
 pub fn execute_when_true<C1, C2>(data_reader: &mut impl READER, operation_key: String, ms_between_reads: u32, condition_closure: C1, execute_closure: C2) -> Result<(), I2CError> 
 where
@@ -159,5 +172,14 @@ pub fn write_when_true(data_reader: &mut (impl READER + WRITER), operation_key: 
             None => {}
         }
         FreeRtos::delay_ms(ms_between_reads);
+    }
+}
+
+pub fn write_with_frecuency(data_reader: &mut impl WRITER, ms_between_writes: u32, addr: u8, bytes_to_write: &[u8]) -> Result<(), I2CError> {
+    loop{
+        if let Err(e) = data_reader.parse_and_write(addr, bytes_to_write) {
+            return Err(e);
+        }
+        FreeRtos::delay_ms(ms_between_writes);
     }
 }
