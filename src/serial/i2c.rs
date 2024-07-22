@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use esp_idf_svc::{hal::{delay::{Delay, FreeRtos}, i2c::{I2cConfig, I2cDriver, I2cSlaveConfig, I2cSlaveDriver, I2C0}, units::FromValueType}, sys::{ESP_ERR_INVALID_ARG, ESP_ERR_NO_MEM, ESP_ERR_TIMEOUT}};
+use esp_idf_svc::{hal::{delay::{Delay, FreeRtos}, i2c::{I2cConfig, I2cDriver, I2cSlaveConfig, I2cSlaveDriver, I2C0}, units::FromValueType}, sys::{esp_sleep_mode_t_ESP_SLEEP_MODE_LIGHT_SLEEP, ESP_ERR_INVALID_ARG, ESP_ERR_NO_MEM, ESP_ERR_TIMEOUT}};
 use crate::microcontroller::peripherals::Peripheral;
 
 
@@ -100,7 +100,9 @@ impl <'a>I2CSlave<'a> {
 
 pub trait READER {
     fn read_and_parse<'b>(&'b mut self) -> HashMap<String,String>;
+}
 
+pub trait WRITER { 
     fn parse_and_write(&mut self, addr: u8, bytes_to_write: &[u8]) -> Result<(), I2CError>;
 }
 
@@ -126,17 +128,17 @@ pub fn read_n_times_and_sum(data_reader: &mut impl READER, operation_key: String
     Ok(total)
 }
 
-/// 
-pub fn stop_when_true<C>(data_reader: &mut impl READER, operation_key: String, ms_between_reads: u32, closure: C) -> Result<(), I2CError> 
+pub fn execute_when_true<C1, C2>(data_reader: &mut impl READER, operation_key: String, ms_between_reads: u32, condition_closure: C1, execute_closure: C2) -> Result<(), I2CError> 
 where
-C: Fn(String) -> bool
+C1: Fn(String) -> bool,
+C2: Fn(HashMap<String, String>) -> (),
 {
     loop {
         let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
         match parsed_data.get(&operation_key) {
             Some(data) =>  {
-                if closure(data.clone()) {
-                    return Ok(())
+                if condition_closure(data.clone()) {
+                    execute_closure(parsed_data);
                 }
             },
             None => {return Err(I2CError::ErrorInReadValue)}
@@ -145,12 +147,17 @@ C: Fn(String) -> bool
     }
 }
 
-pub fn answer_specific_val(data_reader: &mut impl READER, operation_key: String, ms_between_reads: u32, addr: u8, bytes_to_write: &[u8]) { 
-    let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
+pub fn write_when_true(data_reader: &mut (impl READER + WRITER), operation_key: String, ms_between_reads: u32, addr: u8, bytes_to_write: &[u8]) -> Result<(), I2CError> { 
+    loop {
+        let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
         match parsed_data.get(&operation_key) {
-            Some(data) => {
-                data_reader.parse_and_write(addr, bytes_to_write);},
+            Some(_) => {
+                if let Err(e) = data_reader.parse_and_write(addr, bytes_to_write) {
+                    return Err(e);
+                }
+            },
             None => {}
         }
         FreeRtos::delay_ms(ms_between_reads);
+    }
 }

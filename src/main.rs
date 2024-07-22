@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use esp32framework::{serial::{read_n_times_and_sum, show_data, stop_when_true, I2CError, I2CMaster, READER}, Microcontroller};
+use esp32framework::{serial::{read_n_times_and_sum, show_data, execute_when_true, I2CError, I2CMaster, READER}, Microcontroller};
 use esp_idf_svc::hal::delay::BLOCK;
 
 const DS3231_ADDR: u8 = 0x68;
@@ -160,7 +160,7 @@ fn main() {
             s == "10".to_string()
         };
         
-        stop_when_true(&mut ds3231, "secs".to_string(), 1000, closure);
+        //execute_when_true(&mut ds3231, "secs".to_string(), 1000, closure,);
         println!("Ya salio");
         micro.sleep(1000);
     }
