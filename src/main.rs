@@ -59,8 +59,8 @@ fn main(){
     let mut i1 = micro.set_pin_as_digital_in(5);
     let mut i3 = micro.set_pin_as_digital_in(6);
 
-    o1.blink(10, 10 * 1000000).unwrap();
-    o3.blink(10, 5 * 1000000).unwrap();
+    o1.blink(10, 4 * 1000000).unwrap();
+    o3.blink(10, 8 * 1000000).unwrap();
 
     let mut i1_old = i1.is_high();
     let mut i3_old = i3.is_high();

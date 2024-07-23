@@ -202,7 +202,7 @@ impl <'a>AnalogOut<'a> {
             interrupt_update_code_ref.store(InterruptUpdate::ChangeDuty.get_code(), Ordering::SeqCst)
         };
         
-        self.timer_driver.interrupt_after(increase_after_miliseconds, callback).map_err(|err| AnalogOutError::TimerDriverError(err))?;
+        self.timer_driver.interrupt_after_n_times(increase_after_miliseconds, None, callback);
         self.timer_driver.enable().map_err(|err| AnalogOutError::TimerDriverError(err))?;
         self.fixed_change_type = fixed_change_type;
         Ok(())
@@ -336,11 +336,10 @@ impl <'a>AnalogOut<'a> {
         }
 
         self.driver.set_duty(duty).map_err(|_| AnalogOutError::ErrorSettingOutput)?;
-        if stay_subscribed {
-            self.timer_driver.enable().map_err(|err| AnalogOutError::TimerDriverError(err))
-        } else {
-            self.timer_driver.unsubscribe().map_err(|err| AnalogOutError::TimerDriverError(err))
+        if !stay_subscribed {
+            self.timer_driver.remove_interrupt().map_err(|err| AnalogOutError::TimerDriverError(err))?;
         }
+        Ok(())
     }
 
     /// Handles the diferent type of interrupts.
