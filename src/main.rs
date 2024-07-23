@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use esp32framework::{serial::{read_n_times_and_sum, show_data, execute_when_true, I2CError, I2CMaster, READER}, Microcontroller};
+use esp32framework::{serial::{read_n_times_and_sum, show_data, read_n_times_and_aggregate, I2CError, I2CMaster, READER}, Microcontroller};
 use esp_idf_svc::hal::delay::BLOCK;
 
 const DS3231_ADDR: u8 = 0x68;
@@ -15,11 +15,6 @@ impl<'a> READER for Ds3231<'a> {
         self.i2c_driver.write(DS3231_ADDR, &[0_u8], BLOCK).unwrap();
         self.i2c_driver.read(DS3231_ADDR, &mut data, BLOCK).unwrap();
         parse_read_data(data)
-    }
-
-    fn parse_and_write(&mut self, addr: u8, bytes_to_write: &[u8]) -> Result<(), I2CError> {
-        let parsed_bytes = parse_bytes(bytes_to_write);
-        self.i2c_driver.write(addr, &parsed_bytes, BLOCK)
     }
 }
 
@@ -120,7 +115,7 @@ fn main() {
     esp_idf_svc::sys::link_patches();
 
     let mut micro = Microcontroller::new();
-    let mut driver = micro.set_pins_for_i2c_master(5,6);
+    let driver = micro.set_pins_for_i2c_master(5,6);
     let mut ds3231 = Ds3231{i2c_driver: driver};
     
     let start_dt = DateTime {
@@ -155,13 +150,15 @@ fn main() {
         //     Ok(res) => println!("El resultado total es: {:?}", res),
         //     Err(_) => {}
         // };
-
-        let closure = |s: String| -> bool {
-            s == "10".to_string()
+        
+        let closure = |s: Vec<String>| -> f32 {
+            let mut sum: f32 = 0.0;
+            s.iter().for_each(|number| sum += number.parse::<f32>().unwrap());
+            sum
         };
         
-        //execute_when_true(&mut ds3231, "secs".to_string(), 1000, closure,);
-        println!("Ya salio");
-        micro.sleep(1000);
+        let result = read_n_times_and_aggregate(&mut ds3231, "secs".to_string(),10 ,1000, closure).unwrap();
+        println!("Ya salio con resultado {:?}", result);
+        // micro.sleep(1000);
     }
 }

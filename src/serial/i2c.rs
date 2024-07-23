@@ -115,30 +115,51 @@ pub fn show_data(data_reader: &mut impl READER, operation_key: String) -> Result
     Ok(())
 }
 
-pub fn read_n_times_and_sum(data_reader: &mut impl READER, operation_key: String, times: usize, ms_between_reads: u32) -> Result<i32, I2CError> {
-    let mut total = 0;
+// TODO: Document that we work with floats (values with "," will explode)
+pub fn read_n_times_and_sum(data_reader: &mut impl READER, operation_key: String, times: usize, ms_between_reads: u32) -> Result<f32, I2CError> {
+    let mut total = 0.0;
     for _ in 0..times {
         let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
         match parsed_data.get(&operation_key) {
-            Some(data) =>  total += data.parse::<i32>().map_err(|_| I2CError::ErrorInReadValue)?,
+            Some(data) =>  total += data.parse::<f32>().map_err(|_| I2CError::ErrorInReadValue)?,
             None => {return Err(I2CError::ErrorInReadValue)}
         }
         FreeRtos::delay_ms(ms_between_reads);
     }
     Ok(total)
 }
-    
+
+// TODO: Document that we work with floats (values with "," will explode)
 pub fn read_n_times_and_avg(data_reader: &mut impl READER, operation_key: String, times: usize, ms_between_reads: u32) -> Result<f32, I2CError> {
-    let mut total = 0;
+    let mut total = 0.0;
     for _ in 0..times {
         let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
         match parsed_data.get(&operation_key) {
-            Some(data) =>  total += data.parse::<i32>().map_err(|_| I2CError::ErrorInReadValue)?,
+            Some(data) =>  total += data.parse::<f32>().map_err(|_| I2CError::ErrorInReadValue)?,
             None => {return Err(I2CError::ErrorInReadValue)}
         }
         FreeRtos::delay_ms(ms_between_reads);
     }
     Ok((total as f32) / (times as f32))
+}
+
+pub fn read_n_times_and_aggregate<C, T>(data_reader: &mut impl READER, operation_key: String, times: usize, ms_between_reads: u32, execute_closure: C) -> Result<T, I2CError>
+where
+C: Fn(Vec<String>) -> T
+{
+    let mut read_values: Vec<String> = vec![];
+    for _ in 0..times {
+        let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
+        match parsed_data.get(&operation_key) {
+            Some(data) =>  {
+                println!("{:?}", data);
+                read_values.push(data.clone());
+            },
+            None => {return Err(I2CError::ErrorInReadValue)}
+        }
+        FreeRtos::delay_ms(ms_between_reads);
+    }
+    Ok(execute_closure(read_values))
 }
 
 pub fn execute_when_true<C1, C2>(data_reader: &mut impl READER, operation_key: String, ms_between_reads: u32, condition_closure: C1, execute_closure: C2) -> Result<(), I2CError> 
