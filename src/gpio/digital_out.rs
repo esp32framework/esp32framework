@@ -23,8 +23,7 @@ pub struct DigitalOut<'a>{
 
 /// After an interrupt is triggered an InterruptUpdate will be set and handled
 enum InterruptUpdate {
-    FinishedBlinking,
-    KeepBlinking,
+    Blink,
     None
 }
 
@@ -39,8 +38,7 @@ impl InterruptUpdate{
 
     fn from_code(code:u8)-> Self {
         match code{
-            0 => Self::FinishedBlinking,
-            1 => Self::KeepBlinking,
+            0 => Self::Blink,
             _ => Self::None,
         }
     }
@@ -100,7 +98,7 @@ impl <'a>DigitalOut<'a> {
     
     /// Makes the pin blink for a certain amount of times defined by *amount_of_blinks*,
     /// the time states can be adjusted using *time_between_states_micro* (micro sec)
-    pub fn blink(&mut self, mut amount_of_blinks: u32, time_between_states_micro: u32) -> Result<(), DigitalOutError> {
+    pub fn blink(&mut self, mut amount_of_blinks: u32, time_between_states_micro: u64) -> Result<(), DigitalOutError> {
         amount_of_blinks *= 2;
         if amount_of_blinks == 0 {
             return Ok(())
@@ -108,12 +106,10 @@ impl <'a>DigitalOut<'a> {
 
         let interrupt_update_code_ref = self.interrupt_update_code.clone();
         let callback = move || {
-            println!("Blink Callback");
-            interrupt_update_code_ref.store(InterruptUpdate::KeepBlinking.get_code(), Ordering::SeqCst);
-            println!("After Blink Callback");
+            interrupt_update_code_ref.store(InterruptUpdate::Blink.get_code(), Ordering::SeqCst);
         };
 
-        self.timer_driver.interrupt_after_n_times(time_between_states_micro, Some(amount_of_blinks), callback).map_err(|err| DigitalOutError::TimerDriverError(err))?;
+        self.timer_driver.interrupt_after_n_times(time_between_states_micro, Some(amount_of_blinks), callback);
         self.timer_driver.enable().map_err(|err| DigitalOutError::TimerDriverError(err))
     }
 
@@ -123,11 +119,8 @@ impl <'a>DigitalOut<'a> {
         self.interrupt_update_code.store(InterruptUpdate::None.get_code(), Ordering::SeqCst);
         
         match interrupt_update{
-            InterruptUpdate::FinishedBlinking => {self.timer_driver.unsubscribe().map_err(|err| DigitalOutError::TimerDriverError(err))},
-            InterruptUpdate::KeepBlinking => {
-                println!("toggled");
+            InterruptUpdate::Blink => {
                 self.toggle()
-                //self.timer_driver.enable().map_err(|err| DigitalOutError::TimerDriverError(err))
             }
             InterruptUpdate::None => Ok(()),
         }

@@ -36,16 +36,17 @@ impl <'a>Microcontroller<'a>{
         }
     }
 
-    pub fn get_timer_driver(&mut self)-> TimerDriver<'a>{
-        if self.timer_drivers.len() < 2{
+    fn get_timer_driver(&mut self)-> TimerDriver<'a>{
+        let mut timer_driver = if self.timer_drivers.len() < 2{
             let timer = self.peripherals.get_timer(self.timer_drivers.len());
-            let timer_driver = TimerDriver::new(timer).unwrap();
-            self.timer_drivers.push(timer_driver.clone());
-            return timer_driver;
-        }
-        let timer_driver = self.timer_drivers.swap_remove(0);
-        self.timer_drivers.push(timer_driver.clone());
-        timer_driver
+            TimerDriver::new(timer).unwrap()
+        }else{
+            self.timer_drivers.swap_remove(0)
+        };
+
+        let timer_driver_copy = timer_driver.create_child_copy().unwrap();
+        self.timer_drivers.push(timer_driver);
+        return timer_driver_copy;
     }
 
     /// Creates a DigitalIn on the ESP pin with number 'pin_num' to read digital inputs.

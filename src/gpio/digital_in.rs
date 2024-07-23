@@ -27,7 +27,7 @@ pub struct DigitalIn<'a>{
     interrupt_type: Option<InterruptType>,
     pub interrupt_update_code: Arc<AtomicInterruptUpdateCode>,
     user_callback: fn()->(),
-    debounce_ms: Option<u32>,
+    debounce_ms: Option<u64>,
 }
 
 /// After an interrupt is triggered an InterruptUpdate will be set and handled
@@ -100,7 +100,7 @@ impl <'a>DigitalIn<'a> {
     
     /// After an interrupt, sets an interrupt that will trigger after an amount of microseconds. If the
     /// Level remains the same afterwards then the interrupt update is set to execute user callback
-    fn trigger_if_mantains_after(&mut self, time_micro:u32)-> Result<impl FnMut() + Send + 'static, DigitalInError>{
+    fn trigger_if_mantains_after(&mut self, time_micro:u64)-> Result<impl FnMut() + Send + 'static, DigitalInError>{
         
         let interrupt_update_code_ref = self.interrupt_update_code.clone();
         let after_timer_cljr = move || {
@@ -230,7 +230,7 @@ impl <'a>DigitalIn<'a> {
     /// Sets the debounce time to an amount of microseconds. This means that if an interrupt is set,
     /// then the level must be the same after the debounce time for the user callback to be executed.
     /// Debounce time does not work with InterruptType::AnyEdge, an error will be returned
-    pub fn set_debounce(&mut self, time_micro: u32)->Result<(), DigitalInError>{
+    pub fn set_debounce(&mut self, time_micro: u64)->Result<(), DigitalInError>{
         match self.interrupt_type{
             Some(InterruptType::AnyEdge) => Err(DigitalInError::CannotSetDebounceOnAnyEdgeInterruptType)?,
             _ => self.debounce_ms = Some(time_micro),
