@@ -13,6 +13,7 @@ const DATE_ADDR     : u8 = 0x04;
 const MONTH_ADDR    : u8 = 0x05;    // Also works for century
 const YEAR_ADDR     : u8 = 0x06;
 
+const MIN_VALUE     : u8 = 0;
 const MAX_SECS      : u8 = 59;
 const MAX_MINS      : u8 = 59;
 const MIN_WEEK_DAY  : u8 = 1;
@@ -22,7 +23,25 @@ const MIN_MONTH     : u8 = 1;
 const MAX_MONTH     : u8 = 12;
 const MAX_YEAR      : u8 = 99;
 
+pub enum DateTimeComponent {
+    Second(u8),
+    Minute(u8),
+    Hour(u8),
+    WeekDay(u8),
+    Date(u8),
+    Month(u8),
+    Year(u8),
+}
 
+pub struct DateTime { // TODO: Check this. Like this, it is posible to put a DateTimeComponent::Second on the minute field.
+    pub second: DateTimeComponent,
+    pub minute: DateTimeComponent,
+    pub hour: DateTimeComponent,
+    pub week_day: DateTimeComponent,
+    pub date: DateTimeComponent,
+    pub month: DateTimeComponent,
+    pub year: DateTimeComponent
+} 
 
 pub struct DS3231<'a> {
     i2c: I2CMaster<'a>
@@ -41,60 +60,21 @@ impl <'a>DS3231<'a> {
         (bcd & 0x0F) + ((bcd >> 4) * 10)
     }
 
-    pub fn set_time(&mut self, secs: u8, mins: u8, hr: u8, week_day: u8, date: u8, month: u8, year: u8) -> Result<(), I2CError> { // TODO: Maybe use an struct so parameters are reduced
-        self.set_seconds(secs)?;
-        self.set_minutes(mins)?;
-        self.set_hour(hr)?;
-        self.set_week_day(week_day)?;
-        self.set_date(date)?;
-        self.set_month(month)?;
-        self.set_year(year)
+    pub fn set_time(&mut self, date_time: DateTime) -> Result<(), I2CError> { // TODO: Maybe use an struct so parameters are reduced
+        self.set(date_time.second)?;
+        self.set(date_time.minute)?;
+        self.set(date_time.hour)?;
+        self.set(date_time.week_day)?;
+        self.set(date_time.date)?;
+        self.set(date_time.month)?;
+        self.set(date_time.year)
     }
 
-    pub fn set_seconds(&mut self, secs: u8) -> Result<(), I2CError> {
-        if secs > MAX_SECS {
-            return Err(I2CError::InvalidArg)
-        }
-        self.write_clock(secs, SECONDS_ADDR)
-    }
-
-    pub fn set_minutes(&mut self, mins: u8) -> Result<(), I2CError> {
-        if mins > MAX_MINS {
+    pub fn set(&mut self, time_component: DateTimeComponent) -> Result<(), I2CError> {
+        if !time_component.is_between_boundaries() {
             return Err(I2CError::InvalidArg);
         }
-        self.write_clock(mins, MINUTES_ADDR)
-    }
-
-    pub fn set_hour(&mut self, hr: u8) -> Result<(), I2CError> { // TODO: Check if is set on 12 or 24 to see which is the max
-        self.write_clock(hr, HOURS_ADDR)
-    }
-
-    pub fn set_week_day(&mut self, week_day: u8) -> Result<(), I2CError> {
-        if week_day < MIN_WEEK_DAY || week_day > MAX_WEEK_DAY {
-            return Err(I2CError::InvalidArg);
-        }
-        self.write_clock(week_day, DAY_ADDR)
-    }
-
-    pub fn set_date(&mut self, date: u8) -> Result<(), I2CError> {
-        if date > MAX_DATE {
-            return Err(I2CError::InvalidArg);
-        }
-        self.write_clock(date, DATE_ADDR)
-    }
-    
-    pub fn set_month(&mut self, month: u8) -> Result<(), I2CError> {
-        if month < MIN_MONTH || month > MAX_MONTH {
-            return Err(I2CError::InvalidArg);
-        }
-        self.write_clock(month, MONTH_ADDR)
-    }
-
-    pub fn set_year(&mut self, year: u8) -> Result<(), I2CError> {
-        if year > MAX_YEAR {
-            return Err(I2CError::InvalidArg);
-        }
-        self.write_clock(year, YEAR_ADDR)
+        self.write_clock(time_component.value(), time_component.addr())
     }
 
     pub fn read_time(&mut self) -> Result<HashMap<String, String>, I2CError> {
@@ -112,7 +92,7 @@ impl <'a>DS3231<'a> {
         self.i2c.write(DS3231_ADDR, &[addr, bcd_time], BLOCK)
     }
 
-    fn parse_read_data(&self, data: [u8; 13] ) -> HashMap<String, String> {
+    fn parse_read_data(&self, data: [u8; 7] ) -> HashMap<String, String> {
         let mut res = HashMap::new();
 
         // For seconds and hours, a mask is appĺy to ignore unnecessary bits
@@ -135,6 +115,47 @@ impl <'a>DS3231<'a> {
         res
     }
 
-    
+}
 
+impl DateTimeComponent {
+
+    pub fn value(&self) -> u8 { // TODO: This is horrible. There has to be another way of getting the value
+        match self {
+            DateTimeComponent::Second(val) => *val,
+            DateTimeComponent::Minute(val) => *val,
+            DateTimeComponent::Hour(val) => *val,
+            DateTimeComponent::WeekDay(val) => *val,
+            DateTimeComponent::Date(val) => *val,
+            DateTimeComponent::Month(val) => *val,
+            DateTimeComponent::Year(val) => *val,
+        }
+    }
+
+    fn addr(&self) -> u8 {
+        match self {
+            DateTimeComponent::Second(_) => SECONDS_ADDR,
+            DateTimeComponent::Minute(_) => MINUTES_ADDR,
+            DateTimeComponent::Hour(_) => HOURS_ADDR,
+            DateTimeComponent::WeekDay(_) => DAY_ADDR,
+            DateTimeComponent::Date(_) => DATE_ADDR,
+            DateTimeComponent::Month(_) => MONTH_ADDR,
+            DateTimeComponent::Year(_) => YEAR_ADDR,
+        }
+    }
+
+    pub fn is_between_boundaries(&self) -> bool {
+        match self {
+            DateTimeComponent::Second(val) => self.check_boundaries(*val, MIN_VALUE, MAX_SECS),
+            DateTimeComponent::Minute(val) => self.check_boundaries(*val, MIN_VALUE, MAX_MINS),
+            DateTimeComponent::Hour(val) => true, // TODO: Check if is set on 12 or 24 to see which is the max
+            DateTimeComponent::WeekDay(val) => self.check_boundaries(*val, MIN_WEEK_DAY, MAX_WEEK_DAY),
+            DateTimeComponent::Date(val) => self.check_boundaries(*val, MIN_VALUE, MAX_DATE),
+            DateTimeComponent::Month(val) => self.check_boundaries(*val, MIN_MONTH, MAX_MONTH),
+            DateTimeComponent::Year(val) => self.check_boundaries(*val, MIN_VALUE, MAX_YEAR),
+        }
+    }
+
+    fn check_boundaries(&self, val: u8, min_boundarie: u8, max_boundarie: u8) -> bool {
+        val >= min_boundarie && val <= max_boundarie
+    }
 }

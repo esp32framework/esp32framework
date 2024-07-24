@@ -1,4 +1,4 @@
-use esp32framework::{sensors::DS3231, Microcontroller};
+use esp32framework::{sensors::{DateTime, DateTimeComponent, DS3231}, Microcontroller};
 
 fn main() {
 
@@ -6,7 +6,17 @@ fn main() {
     let i2c = micro.set_pins_for_i2c_master(5,6);
     let mut ds3231 = DS3231::new(i2c);
 
-    ds3231.set_time(5, 10, 20, 3, 23, 7, 24).unwrap();
+    let date_time = DateTime {
+        second: DateTimeComponent::Second(5),
+        minute: DateTimeComponent::Minute(10),
+        hour: DateTimeComponent::Hour(20),
+        week_day: DateTimeComponent::WeekDay(4),
+        date: DateTimeComponent::Date(24),
+        month: DateTimeComponent::Month(7),
+        year: DateTimeComponent::Year(24),
+    };
+
+    ds3231.set_time(date_time).unwrap();
     
     loop {
         // Set reading address in zero to read seconds,minutes,hours,day,day number, month and year
