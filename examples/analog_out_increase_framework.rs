@@ -9,6 +9,7 @@ fn main(){
     red_analog_out.start_increasing_bounce_back(100, 0.05, 0.0, None).unwrap();
 
     loop {
+        micro.update(vec![], vec![]);
         red_analog_out.update_interrupt().unwrap();
         micro.sleep(100);
     }

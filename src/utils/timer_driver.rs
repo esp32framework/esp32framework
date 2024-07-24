@@ -211,7 +211,7 @@ impl <'a>_TimerDriver<'a>{
     fn _enable(&mut self, id: u8, enable: bool) -> Result<(),TimerDriverError>{
         let starting_len = self.interrupts.len();
         if enable{
-            self.activate(id);
+            self.activate(id)?;
             self.set_lowest_alarm()?;
         }else{
             self.diactivate(id);
@@ -224,7 +224,7 @@ impl <'a>_TimerDriver<'a>{
                 self.driver.disable_interrupt().map_err(|_| TimerDriverError::CouldNotSetTimer)?;
                 self.reset()
             }
-            self.driver.set_counter(0);
+            self.driver.set_counter(0).map_err(|_| TimerDriverError::CouldNotSetTimer)?;
             self.driver.enable_alarm(enable).map_err(|_| TimerDriverError::CouldNotSetTimer)?;
             self.driver.enable(enable).map_err(|_| TimerDriverError::CouldNotSetTimer)?;
         }
@@ -240,7 +240,7 @@ impl <'a>_TimerDriver<'a>{
     }
 
     fn remove_interrupt(&mut self, id:u8)->Result<(), TimerDriverError>{
-        self.disable(id);
+        self.disable(id)?;
         if self.inactive_alarms.contains_key(&id){
             self.inactive_alarms.insert(id, DisabledTimeInterrupt::Removing);
         }
@@ -280,7 +280,7 @@ impl <'a>_TimerDriver<'a>{
                     },
                 };
             }
-            self.set_lowest_alarm();
+            self.set_lowest_alarm()?;
             updates = self.interrupt_update.handle_any_updates();
         }
         Ok(())

@@ -10,8 +10,6 @@ use std::sync::{
     atomic::{AtomicU8, AtomicU32, Ordering}
 };
 
-type AtomicInterruptUpdateCode = AtomicU8;
-
 #[derive(Debug)]
 pub enum AnalogOutError{
     TooManyPWMOutputs,
@@ -41,15 +39,15 @@ pub struct AnalogOut<'a> {
     driver: LedcDriver<'a>,
     timer_driver: TimerDriver<'a>,
     pub duty: Arc<AtomicU32>,
-    interrupt_update_code: Arc<AtomicInterruptUpdateCode>,
+    change_duty_update: ChangeDutyUpdate,
     fixed_change_increasing: Arc<AtomicBool>,
     fixed_change_type: FixedChangeType,
     amount_of_cycles: Option<u32>,
 }
 
-enum InterruptUpdate {
-    ChangeDuty,
-    None
+#[derive(Clone)]
+struct ChangeDutyUpdate {
+    change: Arc<AtomicBool>,
 }
 
 impl FixedChangeType{
@@ -61,24 +59,19 @@ impl FixedChangeType{
     }
 }
 
-impl InterruptUpdate{
-    fn get_code(self)-> u8{
-        self as u8
+impl ChangeDutyUpdate{
+    fn new()-> Self{
+        ChangeDutyUpdate{change: Arc::new(AtomicBool::new(false))}
     }
 
-    fn get_atomic_code(self)-> AtomicInterruptUpdateCode{
-        AtomicInterruptUpdateCode::new(self.get_code())
+    fn change_duty(&mut self){
+        self.change.store(true, Ordering::Relaxed)
     }
-
-    fn from_code(code:u8)-> Self {
-        match code{
-            0 => InterruptUpdate::ChangeDuty,
-            _ => Self::None,
-        }
-    }
-
-    fn from_atomic_code(atomic_code: Arc<AtomicInterruptUpdateCode>) -> Self {
-        InterruptUpdate::from_code(atomic_code.load(Ordering::Acquire))
+    
+    fn handle_change_duty(&mut self)-> bool{
+        let change_duty = self.change.load(Ordering::Relaxed);
+        self.change.store(true, Ordering::Relaxed);
+        change_duty
     }
 }
 
@@ -109,7 +102,7 @@ impl <'a>AnalogOut<'a> {
         Ok(AnalogOut{driver: pwm_driver,
             timer_driver: timer_driver, 
             duty: Arc::new(AtomicU32::new(0)), 
-            interrupt_update_code: Arc::new(InterruptUpdate::None.get_atomic_code()),
+            change_duty_update: ChangeDutyUpdate::new(),
             fixed_change_increasing: Arc::new(AtomicBool::new(false)),
             fixed_change_type: FixedChangeType::None,
             amount_of_cycles: None,
@@ -180,7 +173,7 @@ impl <'a>AnalogOut<'a> {
 
     /// Creates the proper callback and subscribes it to the TimerDriver
     fn start_changing_by_fixed_amount(&mut self, fixed_change_type: FixedChangeType, increase_after_miliseconds: u64, increase_by_ratio: f32, starting_high_ratio: f32)-> Result<(), AnalogOutError>{
-        let interrupt_update_code_ref = self.interrupt_update_code.clone();
+        let mut change_duty_update_ref = self.change_duty_update.clone();
         let duty_ref = self.duty.clone();
         let increase_direction_ref = self.fixed_change_increasing.clone();
         self.fixed_change_increasing.store(fixed_change_type.increasing_starting_direction(), Ordering::SeqCst);
@@ -199,7 +192,7 @@ impl <'a>AnalogOut<'a> {
             };
             duty_ref.store(new_duty, Ordering::SeqCst);
 
-            interrupt_update_code_ref.store(InterruptUpdate::ChangeDuty.get_code(), Ordering::SeqCst)
+            change_duty_update_ref.change_duty();
         };
         
         self.timer_driver.interrupt_after_n_times(increase_after_miliseconds, None, callback);
@@ -344,10 +337,7 @@ impl <'a>AnalogOut<'a> {
 
     /// Handles the diferent type of interrupts.
     pub fn update_interrupt(&mut self) -> Result<(), AnalogOutError> {
-        let interrupt_update = InterruptUpdate::from_atomic_code(self.interrupt_update_code.clone());
-        self.interrupt_update_code.store(InterruptUpdate::None.get_code(), Ordering::SeqCst);
-
-        if let InterruptUpdate::ChangeDuty = interrupt_update{
+        if self.change_duty_update.handle_change_duty(){
             self.change_duty_on_cycle()?
         }
         Ok(())
