@@ -195,7 +195,7 @@ impl <'a>AnalogOut<'a> {
             change_duty_update_ref.change_duty();
         };
         
-        self.timer_driver.interrupt_after_n_times(increase_after_miliseconds, None, callback);
+        self.timer_driver.interrupt_after_n_times(increase_after_miliseconds, None, true, callback);
         self.timer_driver.enable().map_err(|err| AnalogOutError::TimerDriverError(err))?;
         self.fixed_change_type = fixed_change_type;
         Ok(())

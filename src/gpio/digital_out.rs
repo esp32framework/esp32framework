@@ -109,7 +109,7 @@ impl <'a>DigitalOut<'a> {
             interrupt_update_code_ref.store(InterruptUpdate::Blink.get_code(), Ordering::SeqCst);
         };
 
-        self.timer_driver.interrupt_after_n_times(time_between_states_micro, Some(amount_of_blinks), callback);
+        self.timer_driver.interrupt_after_n_times(time_between_states_micro, Some(amount_of_blinks), true, callback);
         self.timer_driver.enable().map_err(|err| DigitalOutError::TimerDriverError(err))
     }
 

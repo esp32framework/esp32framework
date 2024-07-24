@@ -107,7 +107,7 @@ impl <'a>DigitalIn<'a> {
             interrupt_update_code_ref.store(InterruptUpdate::TimerReached.get_code(), Ordering::SeqCst);
         };
 
-        self.timer_driver.interrupt_after(time_micro, after_timer_cljr).map_err(|err| DigitalInError::TimerDriverError(err))?;
+        self.timer_driver.interrupt_after(time_micro, after_timer_cljr);
         
         let interrupt_update_code_ref = self.interrupt_update_code.clone();
         let start_timer_cljr = move || {
@@ -186,7 +186,6 @@ impl <'a>DigitalIn<'a> {
             (self.user_callback)();
         }
         
-        self.timer_driver.disable().map_err(|err| DigitalInError::TimerDriverError(err))?;
         self.pin_driver.enable_interrupt().map_err(|err| map_enable_disable_errors(err))
     }
 
