@@ -24,23 +24,23 @@ const MAX_MONTH     : u8 = 12;
 const MAX_YEAR      : u8 = 99;
 
 pub enum DateTimeComponent {
-    Second(u8),
-    Minute(u8),
-    Hour(u8),
-    WeekDay(u8),
-    Date(u8),
-    Month(u8),
-    Year(u8),
+    Second,
+    Minute,
+    Hour,
+    WeekDay,
+    Date,
+    Month,
+    Year,
 }
 
-pub struct DateTime { // TODO: Check this. Like this, it is posible to put a DateTimeComponent::Second on the minute field.
-    pub second: DateTimeComponent,
-    pub minute: DateTimeComponent,
-    pub hour: DateTimeComponent,
-    pub week_day: DateTimeComponent,
-    pub date: DateTimeComponent,
-    pub month: DateTimeComponent,
-    pub year: DateTimeComponent
+pub struct DateTime {
+    pub second: u8,
+    pub minute: u8,
+    pub hour: u8,
+    pub week_day: u8,
+    pub date: u8,
+    pub month: u8,
+    pub year: u8
 } 
 
 pub struct DS3231<'a> {
@@ -61,23 +61,23 @@ impl <'a>DS3231<'a> {
     }
 
     pub fn set_time(&mut self, date_time: DateTime) -> Result<(), I2CError> { // TODO: Maybe use an struct so parameters are reduced
-        self.set(date_time.second)?;
-        self.set(date_time.minute)?;
-        self.set(date_time.hour)?;
-        self.set(date_time.week_day)?;
-        self.set(date_time.date)?;
-        self.set(date_time.month)?;
-        self.set(date_time.year)
+        self.set(date_time.second, DateTimeComponent::Second)?;
+        self.set(date_time.minute, DateTimeComponent::Minute)?;
+        self.set(date_time.hour, DateTimeComponent::Hour)?;
+        self.set(date_time.week_day, DateTimeComponent::WeekDay)?;
+        self.set(date_time.date, DateTimeComponent::Date)?;
+        self.set(date_time.month, DateTimeComponent::Month)?;
+        self.set(date_time.year, DateTimeComponent::Year)
     }
 
-    pub fn set(&mut self, time_component: DateTimeComponent) -> Result<(), I2CError> {
-        if !time_component.is_between_boundaries() {
+    pub fn set(&mut self, value: u8, time_component: DateTimeComponent) -> Result<(), I2CError> {
+        if !time_component.is_between_boundaries(value) {
             return Err(I2CError::InvalidArg);
         }
-        self.write_clock(time_component.value(), time_component.addr())
+        self.write_clock(value, time_component.addr())
     }
 
-    pub fn read_time(&mut self) -> Result<HashMap<String, String>, I2CError> {
+    pub fn read_time(&mut self) -> Result<DateTime, I2CError> {
         let mut data: [u8; 7] = [0; 7];
 
         // The SECONDS_ADDR is written to notify from where we want to start reading
@@ -87,14 +87,30 @@ impl <'a>DS3231<'a> {
         Ok(self.parse_read_data(data))
     }
 
+    pub fn read(&mut self, component: DateTimeComponent) -> Result<u8, I2CError> {
+        let mut buffer: [u8; 1] = [0];
+
+        self.i2c.write(DS3231_ADDR, &[component.addr()], BLOCK)?;
+        self.i2c.read(DS3231_ADDR, &mut buffer, BLOCK)?;
+
+        let parsed_data = self.parse_component(buffer[0], component);
+        Ok(parsed_data)
+    }
+
     fn write_clock(&mut self, time: u8, addr: u8) -> Result<(), I2CError> {
         let bcd_time = self.decimal_to_bcd(time);
         self.i2c.write(DS3231_ADDR, &[addr, bcd_time], BLOCK)
     }
 
-    fn parse_read_data(&self, data: [u8; 7] ) -> HashMap<String, String> {
-        let mut res = HashMap::new();
+    fn parse_component(&self, read_value: u8, component: DateTimeComponent) -> u8 {
+        match component {
+            DateTimeComponent::Second => self.bcd_to_decimal(read_value & 0x7f),
+            DateTimeComponent::Hour => self.bcd_to_decimal(read_value & 0x7f),
+            _ => self.bcd_to_decimal(read_value),
+        }
+    }
 
+    fn parse_read_data(&self, data: [u8; 7] ) -> DateTime {                     // TODO: Maybe change this name
         // For seconds and hours, a mask is appĺy to ignore unnecessary bits
         let secs = self.bcd_to_decimal(data[0] & 0x7f);  // 0 1 1 1 1 1 1 1
         let mins = self.bcd_to_decimal(data[1]);
@@ -103,55 +119,46 @@ impl <'a>DS3231<'a> {
         let month = self.bcd_to_decimal(data[5]);
         let yr = self.bcd_to_decimal(data[6]);
         let dow = self.bcd_to_decimal(data[3]); 
-    
-        res.insert("seconds".to_string(), secs.to_string());
-        res.insert("minutes".to_string(), mins.to_string());
-        res.insert("hours".to_string(), hrs.to_string());
-        res.insert("day_of_week".to_string(), dow.to_string());
-        res.insert("day_number".to_string(), day_number.to_string());
-        res.insert("month".to_string(), month.to_string());
-        res.insert("year".to_string(), yr.to_string());
-    
-        res
+        
+        DateTime {
+            second: secs,
+            minute: mins,
+            hour: hrs,
+            week_day: dow,
+            date: day_number,
+            month: month,
+            year: yr,
+        }
+        
     }
 
 }
 
-impl DateTimeComponent {
 
-    pub fn value(&self) -> u8 { // TODO: This is horrible. There has to be another way of getting the value
-        match self {
-            DateTimeComponent::Second(val) => *val,
-            DateTimeComponent::Minute(val) => *val,
-            DateTimeComponent::Hour(val) => *val,
-            DateTimeComponent::WeekDay(val) => *val,
-            DateTimeComponent::Date(val) => *val,
-            DateTimeComponent::Month(val) => *val,
-            DateTimeComponent::Year(val) => *val,
-        }
-    }
+
+impl DateTimeComponent {
 
     fn addr(&self) -> u8 {
         match self {
-            DateTimeComponent::Second(_) => SECONDS_ADDR,
-            DateTimeComponent::Minute(_) => MINUTES_ADDR,
-            DateTimeComponent::Hour(_) => HOURS_ADDR,
-            DateTimeComponent::WeekDay(_) => DAY_ADDR,
-            DateTimeComponent::Date(_) => DATE_ADDR,
-            DateTimeComponent::Month(_) => MONTH_ADDR,
-            DateTimeComponent::Year(_) => YEAR_ADDR,
+            DateTimeComponent::Second => SECONDS_ADDR,
+            DateTimeComponent::Minute => MINUTES_ADDR,
+            DateTimeComponent::Hour => HOURS_ADDR,
+            DateTimeComponent::WeekDay => DAY_ADDR,
+            DateTimeComponent::Date => DATE_ADDR,
+            DateTimeComponent::Month => MONTH_ADDR,
+            DateTimeComponent::Year => YEAR_ADDR,
         }
     }
 
-    pub fn is_between_boundaries(&self) -> bool {
+    pub fn is_between_boundaries(&self, val: u8) -> bool {
         match self {
-            DateTimeComponent::Second(val) => self.check_boundaries(*val, MIN_VALUE, MAX_SECS),
-            DateTimeComponent::Minute(val) => self.check_boundaries(*val, MIN_VALUE, MAX_MINS),
-            DateTimeComponent::Hour(val) => true, // TODO: Check if is set on 12 or 24 to see which is the max
-            DateTimeComponent::WeekDay(val) => self.check_boundaries(*val, MIN_WEEK_DAY, MAX_WEEK_DAY),
-            DateTimeComponent::Date(val) => self.check_boundaries(*val, MIN_VALUE, MAX_DATE),
-            DateTimeComponent::Month(val) => self.check_boundaries(*val, MIN_MONTH, MAX_MONTH),
-            DateTimeComponent::Year(val) => self.check_boundaries(*val, MIN_VALUE, MAX_YEAR),
+            DateTimeComponent::Second => self.check_boundaries(val, MIN_VALUE, MAX_SECS),
+            DateTimeComponent::Minute => self.check_boundaries(val, MIN_VALUE, MAX_MINS),
+            DateTimeComponent::Hour => true, // TODO: Check if is set on 12 or 24 to see which is the max
+            DateTimeComponent::WeekDay => self.check_boundaries(val, MIN_WEEK_DAY, MAX_WEEK_DAY),
+            DateTimeComponent::Date => self.check_boundaries(val, MIN_VALUE, MAX_DATE),
+            DateTimeComponent::Month => self.check_boundaries(val, MIN_MONTH, MAX_MONTH),
+            DateTimeComponent::Year => self.check_boundaries(val, MIN_VALUE, MAX_YEAR),
         }
     }
 

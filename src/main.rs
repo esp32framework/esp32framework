@@ -7,25 +7,37 @@ fn main() {
     let mut ds3231 = DS3231::new(i2c);
 
     let date_time = DateTime {
-        second: DateTimeComponent::Second(5),
-        minute: DateTimeComponent::Minute(10),
-        hour: DateTimeComponent::Hour(20),
-        week_day: DateTimeComponent::WeekDay(4),
-        date: DateTimeComponent::Date(24),
-        month: DateTimeComponent::Month(7),
-        year: DateTimeComponent::Year(24),
+        second: 5,
+        minute: 10,
+        hour: 20,
+        week_day: 4,
+        date: 24,
+        month: 7,
+        year: 24,
     };
 
     ds3231.set_time(date_time).unwrap();
     
+    let mut i = 0;
     loop {
         // Set reading address in zero to read seconds,minutes,hours,day,day number, month and year
-        let parsed_data = ds3231.read_time().unwrap();
+        let date_time = ds3231.read_time().unwrap();
 
-        println!("{}, {}/{}/20{}, {:02}:{:02}:{:02}", parsed_data["day_of_week"], parsed_data["day_number"],
-                                                      parsed_data["month"], parsed_data["year"], parsed_data["hours"], 
-                                                      parsed_data["minutes"], parsed_data["seconds"]);
-        
+        println!("{}, {}/{}/20{}, {:02}:{:02}:{:02}", date_time.week_day, date_time.date,
+                                                      date_time.month, date_time.year, date_time.hour, 
+                                                      date_time.minute, date_time.second);
+
+        if i == 4 {
+            let second = ds3231.read(DateTimeComponent::Second).unwrap();
+            println!("El segundo leido fue: {:?}", second)
+        } else if i == 6 {
+            let day = ds3231.read(DateTimeComponent::Date).unwrap();
+            println!("El dia leido fue: {:?}", day)
+        } else if i == 8 {
+            let hr = ds3231.read(DateTimeComponent::Hour).unwrap();
+            println!("La hora leida fue: {:?}", hr)
+        }
+        i += 1;
         micro.sleep(1000);
     }
 }
