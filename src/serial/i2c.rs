@@ -99,7 +99,7 @@ impl <'a>I2CSlave<'a> {
 }
 
 pub trait READER {
-    fn read_and_parse<'b>(&'b mut self) -> HashMap<String,String>;
+    fn read_and_parse<'b>(&'b mut self) -> HashMap<String, String>;
 }
 
 pub trait WRITER { 

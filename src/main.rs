@@ -1,4 +1,4 @@
-use esp32framework::{sensors::{DateTime, DateTimeComponent, DS3231}, Microcontroller};
+use esp32framework::{sensors::{DateTime, DateTimeComponent, DS3231}, serial::READER, Microcontroller};
 
 fn main() {
 
@@ -20,12 +20,12 @@ fn main() {
     
     let mut i = 0;
     loop {
-        // Set reading address in zero to read seconds,minutes,hours,day,day number, month and year
-        let date_time = ds3231.read_time().unwrap();
+        // Set reading address in zero to read seconds, minutes, hours, day, day number, month and year
+        let date_time = ds3231.read_and_parse();
 
-        println!("{}, {}/{}/20{}, {:02}:{:02}:{:02}", date_time.week_day, date_time.date,
-                                                      date_time.month, date_time.year, date_time.hour, 
-                                                      date_time.minute, date_time.second);
+        println!("{}, {}/{}/20{}, {:02}:{:02}:{:02}", date_time["dow"], date_time["day_number"],
+                                                      date_time["month"], date_time["year"], date_time["hrs"], 
+                                                      date_time["min"], date_time["secs"]);
 
         if i == 4 {
             let second = ds3231.read(DateTimeComponent::Second).unwrap();

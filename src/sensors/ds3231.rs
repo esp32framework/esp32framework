@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use esp_idf_svc::{hal::delay::BLOCK, sys::gpio_set_level};
 
-use crate::serial::{I2CError, I2CMaster};
+use crate::serial::{I2CError, I2CMaster, READER, WRITER};
 
 const DS3231_ADDR   : u8 = 0x68;
 const SECONDS_ADDR  : u8 = 0x00;
@@ -43,9 +43,11 @@ pub struct DateTime {
     pub year: u8
 } 
 
+
 pub struct DS3231<'a> {
     i2c: I2CMaster<'a>
 }
+
 
 impl <'a>DS3231<'a> {
     pub fn new(i2c: I2CMaster<'a>) -> DS3231<'a> {
@@ -60,7 +62,7 @@ impl <'a>DS3231<'a> {
         (bcd & 0x0F) + ((bcd >> 4) * 10)
     }
 
-    pub fn set_time(&mut self, date_time: DateTime) -> Result<(), I2CError> { // TODO: Maybe use an struct so parameters are reduced
+    pub fn set_time(&mut self, date_time: DateTime) -> Result<(), I2CError> {
         self.set(date_time.second, DateTimeComponent::Second)?;
         self.set(date_time.minute, DateTimeComponent::Minute)?;
         self.set(date_time.hour, DateTimeComponent::Hour)?;
@@ -75,16 +77,6 @@ impl <'a>DS3231<'a> {
             return Err(I2CError::InvalidArg);
         }
         self.write_clock(value, time_component.addr())
-    }
-
-    pub fn read_time(&mut self) -> Result<DateTime, I2CError> {
-        let mut data: [u8; 7] = [0; 7];
-
-        // The SECONDS_ADDR is written to notify from where we want to start reading
-        self.i2c.write(DS3231_ADDR, &[SECONDS_ADDR], BLOCK)?;
-        self.i2c.read(DS3231_ADDR, &mut data, BLOCK)?;
-
-        Ok(self.parse_read_data(data))
     }
 
     pub fn read(&mut self, component: DateTimeComponent) -> Result<u8, I2CError> {
@@ -110,34 +102,61 @@ impl <'a>DS3231<'a> {
         }
     }
 
-    fn parse_read_data(&self, data: [u8; 7] ) -> DateTime {                     // TODO: Maybe change this name
-        // For seconds and hours, a mask is appĺy to ignore unnecessary bits
+    pub fn restart(&mut self) -> Result<(), I2CError> {
+        let date_time = DateTime  {
+            second: 0,
+            minute: 0,
+            hour: 0,
+            week_day: 0,
+            date: 0,
+            month: 0,
+            year: 0
+        };
+        self.set_time(date_time)
+    }
+
+    fn parse_read_data(&self, data: [u8; 13] )-> HashMap<String, String> {
+        let mut res = HashMap::new();
         let secs = self.bcd_to_decimal(data[0] & 0x7f);  // 0 1 1 1 1 1 1 1
         let mins = self.bcd_to_decimal(data[1]);
         let hrs = self.bcd_to_decimal(data[2] & 0x3f);   // 0 0 1 1 1 1 1 1
         let day_number = self.bcd_to_decimal(data[4]);
         let month = self.bcd_to_decimal(data[5]);
         let yr = self.bcd_to_decimal(data[6]);
-        let dow = self.bcd_to_decimal(data[3]); 
-        
-        DateTime {
-            second: secs,
-            minute: mins,
-            hour: hrs,
-            week_day: dow,
-            date: day_number,
-            month: month,
-            year: yr,
-        }
-        
-    }
+        let dow = match self.bcd_to_decimal(data[3]) {
+            1 => "Sunday",
+            2 => "Monday",
+            3 => "Tuesday",
+            4 => "Wednesday",
+            5 => "Thursday",
+            6 => "Friday",
+            7 => "Saturday",
+            _ => "",
+        };
+    
+        res.insert("secs".to_string(), secs.to_string());
+        res.insert("min".to_string(), mins.to_string());
+        res.insert("hrs".to_string(), hrs.to_string());
+        res.insert("dow".to_string(), dow.to_string());
+        res.insert("day_number".to_string(), day_number.to_string());
+        res.insert("month".to_string(), month.to_string());
+        res.insert("year".to_string(), yr.to_string());
+    
+        res
+    }    
 
 }
 
-
+impl<'a> READER for DS3231<'a> {
+    fn read_and_parse<'b>(&'b mut self) -> HashMap<String, String> {
+        let mut data: [u8; 13] = [0_u8; 13];
+        self.i2c.write(DS3231_ADDR, &[0_u8], BLOCK).unwrap();
+        self.i2c.read(DS3231_ADDR, &mut data, BLOCK).unwrap();
+        self.parse_read_data(data)
+    }
+}
 
 impl DateTimeComponent {
-
     fn addr(&self) -> u8 {
         match self {
             DateTimeComponent::Second => SECONDS_ADDR,
