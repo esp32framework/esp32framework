@@ -35,7 +35,6 @@ enum InterruptUpdate {
     ExecAndEnablePin,
     EnableTimerDriver,
     TimerReached,
-    UnsubscribeTimerDriver,
     ExecAndUnsubscribePin,
     None
 }
@@ -54,8 +53,7 @@ impl InterruptUpdate{
             0 => Self::ExecAndEnablePin,
             1 => Self::EnableTimerDriver,
             2 => Self::TimerReached,
-            3 => Self::UnsubscribeTimerDriver,
-            4 => Self::ExecAndUnsubscribePin,
+            3 => Self::ExecAndUnsubscribePin,
             _ => Self::None,
         }
     }
@@ -206,7 +204,6 @@ impl <'a>DigitalIn<'a> {
                 (self.user_callback)();
                 self.pin_driver.unsubscribe().map_err(|err| map_enable_disable_errors(err))
                 },
-            InterruptUpdate::UnsubscribeTimerDriver => self.timer_driver.unsubscribe().map_err(|err| DigitalInError::TimerDriverError(err)),
             InterruptUpdate::None => Ok(()),
         }
     }

@@ -1,6 +1,6 @@
 use std::{
-    cell::RefCell, collections::{BinaryHeap, HashMap, HashSet}, rc::Rc, sync::{
-        atomic::{AtomicBool, AtomicU8, Ordering},
+    cell::RefCell, collections::{BinaryHeap, HashMap}, rc::Rc, sync::{
+        atomic::{AtomicBool, Ordering},
         Arc
     }
 };
@@ -9,15 +9,19 @@ use esp_idf_svc::hal::timer;
 use crate::utils::timer_driver::timer::TimerConfig;
 use crate::microcontroller::peripherals::Peripheral;
 
-
 const MICRO_IN_SEC: u64 = 1000000;
 
+/// Wrapper of _TimerDriver, handling the coordination of multiple references to the inner driver, 
+/// in order to allow for interrupts to be set per timer resource. Each reference has a unique id
+/// and can create one interrupt each.
+/// In order to see the documentation of wrapper functions see [_TimerDriver]
 pub struct TimerDriver<'a> {
     inner: Rc<RefCell<_TimerDriver<'a>>>,
     id: u8,
     next_child: u8,
 }
 
+/// Driver for handling the timer resource, allowing for multiple interrupts to be set
 struct _TimerDriver<'a> {
     driver: timer::TimerDriver<'a>,
     interrupt_update: InterruptUpdate,
@@ -46,19 +50,23 @@ impl InterruptUpdate{
     fn new()->InterruptUpdate{
         InterruptUpdate{update: Arc::new(AtomicBool::new(true))}
     }
-
+    
+    /// Checks for an update
     fn any_updates(&self)->bool {
         self.update.load(Ordering::Relaxed)
     }
     
+    /// Sets an update on the interrupt update
     fn new_update(&self){
         self.update.store(true, Ordering::Relaxed);
     }
     
+    /// Removes update
     fn handling_update(&self){
         self.update.store(false, Ordering::Relaxed);
     }
-
+    
+    /// If there are any updates it handles them
     fn handle_any_updates(&self)->bool{
         if self.any_updates(){
             self.handling_update();
@@ -69,6 +77,7 @@ impl InterruptUpdate{
     }
 }
 
+/// Represents an interrupt to be executed after some time a number of times
 struct TimeInterrupt{
     after: u64,
     alarm_time: u64,
@@ -78,6 +87,12 @@ struct TimeInterrupt{
     callback: Box<dyn FnMut()>
 }
 
+/// Diferent States on which a disabledInterrupt can be:
+///     - DisabledTimeInterrupt::Interrupt holds the TimeInterrupt waiting to be reenabled
+///     - Waiting means the corresponding TimeInterrupt is still in the active interrupts of the timer 
+///       driver, but will be added on a subsequent call to interrupt update
+///     - Removing means the corresponding TimeInterrupt is still in the active interrupts of the timer
+///       driver, but will be removed on a subsequent call to interrupt update
 enum DisabledTimeInterrupt{
     Interrupt(TimeInterrupt),
     Waiting,
@@ -96,6 +111,7 @@ impl TimeInterrupt{
         }
     }
 
+    /// If any triggers remain execute the callback
     fn trigger(&mut self){
         if let Some(ref mut amount) = self.remaining_triggers{
             if *amount <= 0{
@@ -106,6 +122,7 @@ impl TimeInterrupt{
         (self.callback)()
     }
 
+    /// Checks if there are any triggers left or there was no limit set to the amount of triggers
     fn any_triggers_left(&self)-> bool{
         match self.remaining_triggers{
             Some(triggers) => triggers > 0,
@@ -115,6 +132,7 @@ impl TimeInterrupt{
 }
 
 impl Ord for TimeInterrupt{
+    // Order is inverted for insertion as minimal heap
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         match self.alarm_time.cmp(&other.alarm_time){
             std::cmp::Ordering::Less => std::cmp::Ordering::Greater,
@@ -159,6 +177,7 @@ impl <'a>_TimerDriver<'a>{
         timer.set_interrupt_update_callback().map(|_| timer)
     }
     
+    /// Sets the callback for the timer_driver which will modify the interrupt update
     fn set_interrupt_update_callback(&mut self)->Result<(), TimerDriverError>{
         let interrupt_update_ref = self.interrupt_update.clone();
         let alarm_callback = move || {
@@ -170,26 +189,35 @@ impl <'a>_TimerDriver<'a>{
         }
     }
 
+    /// Sets an interrupt that triggers once after "microseconds". For this to start working enable()
+    /// must be called. After the interrupt has been trigger it can be reset by calling enable()
     fn interrupt_after<F: FnMut() + Send + 'static>(&mut self, id: u8, micro_seconds: u64, callback: F){
         self.interrupt_after_n_times(id, micro_seconds, None, false, callback)
     }
-    
+
+    /// Sets an interrupt to trigger every "micro_seconds" for an "amount_of_times" if given, if not
+    /// triggers indefinitly. If autoenable is set, after triggering the callback, it will be set again
+    /// if not it will have to be reenabled manually by caling enable(). For this to start working 
+    /// enable() must be called. There can only be one callback per id.
     fn interrupt_after_n_times<F: FnMut() + Send + 'static>(&mut self, id: u8, micro_seconds: u64, amount_of_triggers: Option<u32>, auto_reenable: bool, callback: F){        
         let time = self.micro_to_counter(micro_seconds);
         let alarm = TimeInterrupt::new(id, Box::new(callback), time, amount_of_triggers, auto_reenable);
         self.inactive_alarms.insert(alarm.id, DisabledTimeInterrupt::Interrupt(alarm));
     }
 
+    /// transforms microseconds to the microcontroller tick_hz
     fn micro_to_counter(&self, micro_seconds: u64)->u64{
         micro_seconds * self.driver.tick_hz() / MICRO_IN_SEC
     }
 
+    /// Sets the alarm time for an interrupt update and adds it to the timer_driver
     fn add_active_time_interrupt(&mut self, mut time_interrupt: TimeInterrupt)-> Result<(), TimerDriverError>{
         time_interrupt.alarm_time = self.driver.counter().map_err(|_| TimerDriverError::ErrorReadingTimer)? + time_interrupt.after;
         self.interrupts.push(time_interrupt);
         Ok(())
     }
 
+    /// Activates the timeInterrupt corresponding to "id".
     fn activate(&mut self, id: u8)-> Result<(), TimerDriverError>{
         if let Some(DisabledTimeInterrupt::Interrupt(time_interrupt)) = self.inactive_alarms.remove(&id){
             self.add_active_time_interrupt(time_interrupt)?
@@ -197,6 +225,7 @@ impl <'a>_TimerDriver<'a>{
         Ok(())
     }
 
+    /// Diactivates the timeInterrupt corresponding to "id". This is done by setting the id as Waiting.
     fn diactivate(&mut self, id: u8){
         if !self.inactive_alarms.contains_key(&id){
             self.inactive_alarms.insert(id, DisabledTimeInterrupt::Waiting);
@@ -209,6 +238,9 @@ impl <'a>_TimerDriver<'a>{
         self.interrupts = BinaryHeap::new();
     }
 
+    /// Enables or disables the interrupt corresponding to "id". If the interrupt is enabled, if it 
+    /// is the new lowest time, the alarm is updated. When the first interrupt is enabled, or the last
+    /// disabled the timer is stoped
     fn _enable(&mut self, id: u8, enable: bool) -> Result<(),TimerDriverError>{
         let starting_len = self.interrupts.len();
         if enable{
@@ -231,14 +263,19 @@ impl <'a>_TimerDriver<'a>{
         Ok(())
     }
 
+    /// Enables the interrupt corresponding to "id". If the interrupt is enabled, if it 
+    /// is the new lowest time, the alarm is updated. When the first interrupt is enabled,
+    /// the timer is stoped
     fn enable(&mut self, id: u8) -> Result<(),TimerDriverError>{
         self._enable(id, true)
     }
     
+    /// Disables the interrupt corresponding to "id". When the last disabled the timer is stoped
     fn disable(&mut self, id: u8) -> Result<(),TimerDriverError>{
         self._enable(id, false)
     }
-
+    
+    /// Removes the interrupt corresponding to "id"
     fn remove_interrupt(&mut self, id:u8)->Result<(), TimerDriverError>{
         self.disable(id)?;
         if self.inactive_alarms.contains_key(&id){
@@ -247,10 +284,7 @@ impl <'a>_TimerDriver<'a>{
         Ok(())
     }
 
-    fn unsubscribe(&mut self)  -> Result<(),TimerDriverError> {
-        self.driver.unsubscribe().map_err(|_| TimerDriverError::SubscriptionError)
-    }
-
+    /// Sets the interrupt to trigger on the soonest alarm
     fn set_lowest_alarm(&mut self)-> Result<(),TimerDriverError> {
         if let Some(interrupt) = self.interrupts.peek(){
             if interrupt.alarm_time != self.driver.alarm().map_err(|_| TimerDriverError::ErrorReadingAlarm)?{
@@ -294,7 +328,6 @@ impl <'a>_TimerDriver<'a>{
 }
 
 impl <'a>TimerDriver<'a>{
-    //pub fn new<T: timer::Timer>(timer: impl Peripheral<P = T> + 'a)->Result<TimerDriver<'a>, TimerDriverError> {
     pub fn new(timer: Peripheral) -> Result<TimerDriver<'a>, TimerDriverError> {
         Ok(TimerDriver{
             inner: Rc::new(RefCell::new(_TimerDriver::new(timer)?)),
@@ -323,15 +356,12 @@ impl <'a>TimerDriver<'a>{
         self.inner.borrow_mut().remove_interrupt(self.id)
     }
 
-    // TODO ver de borrar
-    pub fn unsubscribe(&mut self)  -> Result<(),TimerDriverError> {
-        self.inner.borrow_mut().unsubscribe()
-    }
-
     pub fn update_interrupts(&mut self) -> Result<(), TimerDriverError> {
         self.inner.borrow_mut().update_interrupts()
     }
 
+    /// This function can only be called by the original TimerDriver creater with new(). This reates a 
+    /// copy of the _timer_driver reference and sets a unique id for the child reference.
     pub fn create_child_copy(&mut self) -> Result<TimerDriver<'a>, TimerDriverError>{
         if self.id != 0{
             return Err(TimerDriverError::OnlyOriginalCopyCanCreateChildren)
