@@ -23,6 +23,37 @@ const MIN_MONTH     : u8 = 1;
 const MAX_MONTH     : u8 = 12;
 const MAX_YEAR      : u8 = 99;
 
+const SECONDS_ALARM_ADDR    : u8 = 0x07;
+const MINUTES_ALARM_ADDR    : u8 = 0x08;
+const HOURS_ALARM_ADDR      : u8 = 0x09;
+const DAY_ALARM_ADDR        : u8 = 0x0A;
+
+const CONTROL_ADDR          : u8 = 0x0E;
+const CONTROL_STATUS_ADDR   : u8 = 0x0F;
+
+const ALARM_MSB_ON: u8 = 128;
+// pub enum AlarmComponent {
+//     Second,
+//     Minute,
+//     Hour,
+//     WeekDay,
+//     Date,
+// }
+
+pub enum AlarmRate {
+    EverySecond,
+    Seconds(u8),
+    MinutesAndSeconds(u8, u8),
+    HoursMinutesAndSeconds(u8, u8, u8),
+    DateHoursMinutesAndSeconds(u8, u8, u8, u8),
+    DayHoursMinutesAndSeconds(u8, u8, u8, u8),
+    EveryMinute,
+    Minutes(u8),
+    HoursAndMinutes(u8, u8),
+    DateHoursAndMinutes(u8, u8, u8),
+    DayHoursAndMinutes(u8, u8, u8)
+}
+
 pub enum DateTimeComponent {
     Second,
     Minute,
@@ -31,6 +62,15 @@ pub enum DateTimeComponent {
     Date,
     Month,
     Year,
+}
+
+pub struct Alarm1 {
+    pub second: u8,
+    pub minute: u8,
+    pub hour: u8,
+    pub day: u8,
+    pub is_week_day: bool
+
 }
 
 pub struct DateTime {
@@ -82,11 +122,19 @@ impl <'a>DS3231<'a> {
     pub fn read(&mut self, component: DateTimeComponent) -> Result<u8, I2CError> {
         let mut buffer: [u8; 1] = [0];
 
-        self.i2c.write(DS3231_ADDR, &[component.addr()], BLOCK)?;
-        self.i2c.read(DS3231_ADDR, &mut buffer, BLOCK)?;
+        self.read_clock(component.addr(), &mut buffer);
 
         let parsed_data = self.parse_component(buffer[0], component);
         Ok(parsed_data)
+    }
+
+    fn read_addr() {
+
+    }
+
+    fn read_clock(&mut self, addr: u8, buffer: &mut [u8]) -> Result<(), I2CError> {
+        self.i2c.write(DS3231_ADDR, &[addr], BLOCK)?;
+        self.i2c.read(DS3231_ADDR, buffer, BLOCK)
     }
 
     fn write_clock(&mut self, time: u8, addr: u8) -> Result<(), I2CError> {
@@ -143,8 +191,60 @@ impl <'a>DS3231<'a> {
         res.insert("year".to_string(), yr.to_string());
     
         res
-    }    
+    }   
 
+    fn update_register(&mut self, addr: u8, new_value: u8) -> Result<(), I2CError> {
+        let mut buffer: [u8; 1] = [0];
+        self.read_clock(addr, &mut buffer)?;
+
+        let value = self.bcd_to_decimal(buffer[0]);
+        self.write_clock( value | new_value , addr)
+    }
+
+    fn set_alarm_1(&mut self, day: u8, hours: u8, minutes:u8, seconds: u8) -> Result<(), I2CError> {
+        self.write_clock(seconds, SECONDS_ALARM_ADDR)?;
+        self.write_clock(minutes, MINUTES_ALARM_ADDR)?;
+        self.write_clock(hours, HOURS_ALARM_ADDR)?;
+        self.write_clock(day, DAY_ALARM_ADDR)?;
+
+        // Update the control register. To activate the alarm 1 we want to set bits 0 and 2 to 1 
+        let mut buffer: [u8; 1] = [0];
+        self.read_clock(CONTROL_ADDR, &mut buffer)?;
+        let value = self.bcd_to_decimal(buffer[0]);
+        self.write_clock( value | 5 , CONTROL_ADDR)?;
+
+        // Update the control/status register. To activate the alarm we want to set bit 0 to 0 
+        let mut buffer: [u8; 1] = [0];
+        self.read_clock(CONTROL_STATUS_ADDR, &mut buffer)?;
+        let value = self.bcd_to_decimal(buffer[0]);
+        self.write_clock( value & 0xFE , CONTROL_STATUS_ADDR)
+
+    }
+    
+    pub fn set_alarm(&mut self, alarm_rate: AlarmRate) -> Result<(), I2CError> { // TODO: Remember to see when to put back on 0 the A1F or A2F bit 
+        match alarm_rate {
+            AlarmRate::EverySecond => self.set_alarm_1(ALARM_MSB_ON, ALARM_MSB_ON, ALARM_MSB_ON, ALARM_MSB_ON),
+            AlarmRate::Seconds(secs) => self.set_alarm_1(ALARM_MSB_ON, ALARM_MSB_ON, ALARM_MSB_ON, secs),
+            AlarmRate::MinutesAndSeconds(mins, secs) => self.set_alarm_1(ALARM_MSB_ON,ALARM_MSB_ON,mins,secs),
+            AlarmRate::HoursMinutesAndSeconds(hr, mins, secs) => self.set_alarm_1(ALARM_MSB_ON,hr,mins,secs),
+            AlarmRate::DateHoursMinutesAndSeconds(date, hr, mins, secs) => self.set_alarm_1(date & 0xBF, hr, mins, secs),
+            AlarmRate::DayHoursMinutesAndSeconds(day, hr, mins, secs) => self.set_alarm_1(day | 0x40, hr, mins, secs),
+
+            AlarmRate::EveryMinute => todo!(),
+            AlarmRate::Minutes(_) => todo!(),
+            AlarmRate::HoursAndMinutes(_, _) => todo!(),
+            AlarmRate::DateHoursAndMinutes(_, _, _) => todo!(),
+            AlarmRate::DayHoursAndMinutes(_, _, _) => todo!(),
+        }
+    }
+
+    pub fn update_alarm(&mut self) -> Result<(), I2CError> {
+        // Update the control/status register. To activate the alarm we want to set bit 0 to 0 
+        let mut buffer: [u8; 1] = [0];
+        self.read_clock(CONTROL_STATUS_ADDR, &mut buffer)?;
+        let value = self.bcd_to_decimal(buffer[0]);
+        self.write_clock( value & 0xFE , CONTROL_STATUS_ADDR)
+    }
 }
 
 impl<'a> READER for DS3231<'a> {
@@ -185,3 +285,7 @@ impl DateTimeComponent {
         val >= min_boundarie && val <= max_boundarie
     }
 }
+
+// impl AlarmRate {
+//     fn mask_bits(&self) -> 
+// }
