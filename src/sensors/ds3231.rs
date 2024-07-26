@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use esp_idf_svc::{hal::delay::BLOCK, sys::gpio_set_level};
+use esp_idf_svc::hal::delay::BLOCK;
 
-use crate::serial::{I2CError, I2CMaster, READER, WRITER};
+use crate::serial::{I2CError, I2CMaster, READER};
 
 const DS3231_ADDR   : u8 = 0x68;
 const SECONDS_ADDR  : u8 = 0x00;
@@ -36,13 +36,6 @@ const CONTROL_ADDR          : u8 = 0x0E;
 const CONTROL_STATUS_ADDR   : u8 = 0x0F;
 
 const ALARM_MSB_ON: u8 = 128;
-// pub enum AlarmComponent {
-//     Second,
-//     Minute,
-//     Hour,
-//     WeekDay,
-//     Date,
-// }
 
 pub enum Alarm1Rate {
     EverySecond,
@@ -129,14 +122,10 @@ impl <'a>DS3231<'a> {
     pub fn read(&mut self, component: DateTimeComponent) -> Result<u8, I2CError> {
         let mut buffer: [u8; 1] = [0];
 
-        self.read_clock(component.addr(), &mut buffer);
+        self.read_clock(component.addr(), &mut buffer)?;
 
         let parsed_data = self.parse_component(buffer[0], component);
         Ok(parsed_data)
-    }
-
-    fn read_addr() {
-
     }
 
     fn read_clock(&mut self, addr: u8, buffer: &mut [u8]) -> Result<(), I2CError> {
@@ -200,14 +189,6 @@ impl <'a>DS3231<'a> {
         res
     }   
 
-    fn update_register(&mut self, addr: u8, new_value: u8) -> Result<(), I2CError> {
-        let mut buffer: [u8; 1] = [0];
-        self.read_clock(addr, &mut buffer)?;
-
-        let value = self.bcd_to_decimal(buffer[0]);
-        self.write_clock( value | new_value , addr)
-    }
-
     /// returns decimal
     fn read_last_value(&mut self, addr: u8) -> Result<u8, I2CError> {
         let mut buffer: [u8; 1] = [0];
@@ -215,20 +196,6 @@ impl <'a>DS3231<'a> {
         let value = self.bcd_to_decimal(buffer[0]);
         Ok(value)
     }
-
-    // fn update_control_register(&mut self) -> Result<(), I2CError> {
-    //     // Update the control register. To activate the alarm 1 we want to set bits 0 and 2 to 1 
-    //     let mut buffer: [u8; 1] = [0];
-    //     self.read_clock(CONTROL_ADDR, &mut buffer)?;
-    //     let value = self.bcd_to_decimal(buffer[0]);
-    //     self.write_clock( value | 5 , CONTROL_ADDR)
-    // }
-
-    // fn update_control_status_register(&mut self) -> Result<(), I2CError> {
-    //     // Update the control/status register. To activate the alarm we want to set bit 0 to 0 
-        
-    //     self.write_clock( value & 0xFE , CONTROL_STATUS_ADDR)
-    // }
 
     fn _set_alarm_1(&mut self, day: u8, hours: u8, minutes:u8, seconds: u8) -> Result<(), I2CError> {
         self.write_clock(seconds, SECONDS_ALARM_1_ADDR)?;
@@ -329,7 +296,3 @@ impl DateTimeComponent {
         val >= min_boundarie && val <= max_boundarie
     }
 }
-
-// impl AlarmRate {
-//     fn mask_bits(&self) -> 
-// }

@@ -196,6 +196,11 @@ fn main() {
     IMP: La alarma no vuelve a salir si el flag esta en 1
 */
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
 fn main() {
     let mut micro = Microcontroller::new();
     let i2c = micro.set_pins_for_i2c_master(5,6);
@@ -231,3 +236,4 @@ fn main() {
     }
 
 }
+
