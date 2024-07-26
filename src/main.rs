@@ -1,15 +1,15 @@
 
-use std::collections::HashMap;
+// use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use esp32framework::sensors::{AlarmRate, DateTime, DS3231};
+use esp32framework::sensors::{Alarm1Rate, Alarm2Rate, DateTime, DS3231};
 use esp32framework::serial::READER;
 use esp32framework::Microcontroller;
-use esp_idf_svc::hal::delay::{FreeRtos, BLOCK};
-use esp_idf_svc::hal::gpio::*;
-use esp_idf_svc::hal::i2c::*;
-use esp_idf_svc::hal::peripherals::Peripherals;
-use esp_idf_svc::hal::prelude::*;
+// use esp_idf_svc::hal::delay::{FreeRtos, BLOCK};
+// use esp_idf_svc::hal::gpio::*;
+// use esp_idf_svc::hal::i2c::*;
+// use esp_idf_svc::hal::peripherals::Peripherals;
+// use esp_idf_svc::hal::prelude::*;
 static FLAG: AtomicBool = AtomicBool::new(false);
 
 const DS3231_ADDR: u8 = 0x68;
@@ -213,7 +213,7 @@ fn main() {
     };
 
     ds3231.set_time(date_time).unwrap();
-    ds3231.set_alarm(AlarmRate::EverySecond).unwrap();
+    ds3231.set_alarm_1(Alarm1Rate::EverySecond).unwrap();
 
     loop {
         // Set reading address in zero to read seconds, minutes, hours, day, day number, month and year
@@ -224,10 +224,10 @@ fn main() {
                                                       date_time["min"], date_time["secs"], sqw.get_level());
         
         if sqw.is_low() {
-            ds3231.update_alarm();
+            ds3231.update_alarm_1().unwrap();
         }
 
-        micro.sleep(500);
+        micro.sleep(1000);
     }
 
 }
