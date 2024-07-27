@@ -35,6 +35,8 @@ const DAY_ALARM_2_ADDR        : u8 = 0x0D;
 const CONTROL_ADDR          : u8 = 0x0E;
 const CONTROL_STATUS_ADDR   : u8 = 0x0F;
 
+const TEMP_ADDR             : u8 = 0x11;
+
 const ALARM_MSB_ON: u8 = 128;
 
 pub enum Alarm1Rate {
@@ -254,6 +256,25 @@ impl <'a>DS3231<'a> {
         let last_value = self.read_last_value(CONTROL_STATUS_ADDR)?;
         self.write_clock( last_value & 0xFD , CONTROL_STATUS_ADDR)
     }
+
+    fn twos_complement_to_decimal(&self, value: u8) -> f32 {
+        if value & 0x80 != 0 {
+            -((!value + 1) as f32)
+        } else {
+            value as f32
+        }
+    }
+
+    pub fn get_temperature(&mut self) -> f32 {
+        let mut buffer: [u8; 2] = [0; 2];
+        self.i2c.write_read(DS3231_ADDR, &[TEMP_ADDR], &mut buffer,BLOCK).unwrap();
+
+        let temp_integer = self.twos_complement_to_decimal(buffer[0]);
+        let temp_fractional = self.twos_complement_to_decimal(buffer[1] >> 6) * 0.25;  // We only need the 2 most significant bits of the register
+
+        temp_integer + temp_fractional
+    }
+
 
     
 }
