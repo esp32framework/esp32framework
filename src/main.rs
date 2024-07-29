@@ -1,8 +1,6 @@
-/*
 use std::{
-    cell::RefCell, collections::BinaryHeap, rc::Rc, sync::{
-        atomic::{AtomicBool, AtomicU8, Ordering},
-        Arc
+    sync::{
+        atomic::{AtomicBool, AtomicU8, Ordering}, mpsc::{self, Sender}, Arc
     }, u32
 };
 use esp_idf_svc::hal::delay::FreeRtos;
@@ -15,27 +13,28 @@ fn main(){
     esp_idf_svc::sys::link_patches();
     let mut timer_driver = timer::TimerDriver::new(unsafe{timer::TIMER00::new()}, &timer::TimerConfig::new()).unwrap();
     let alarm_time  = 1000000 * timer_driver.tick_hz() / 1000000;
+
+    let (tx, rx) = mpsc::channel();
+    let t1 = tx.clone();
+    let call = move ||{
+        let prev = FLAG.load(Ordering::Relaxed);
+        FLAG.store(!prev, Ordering::Relaxed);
+        t1.send(true);
+    };
+
     unsafe {
-        timer_driver.subscribe(callback).unwrap()
+        timer_driver.subscribe(call).unwrap()
     }
-    println!("automicbool {}", FLAG.load(Ordering::Relaxed));
-    timer_driver.set_counter(100).unwrap();
-    println!("automicbool {}", FLAG.load(Ordering::Relaxed));
-    timer_driver.set_alarm(1).unwrap();
-    println!("automicbool {}", FLAG.load(Ordering::Relaxed));
+
     timer_driver.enable_interrupt().unwrap();
-    println!("automicbool {}", FLAG.load(Ordering::Relaxed));
-    timer_driver.enable_alarm(true).unwrap();
-    println!("automicbool {}", FLAG.load(Ordering::Relaxed));
     timer_driver.enable(true).unwrap();
-    println!("automicbool {}", FLAG.load(Ordering::Relaxed));
     timer_driver.set_alarm(15).unwrap();
-    println!("automicbool {}", FLAG.load(Ordering::Relaxed));
     timer_driver.enable_alarm(true).unwrap();
     println!("automicbool {}", FLAG.load(Ordering::Relaxed));
 
     loop{
-        FreeRtos::delay_ms(100000000);
+        let a = rx.recv().unwrap();
+        println!("Recibi{}", a);
         let prev = FLAG.load(Ordering::Relaxed);
         println!("automicbool {}", prev);
         let counter = timer_driver.counter().unwrap();
@@ -44,8 +43,11 @@ fn main(){
     } 
 }
 
-*/
-
+fn callback(s: Sender<bool>){
+    let prev = FLAG.load(Ordering::Relaxed);
+    FLAG.store(!prev, Ordering::Relaxed);
+}
+/*
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use esp32framework::Microcontroller;
@@ -82,7 +84,4 @@ fn main(){
     }
 }
 
-fn callback(){
-    let prev = FLAG.load(Ordering::Relaxed);
-    FLAG.store(!prev, Ordering::Relaxed);
-}
+    */

@@ -13,6 +13,7 @@ fn main(){
         micro.update(vec![], vec![]);
         red_analog_out.update_interrupt().unwrap();
         blue_analog_out.update_interrupt().unwrap();
-        micro.sleep(100);
+
+        micro.sleep(1000000, vec![&mut red_analog_out, &mut blue_analog_out]);
     }
 }

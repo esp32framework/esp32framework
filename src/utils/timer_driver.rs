@@ -9,6 +9,8 @@ use esp_idf_svc::hal::timer;
 use crate::utils::timer_driver::timer::TimerConfig;
 use crate::microcontroller::peripherals::Peripheral;
 
+use super::centralized_notifier::CentralizedNotifier;
+
 const MICRO_IN_SEC: u64 = 1000000;
 
 /// Wrapper of _TimerDriver, handling the coordination of multiple references to the inner driver, 
@@ -26,7 +28,7 @@ struct _TimerDriver<'a> {
     driver: timer::TimerDriver<'a>,
     interrupt_update: InterruptUpdate,
     interrupts: BinaryHeap<TimeInterrupt>,
-    inactive_alarms: HashMap<u8, DisabledTimeInterrupt>
+    inactive_alarms: HashMap<u8, DisabledTimeInterrupt>,
 }
 
 #[derive(Debug)]
@@ -157,7 +159,7 @@ impl PartialEq for TimeInterrupt{
 impl Eq for TimeInterrupt{}
 
 impl <'a>_TimerDriver<'a>{
-    fn new(timer: Peripheral) -> Result<_TimerDriver<'a>, TimerDriverError> {
+    fn new(timer: Peripheral, interrupt_notifier: CentralizedNotifier) -> Result<_TimerDriver<'a>, TimerDriverError> {
         let driver = match timer{
             Peripheral::Timer(timer_num) => 
                 match timer_num{
@@ -172,15 +174,17 @@ impl <'a>_TimerDriver<'a>{
             driver, 
             interrupt_update: InterruptUpdate::new(),
             interrupts: BinaryHeap::new(),
-            inactive_alarms: HashMap::new()
+            inactive_alarms: HashMap::new(),
         };
-        timer.set_interrupt_update_callback().map(|_| timer)
+        timer.set_interrupt_update_callback(interrupt_notifier).map(|_| timer)
     }
     
     /// Sets the callback for the timer_driver which will modify the interrupt update
-    fn set_interrupt_update_callback(&mut self)->Result<(), TimerDriverError>{
+    fn set_interrupt_update_callback(&mut self, interrupt_notifier: CentralizedNotifier)->Result<(), TimerDriverError>{
         let interrupt_update_ref = self.interrupt_update.clone();
+
         let alarm_callback = move || {
+            interrupt_notifier.notify().unwrap();
             interrupt_update_ref.new_update()
         };
         
@@ -328,9 +332,9 @@ impl <'a>_TimerDriver<'a>{
 }
 
 impl <'a>TimerDriver<'a>{
-    pub fn new(timer: Peripheral) -> Result<TimerDriver<'a>, TimerDriverError> {
+    pub fn new(timer: Peripheral, interrupt_notifier: CentralizedNotifier) -> Result<TimerDriver<'a>, TimerDriverError> {
         Ok(TimerDriver{
-            inner: Rc::new(RefCell::new(_TimerDriver::new(timer)?)),
+            inner: Rc::new(RefCell::new(_TimerDriver::new(timer, interrupt_notifier)?)),
             id: 0,
             next_child: 1,
         })

@@ -40,14 +40,14 @@ impl <'a, const A: adc_atten_t> AnalogIn<'a, A> {
             }
         }
         Ok(AnalogIn {
-            adc_channel_driver: AnalogIn::<A>::new_channel(pin)?,
+            adc_channel_driver: AnalogIn::new_channel(pin)?,
             adc_driver_ref: adc_driver,
         })
     }
 
     /// Creates a new analog channel driver for a given pin
-    fn new_channel<const B: adc_atten_t>(pin: Peripheral) -> Result<AnalogChannels<'a, B>, AnalogInError> {
-        let adc_channel_driver: AnalogChannels<'a, B> = match pin {
+    fn new_channel(pin: Peripheral) -> Result<AnalogChannels<'a, A>, AnalogInError> {
+        let adc_channel_driver: AnalogChannels<'a, A> = match pin {
             Peripheral::Pin(pin_num) => match pin_num {
                 0 => AnalogChannels::Channel0(AdcChannelDriver::new(unsafe {Gpio0::new()}).unwrap()),
                 1 => AnalogChannels::Channel1(AdcChannelDriver::new(unsafe {Gpio1::new()}).unwrap()),

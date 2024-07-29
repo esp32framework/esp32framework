@@ -1,4 +1,6 @@
 use std::rc::Rc;
+use std::time::Duration;
+use std::time::Instant;
 use config::Resolution;
 use esp_idf_svc::hal::adc::ADC1;
 use esp_idf_svc::hal::gpio::*;
@@ -15,6 +17,7 @@ use crate::gpio::{AnalogInPwm,
     DigitalOut, 
     AnalogIn, 
     AnalogOut};
+use crate::utils::centralized_notifier::CentralizedNotification;
 use crate::utils::timer_driver::TimerDriver;
 use crate::microcontroller::peripherals::Peripherals;
 
@@ -22,6 +25,7 @@ pub struct Microcontroller<'a> {
     peripherals: Peripherals,
     timer_drivers: Vec<TimerDriver<'a>>,
     adc_driver: SharableAdcDriver<'a>,
+    interrupt_notification: CentralizedNotification
 }
 
 impl <'a>Microcontroller<'a>{
@@ -33,13 +37,14 @@ impl <'a>Microcontroller<'a>{
             peripherals: peripherals,
             timer_drivers: vec![],
             adc_driver: Rc::new(RefCell::new(None)),
+            interrupt_notification: CentralizedNotification::new()
         }
     }
 
     fn get_timer_driver(&mut self)-> TimerDriver<'a>{
         let mut timer_driver = if self.timer_drivers.len() < 2{
             let timer = self.peripherals.get_timer(self.timer_drivers.len());
-            TimerDriver::new(timer).unwrap()
+            TimerDriver::new(timer, self.interrupt_notification.create_notifier()).unwrap()
         }else{
             self.timer_drivers.swap_remove(0)
         };
@@ -142,7 +147,22 @@ impl <'a>Microcontroller<'a>{
         FreeRtos::delay_ms(10_u32);
     }
     
-    pub fn sleep(&mut self, miliseconds:u32){
-        FreeRtos::delay_ms(miliseconds);
+    pub fn sleep(&mut self, miliseconds:u64, mut a: Vec<&mut AnalogOut>){
+        let sleep_time = Duration::from_millis(miliseconds);
+        let starting_time = Instant::now();
+        let mut elapsed_time = Duration::from_millis(0);
+
+        while elapsed_time < sleep_time{
+            self.interrupt_notification.wait_for_notification(Some(sleep_time-elapsed_time));
+            self.update(vec![], vec![]);
+            let mut i = 0;
+            for analgo_out in &mut a{
+                analgo_out.update_interrupt().unwrap();
+                println!("Analog out {i}: {}", analgo_out.duty.load(std::sync::atomic::Ordering::SeqCst));
+                i += 1;
+            }
+            elapsed_time = starting_time.elapsed()
+        }
+        //FreeRtos::delay_ms(miliseconds);
     }
 }
