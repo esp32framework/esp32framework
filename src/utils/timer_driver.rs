@@ -1,15 +1,13 @@
 use std::{
-    cell::RefCell, collections::{BinaryHeap, HashMap}, rc::Rc, sync::{
+    cell::RefCell, collections::{BinaryHeap, HashMap}, num::NonZeroU32, rc::Rc, sync::{
         atomic::{AtomicBool, Ordering},
         Arc
     }
 };
 
-use esp_idf_svc::hal::timer;
+use esp_idf_svc::hal::{task::notification::Notifier, timer};
 use crate::utils::timer_driver::timer::TimerConfig;
 use crate::microcontroller::peripherals::Peripheral;
-
-use super::centralized_notifier::CentralizedNotifier;
 
 const MICRO_IN_SEC: u64 = 1000000;
 
@@ -40,6 +38,16 @@ pub enum TimerDriverError {
     CannotSetTimerCounter,
     SubscriptionError,
     OnlyOriginalCopyCanCreateChildren
+}
+
+/// Represents an interrupt to be executed after some time a number of times
+struct TimeInterrupt{
+    after: u64,
+    alarm_time: u64,
+    id: u8,
+    remaining_triggers: Option<u32>,
+    auto_reenable: bool,
+    callback: Box<dyn FnMut()>
 }
 
 /// After an interrupt is triggered an InterruptUpdate will be set and handled
@@ -79,15 +87,6 @@ impl InterruptUpdate{
     }
 }
 
-/// Represents an interrupt to be executed after some time a number of times
-struct TimeInterrupt{
-    after: u64,
-    alarm_time: u64,
-    id: u8,
-    remaining_triggers: Option<u32>,
-    auto_reenable: bool,
-    callback: Box<dyn FnMut()>
-}
 
 /// Diferent States on which a disabledInterrupt can be:
 ///     - DisabledTimeInterrupt::Interrupt holds the TimeInterrupt waiting to be reenabled
@@ -159,7 +158,7 @@ impl PartialEq for TimeInterrupt{
 impl Eq for TimeInterrupt{}
 
 impl <'a>_TimerDriver<'a>{
-    fn new(timer: Peripheral, interrupt_notifier: CentralizedNotifier) -> Result<_TimerDriver<'a>, TimerDriverError> {
+    fn new(timer: Peripheral, notifier: Arc<Notifier>) -> Result<_TimerDriver<'a>, TimerDriverError> {
         let driver = match timer{
             Peripheral::Timer(timer_num) => 
                 match timer_num{
@@ -176,19 +175,18 @@ impl <'a>_TimerDriver<'a>{
             interrupts: BinaryHeap::new(),
             inactive_alarms: HashMap::new(),
         };
-        timer.set_interrupt_update_callback(interrupt_notifier).map(|_| timer)
+        timer.set_interrupt_update_callback(notifier).map(|_| timer)
     }
     
     /// Sets the callback for the timer_driver which will modify the interrupt update
-    fn set_interrupt_update_callback(&mut self, interrupt_notifier: CentralizedNotifier)->Result<(), TimerDriverError>{
+    fn set_interrupt_update_callback(&mut self, notifier: Arc<Notifier>)->Result<(), TimerDriverError>{
         let interrupt_update_ref = self.interrupt_update.clone();
-
-        let alarm_callback = move || {
-            interrupt_notifier.notify().unwrap();
-            interrupt_update_ref.new_update()
-        };
-        
         unsafe{
+            let alarm_callback = move || {
+                interrupt_update_ref.new_update();
+                notifier.notify_and_yield(NonZeroU32::new(1).unwrap());
+            };
+        
             self.driver.subscribe(alarm_callback).map_err(|_| TimerDriverError::SubscriptionError)
         }
     }
@@ -231,8 +229,12 @@ impl <'a>_TimerDriver<'a>{
 
     /// Diactivates the timeInterrupt corresponding to "id". This is done by setting the id as Waiting.
     fn diactivate(&mut self, id: u8){
-        if !self.inactive_alarms.contains_key(&id){
-            self.inactive_alarms.insert(id, DisabledTimeInterrupt::Waiting);
+        for interrupt in &self.interrupts{
+            if id == interrupt.id{
+                if !self.inactive_alarms.contains_key(&id){
+                    self.inactive_alarms.insert(id, DisabledTimeInterrupt::Waiting);
+                }
+            }
         }
     }
 
@@ -302,7 +304,6 @@ impl <'a>_TimerDriver<'a>{
     /// Handles the diferent type of interrupts and reenabling the interrupt when necesary
     pub fn update_interrupts(&mut self) -> Result<(), TimerDriverError> {
         let mut updates = self.interrupt_update.handle_any_updates();
-        
         while updates{
             if let Some(mut interrupt_update) = self.interrupts.pop(){
                 match self.inactive_alarms.get_mut(&interrupt_update.id){
@@ -332,9 +333,9 @@ impl <'a>_TimerDriver<'a>{
 }
 
 impl <'a>TimerDriver<'a>{
-    pub fn new(timer: Peripheral, interrupt_notifier: CentralizedNotifier) -> Result<TimerDriver<'a>, TimerDriverError> {
+    pub fn new(timer: Peripheral, notifier: Arc<Notifier>) -> Result<TimerDriver<'a>, TimerDriverError> {
         Ok(TimerDriver{
-            inner: Rc::new(RefCell::new(_TimerDriver::new(timer, interrupt_notifier)?)),
+            inner: Rc::new(RefCell::new(_TimerDriver::new(timer, notifier)?)),
             id: 0,
             next_child: 1,
         })

@@ -70,7 +70,7 @@ impl ChangeDutyUpdate{
     
     fn handle_change_duty(&mut self)-> bool{
         let change_duty = self.change.load(Ordering::Relaxed);
-        self.change.store(true, Ordering::Relaxed);
+        self.change.store(false, Ordering::Relaxed);
         change_duty
     }
 }
@@ -195,7 +195,7 @@ impl <'a>AnalogOut<'a> {
             change_duty_update_ref.change_duty();
         };
         
-        self.timer_driver.interrupt_after_n_times(increase_after_miliseconds, None, true, callback);
+        self.timer_driver.interrupt_after_n_times(increase_after_miliseconds * 1000, None, true, callback);
         self.timer_driver.enable().map_err(|err| AnalogOutError::TimerDriverError(err))?;
         self.fixed_change_type = fixed_change_type;
         Ok(())
@@ -324,7 +324,9 @@ impl <'a>AnalogOut<'a> {
                 FixedChangeType::Decrease(ExtremeDutyPolicy::BounceBack) => self.attempt_turn_around(),
                 FixedChangeType::Increase(ExtremeDutyPolicy::Reset) => self.attempt_reset(),
                 FixedChangeType::Decrease(ExtremeDutyPolicy::Reset) => self.attempt_reset(),
-                _ => false,
+                FixedChangeType::Increase(ExtremeDutyPolicy::None) => self.driver.get_duty() < self.driver.get_max_duty(),
+                FixedChangeType::Decrease(ExtremeDutyPolicy::None) => self.driver.get_duty() > 0,
+                _ => false   
             }
         }
 

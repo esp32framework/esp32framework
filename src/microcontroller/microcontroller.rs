@@ -2,12 +2,15 @@ use std::rc::Rc;
 use std::time::Duration;
 use std::time::Instant;
 use config::Resolution;
+use esp_idf_svc::hal;
 use esp_idf_svc::hal::adc::ADC1;
 use esp_idf_svc::hal::gpio::*;
 use esp_idf_svc::hal::adc::*;
 use esp_idf_svc::hal::adc::config::Config;
 use esp_idf_svc::hal::delay::FreeRtos;
+use esp_idf_svc::hal::delay::TICK_RATE_HZ;
 use esp_idf_svc::hal::units::Time;
+use esp_idf_svc::hal::task::notification::Notification;
 use std::cell::RefCell;
 
 pub type SharableAdcDriver<'a> = Rc<RefCell<Option<AdcDriver<'a, ADC1>>>>;
@@ -17,15 +20,16 @@ use crate::gpio::{AnalogInPwm,
     DigitalOut, 
     AnalogIn, 
     AnalogOut};
-use crate::utils::centralized_notifier::CentralizedNotification;
-use crate::utils::timer_driver::TimerDriver;
-use crate::microcontroller::peripherals::Peripherals;
+    use crate::utils::timer_driver::TimerDriver;
+    use crate::microcontroller::peripherals::Peripherals;
+
+const TICKS_PER_MILLI: f32 = TICK_RATE_HZ as f32 / 1000 as f32;
 
 pub struct Microcontroller<'a> {
     peripherals: Peripherals,
     timer_drivers: Vec<TimerDriver<'a>>,
     adc_driver: SharableAdcDriver<'a>,
-    interrupt_notification: CentralizedNotification
+    notification: Notification
 }
 
 impl <'a>Microcontroller<'a>{
@@ -37,14 +41,14 @@ impl <'a>Microcontroller<'a>{
             peripherals: peripherals,
             timer_drivers: vec![],
             adc_driver: Rc::new(RefCell::new(None)),
-            interrupt_notification: CentralizedNotification::new()
+            notification: Notification::new()
         }
     }
 
     fn get_timer_driver(&mut self)-> TimerDriver<'a>{
         let mut timer_driver = if self.timer_drivers.len() < 2{
             let timer = self.peripherals.get_timer(self.timer_drivers.len());
-            TimerDriver::new(timer, self.interrupt_notification.create_notifier()).unwrap()
+            TimerDriver::new(timer, self.notification.notifier()).unwrap()
         }else{
             self.timer_drivers.swap_remove(0)
         };
@@ -137,32 +141,33 @@ impl <'a>Microcontroller<'a>{
         for timer_driver in &mut self.timer_drivers{
             timer_driver.update_interrupts().unwrap();
         }
-        
         for driver in drivers_in{
             driver.update_interrupt().unwrap();
         }
         for driver in drivers_out{
             driver.update_interrupt().unwrap();
         }
-        FreeRtos::delay_ms(10_u32);
     }
     
-    pub fn sleep(&mut self, miliseconds:u64, mut a: Vec<&mut AnalogOut>){
-        let sleep_time = Duration::from_millis(miliseconds);
+    pub fn wait_for_updates(&mut self, miliseconds:u32, mut analog_outs: Vec<&mut AnalogOut>){
         let starting_time = Instant::now();
-        let mut elapsed_time = Duration::from_millis(0);
+        let mut elapsed = Duration::from_millis(0);
+        let sleep_time = Duration::from_millis(miliseconds as u64);
 
-        while elapsed_time < sleep_time{
-            self.interrupt_notification.wait_for_notification(Some(sleep_time-elapsed_time));
-            self.update(vec![], vec![]);
-            let mut i = 0;
-            for analgo_out in &mut a{
-                analgo_out.update_interrupt().unwrap();
-                println!("Analog out {i}: {}", analgo_out.duty.load(std::sync::atomic::Ordering::SeqCst));
-                i += 1;
+        while elapsed < sleep_time{
+            let timeout = ((sleep_time - elapsed).as_millis() as f32 * TICKS_PER_MILLI as f32) as u32;
+            if self.notification.wait(timeout).is_some(){
+                self.update(vec![], vec![]);
+                for analog_out in &mut analog_outs{
+                    analog_out.update_interrupt().unwrap();
+                    println!("{}", analog_out.duty.load(std::sync::atomic::Ordering::SeqCst));
+                }
             }
-            elapsed_time = starting_time.elapsed()
-        }
-        //FreeRtos::delay_ms(miliseconds);
+            elapsed = starting_time.elapsed();
+        }   
+    }
+
+    pub fn sleep(&mut self, miliseconds:u32){
+        FreeRtos::delay_ms(miliseconds)
     }
 }
