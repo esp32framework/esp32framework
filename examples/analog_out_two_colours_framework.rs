@@ -10,9 +10,7 @@ fn main(){
     blue_analog_out.start_decreasing_bounce_back(100, 0.05, 0.0, None).unwrap();
 
     loop {
-        micro.update(vec![], vec![]);
-        red_analog_out.update_interrupt().unwrap();
-        blue_analog_out.update_interrupt().unwrap();
-        micro.sleep(100);
+        println!("Sleeping");
+        micro.wait_for_updates(10000, vec![&mut red_analog_out, &mut blue_analog_out]);
     }
 }
