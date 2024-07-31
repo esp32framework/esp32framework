@@ -1,36 +1,31 @@
-use esp_idf_svc::hal::delay::BLOCK;
-use esp_idf_svc::hal::gpio;
+use std::sync::mpsc::SendError;
+
+use esp32framework::sensors::HCSR04;
+use esp32framework::Microcontroller;
+use esp_idf_svc::hal::gpio::PinDriver;
 use esp_idf_svc::hal::peripherals::Peripherals;
-use esp_idf_svc::hal::prelude::*;
-use esp_idf_svc::hal::uart::*;
-use esp_idf_svc::hal::delay::FreeRtos;
+use esp_idf_svc::hal::delay::{Delay, FreeRtos};
+use esp_idf_svc::hal::timer::config::Config;
+use esp_idf_svc::hal::timer::TimerDriver;
+use esp_idf_svc::sys::esp_timer_get_time;
 
 
 fn main(){
-    esp_idf_svc::hal::sys::link_patches();
 
-    let peripherals = Peripherals::take().unwrap();
-    let tx = peripherals.pins.gpio16;
-    let rx = peripherals.pins.gpio17;
+    let mut micro = Microcontroller::new();
+    let echo = micro.set_pin_as_digital_in(6);
+    let trig = micro.set_pin_as_digital_out(4);
+    let mut sensor = HCSR04::new(trig, echo);
+    
 
-    println!("Starting UART loopback test");
-    let config = config::Config::new().baudrate(Hertz(115_200));
-    let uart = UartDriver::new(
-        peripherals.uart1,
-        tx,
-        rx,
-        Option::<gpio::Gpio0>::None,
-        Option::<gpio::Gpio1>::None,
-        &config,
-    ).unwrap();
+    let delay = Delay::new_default();
 
+    
+    
     loop {
-        uart.write(b"mensaje\n").unwrap();
-        println!("Lo escribi");
-        let mut buf = [0_u8; 1024];
-        uart.read(&mut buf, BLOCK).unwrap();
+        let distance = sensor.get_distance();
+        println!("{:?} cm", distance);
+        delay.delay_ms(1000);
 
-        println!("Read {:?}", buf);
-        FreeRtos::delay_ms(1000);
     }
 }
