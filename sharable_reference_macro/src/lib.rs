@@ -54,16 +54,13 @@ use syn::{parse::{Parse, ParseStream}, parse_macro_input, punctuated::Punctuated
 /// ```
 #[proc_macro_attribute]
 pub fn sharable_reference_wrapper(args: TokenStream, item: TokenStream) -> TokenStream {
-        println!("intenta correrlo");
         let input = parse_macro_input!(item as ItemImpl);
         let args = parse_macro_input!(args as StringArgs);
-        println!("After parsing");
-    
-        let (left_side_generics, new_struct_name, right_side_generics) = get_wrapper_name_and_generics(&input);
-        let new_methods = get_pub_instance_methods(&input, args);
+        let (impl_signature, is_trait) = get_impl_signature(&input);
+        let new_methods = get_pub_instance_methods(&input, args, is_trait);
 
     let new_impl = quote! { 
-        impl #left_side_generics #new_struct_name #right_side_generics {
+        #impl_signature{
             #(#new_methods)*
         }
     };
@@ -82,7 +79,6 @@ struct StringArgs{
 
 impl Parse for StringArgs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        println!("Before parsing");
 
         let mut strings = HashSet::new();
 
@@ -97,10 +93,9 @@ impl Parse for StringArgs {
 }
 
 /// Returns a vec of the signatures of all public instance methods (those that dont have self) of an 
-/// impl block.
-fn get_pub_instance_methods(input :&ItemImpl, args: StringArgs)-> Vec<TokenStream2>{
+/// impl block. Also if the impl block is a trait returns all of its methods
+fn get_pub_instance_methods(input :&ItemImpl, args: StringArgs, is_trait: bool)-> Vec<TokenStream2>{
     let mut new_methods: Vec<TokenStream2> = Vec::new();
-        
     for item in &input.items{
         if let ImplItem::Fn(method) = item{
             let method_attr = &method.attrs;
@@ -124,18 +119,24 @@ fn get_pub_instance_methods(input :&ItemImpl, args: StringArgs)-> Vec<TokenStrea
 
             let method_sig = filter_method_signature(original_sig, &args);
 
-            match method_visibility{
-                syn::Visibility::Public(pub_level) => 
-                    new_methods.push(
-                        quote! {
-                            #(#method_attr)*
-                            #pub_level #method_sig {
-                                #borrow #method_name(#(#method_inputs),*)
-                            }
+            let pub_level = match method_visibility{
+                syn::Visibility::Public(pub_level) => pub_level.to_token_stream(),
+                syn::Visibility::Restricted(restricted) => restricted.to_token_stream(),
+                syn::Visibility::Inherited => if is_trait{
+                        quote! {}
+                    }else{
+                        continue;
+                    }, 
+            };
+
+            new_methods.push(
+                    quote! {
+                        #(#method_attr)*
+                        #pub_level #method_sig {
+                            #borrow #method_name(#(#method_inputs),*)
                         }
-                    ),
-                _ => {}
-            }            
+                    }
+                )      
         }
     }
 
@@ -184,45 +185,32 @@ fn filter_method_signature(original_sig: &Signature, args: &StringArgs)-> Signat
     sig
 }
 
-/// Returns 3 TokenStreams, the first one is the left side generics, the middle one is the new name
-/// and the third one the right side generics. For example: 
+/// Returns a TokenStreams, that represents the new wrapper struct signature, and whether or not is an
+/// impl block for a Trait
+///  For example: 
 /// impl <'a, T: Send> _MyStruct <'a,T> will return 
-/// (< 'a, T: Send >, MyStruct, < 'a, T >)
-fn get_wrapper_name_and_generics(input: &ItemImpl)-> (TokenStream2, TokenStream2, TokenStream2){
-    let new_struct_name = get_wrapper_struct(input);
-    
+/// (impl <'a, T: Send> MyStruct <'a,T>, false)
+fn get_impl_signature(input: &ItemImpl)-> (TokenStream2, bool){
+    let wrapper_struct = get_wrapper_struct(input);
     let generics = &input.generics;
-    let pairs = generics.params.pairs();
-    let aux: Vec<(&GenericParam)> = pairs.clone().map(|pair| pair.into_value()).collect();
-    let mut rigth_side_generics = quote! {<};
-    let mut first_element = true;
-    for generic in aux{
-        if !first_element{
-            quote! {,}.to_tokens(&mut rigth_side_generics)
-        }else{
-            first_element =  false;
-        }
-        
-        match generic{
-            GenericParam::Lifetime(l) => l.to_tokens(&mut rigth_side_generics),
-            GenericParam::Type(t) => t.ident.to_tokens(&mut rigth_side_generics),
-            GenericParam::Const(c) => c.ident.to_tokens(&mut rigth_side_generics),
-        }
+    let traits = input.trait_.as_ref().map(|(_,t,_)| t);
+    match traits {
+        Some(t) => (quote! {impl #generics #t for #wrapper_struct }, true),
+        None => (quote! {impl #generics #traits #wrapper_struct }, false),
     }
-    
-    quote! {>}.to_tokens(&mut rigth_side_generics);
-    let left_side_generics = generics.to_token_stream();
-
-    return (left_side_generics, new_struct_name, rigth_side_generics)
 }
 
-/// Function that returns a TokenStream with the name of the impl minus the firs character.
+/// Function that returns a TokenStream with the struct of the impl minus the firs character including
+/// generics.
 fn get_wrapper_struct(input: &ItemImpl)->TokenStream2{
-    match input.self_ty.as_ref() {
+    let mut wrapper_struct = input.self_ty.clone();
+    match wrapper_struct.as_mut() {
         syn::Type::Path(type_path) => {
-            if let Some(segment) = type_path.path.segments.last() {
+            if let Some(segment) = type_path.path.segments.last_mut(){
                 let new_name = segment.ident.clone().to_string().split_off(1);
-                Ident::new(&new_name, segment.ident.span()).to_token_stream()
+                
+                segment.ident = Ident::new(&new_name, segment.ident.span());
+                return wrapper_struct.to_token_stream()
             } else {
                 panic!("Expected a type path with at least one segment");
             }

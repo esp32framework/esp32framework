@@ -14,6 +14,11 @@ pub enum AnalogInError{
     ErrorReading
 }
 
+pub type AnalogInLowAtten<'a> = AnalogIn<'a, {attenuation::DB_2_5}>;
+pub type AnalogInMediumAtten<'a> = AnalogIn<'a, {attenuation::DB_6}>;
+pub type AnalogInHighAtten<'a> = AnalogIn<'a, {attenuation::DB_11}>;
+pub type AnalogInNoAtten<'a> = AnalogIn<'a, {attenuation::adc_atten_t_ADC_ATTEN_DB_0}>;
+
 /// Driver for receiving analog inputs from a particular pin
 pub struct AnalogIn<'a, const A: adc_atten_t>{ 
     adc_channel_driver: AnalogChannels<'a, A>,

@@ -9,6 +9,7 @@ use esp_idf_svc::hal::{task::notification::Notifier, timer};
 use crate::utils::timer_driver::timer::TimerConfig;
 use crate::microcontroller::peripherals::Peripheral;
 use sharable_reference_macro::sharable_reference_wrapper;
+
 const MICRO_IN_SEC: u64 = 1000000;
 
 /// Wrapper of _TimerDriver, handling the coordination of multiple references to the inner driver, 

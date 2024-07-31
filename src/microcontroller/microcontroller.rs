@@ -15,6 +15,10 @@ use std::cell::RefCell;
 
 pub type SharableAdcDriver<'a> = Rc<RefCell<Option<AdcDriver<'a, ADC1>>>>;
 
+use crate::gpio::AnalogInHighAtten;
+use crate::gpio::AnalogInLowAtten;
+use crate::gpio::AnalogInMediumAtten;
+use crate::gpio::AnalogInNoAtten;
 use crate::gpio::{AnalogInPwm,
     DigitalIn,
     DigitalOut, 
@@ -82,31 +86,31 @@ impl <'a>Microcontroller<'a>{
     }
 
     /// Sets pin as analog input with attenuation set to 2.5dB
-    pub fn set_pin_as_analog_in_low_atten(&mut self, pin_num: usize) -> AnalogIn<'a, {attenuation::adc_atten_t_ADC_ATTEN_DB_2_5}> {
+    pub fn set_pin_as_analog_in_low_atten(&mut self, pin_num: usize) -> AnalogInLowAtten<'a> {
         self.start_adc_driver();
         let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
-        AnalogIn::<'a, {attenuation::DB_2_5}>::new(pin_peripheral, self.adc_driver.clone()).unwrap()
+        AnalogInLowAtten::new(pin_peripheral, self.adc_driver.clone()).unwrap()
     }
     
     /// Sets pin as analog input with attenuation set to 6dB  
-    pub fn set_pin_as_analog_in_medium_atten(&mut self, pin_num: usize) -> AnalogIn<'a, {attenuation::adc_atten_t_ADC_ATTEN_DB_6}> {
+    pub fn set_pin_as_analog_in_medium_atten(&mut self, pin_num: usize) -> AnalogInMediumAtten<'a> {
         self.start_adc_driver();
         let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
-        AnalogIn::<'a, {attenuation::DB_6}>::new(pin_peripheral, self.adc_driver.clone()).unwrap()
+        AnalogInMediumAtten::new(pin_peripheral, self.adc_driver.clone()).unwrap()
     }
     
     /// Sets pin as analog input with attenuation set to 11dB  
-    pub fn set_pin_as_analog_in_high_atten(&mut self, pin_num: usize) -> AnalogIn<'a, {attenuation::adc_atten_t_ADC_ATTEN_DB_11}> {
+    pub fn set_pin_as_analog_in_high_atten(&mut self, pin_num: usize) -> AnalogInHighAtten<'a> {
         self.start_adc_driver();
         let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
-        AnalogIn::<'a, {attenuation::DB_11}>::new(pin_peripheral, self.adc_driver.clone()).unwrap()
+        AnalogInHighAtten::new(pin_peripheral, self.adc_driver.clone()).unwrap()
     }
 
     /// Sets pin as analog input with attenuation set to 0dB  
-    pub fn set_pin_as_analog_in_no_atten(&mut self, pin_num: usize) -> AnalogIn<'a, {attenuation::adc_atten_t_ADC_ATTEN_DB_0}> {
+    pub fn set_pin_as_analog_in_no_atten(&mut self, pin_num: usize) -> AnalogInNoAtten<'a> {
         self.start_adc_driver();
         let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
-        AnalogIn::<'a, {attenuation::adc_atten_t_ADC_ATTEN_DB_0}>::new(pin_peripheral, self.adc_driver.clone()).unwrap()
+        AnalogInNoAtten::new(pin_peripheral, self.adc_driver.clone()).unwrap()
     }
 
     /// 
