@@ -57,7 +57,7 @@ pub fn sharable_reference_wrapper(args: TokenStream, item: TokenStream) -> Token
         let input = parse_macro_input!(item as ItemImpl);
         let args = parse_macro_input!(args as StringArgs);
         let (impl_signature, is_trait) = get_impl_signature(&input);
-        let new_methods = get_pub_instance_methods(&input, args, is_trait);
+        let new_methods = get_pub_instance_methods(&input, &args, is_trait);
 
     let new_impl = quote! { 
         #impl_signature{
@@ -94,53 +94,59 @@ impl Parse for StringArgs {
 
 /// Returns a vec of the signatures of all public instance methods (those that dont have self) of an 
 /// impl block. Also if the impl block is a trait returns all of its methods
-fn get_pub_instance_methods(input :&ItemImpl, args: StringArgs, is_trait: bool)-> Vec<TokenStream2>{
-    let mut new_methods: Vec<TokenStream2> = Vec::new();
+fn get_pub_instance_methods(input :&ItemImpl, args: &StringArgs, is_trait: bool)-> Vec<TokenStream2>{
+    let mut new_items: Vec<TokenStream2> = Vec::new();
     for item in &input.items{
-        if let ImplItem::Fn(method) = item{
-            let method_attr = &method.attrs;
-            let original_sig = &method.sig;
-            let method_name = &method.sig.ident;
-            let method_visibility = &method.vis;
-            let methods_args = original_sig.inputs.pairs().map( |pair| (*pair.value()).clone());
-            let mut method_inputs = vec![];
-            let mut is_instance_method = false;
-            let mut borrow = quote! {self.inner.borrow().};
-            for arg in methods_args{
-                match get_inputs_from_arg(arg, &mut borrow, &args){
-                    Some(input) => method_inputs.push(input),
-                    None => is_instance_method = true,
-                }
-            }
-
-            if !is_instance_method{
-                continue;
-            }
-
-            let method_sig = filter_method_signature(original_sig, &args);
-
-            let pub_level = match method_visibility{
-                syn::Visibility::Public(pub_level) => pub_level.to_token_stream(),
-                syn::Visibility::Restricted(restricted) => restricted.to_token_stream(),
-                syn::Visibility::Inherited => if is_trait{
-                        quote! {}
-                    }else{
-                        continue;
-                    }, 
-            };
-
-            new_methods.push(
-                    quote! {
-                        #(#method_attr)*
-                        #pub_level #method_sig {
-                            #borrow #method_name(#(#method_inputs),*)
-                        }
-                    }
-                )      
+        match item{
+            ImplItem::Fn(method) => 
+                if let Some(new_method) = get_pub_instance_method(method, args, is_trait){
+                    new_items.push(new_method)
+                },
+            _ => new_items.push(item.to_token_stream()),
         }
     }
 
-    new_methods
+    new_items
+}
+
+fn get_pub_instance_method(method: &ImplItemFn, args: &StringArgs, is_trait: bool)-> Option<TokenStream2>{
+    let method_attr = &method.attrs;
+    let original_sig = &method.sig;
+    let method_name = &method.sig.ident;
+    let method_visibility = &method.vis;
+    let methods_args = original_sig.inputs.pairs().map( |pair| (*pair.value()).clone());
+    let mut method_inputs = vec![];
+    let mut is_instance_method = false;
+    let mut borrow = quote! {self.inner.borrow().};
+    for arg in methods_args{
+        match get_inputs_from_arg(arg, &mut borrow, &args){
+            Some(input) => method_inputs.push(input),
+            None => is_instance_method = true,
+        }
+    }
+
+    if !is_instance_method{
+        return None;
+    }
+
+    let method_sig = filter_method_signature(original_sig, &args);
+
+    let pub_level = match method_visibility{
+        syn::Visibility::Public(pub_level) => pub_level.to_token_stream(),
+        syn::Visibility::Restricted(restricted) => restricted.to_token_stream(),
+        syn::Visibility::Inherited => if is_trait{
+                quote! {}
+            }else{
+                return  None;
+            }, 
+    };
+
+    Some(quote! {
+        #(#method_attr)*
+        #pub_level #method_sig {
+            #borrow #method_name(#(#method_inputs),*)
+        }
+    })
 }
 
 /// Returns the input corresponding to each arg. It sets the borro acordingly. If the name of the arg 
