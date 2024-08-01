@@ -23,6 +23,7 @@ pub enum Peripheral{
     PWMTimer(u8),
     Adc,
     I2C,
+    UART,
     None
 }
 
@@ -84,6 +85,7 @@ pub struct Peripherals {
     pwm_timers: [Peripheral; PWM_COUNT],
     adc: Peripheral,
     i2c: Peripheral,
+    uart: Peripheral,
 }
 
 impl Peripherals {
@@ -94,6 +96,7 @@ impl Peripherals {
         let pwm_timers: [Peripheral; PWM_COUNT] = [Peripheral::PWMTimer(0), Peripheral::PWMTimer(1), Peripheral::PWMTimer(2), Peripheral::PWMTimer(3)];
         let adc: Peripheral = Peripheral::Adc;
         let i2c: Peripheral = Peripheral::I2C;
+        let uart: Peripheral = Peripheral::UART;
         Peripherals {
             pins,
             timers,
@@ -101,6 +104,7 @@ impl Peripherals {
             pwm_timers,
             adc,
             i2c,
+            uart,
         }
     }
 
@@ -148,5 +152,9 @@ impl Peripherals {
 
     pub fn get_i2c(&mut self) -> Peripheral {
         self.i2c.take()
+    }
+
+    pub fn get_uart(&mut self) -> Peripheral {
+        self.uart.take()
     }
 }

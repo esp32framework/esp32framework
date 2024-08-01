@@ -1,11 +1,12 @@
 use std::rc::Rc;
-use config::Resolution;
 use esp_idf_svc::hal::adc::ADC1;
 use esp_idf_svc::hal::gpio::*;
 use esp_idf_svc::hal::adc::*;
-use esp_idf_svc::hal::adc::config::Config;
+use esp_idf_svc::hal::adc::config::{Config, Resolution};
 use esp_idf_svc::hal::delay::FreeRtos;
 use esp_idf_svc::hal::i2c;
+use esp_idf_svc::hal::uart;
+use esp_idf_svc::hal::units::Hertz; // TODO: DELETE THIS
 use std::cell::RefCell;
 pub type SharableAdcDriver<'a> = Rc<RefCell<Option<AdcDriver<'a, ADC1>>>>;
 pub type SharableI2CDriver<'a> = Rc<RefCell<Option<i2c::I2C0>>>;
@@ -146,7 +147,29 @@ impl <'a>Microcontroller<'a>{
                 panic!("I2C Driver already taken!");
             },
         }
-    } 
+    }
+
+    pub fn set_pins_for_uart(&mut self, rx_pin: usize, tx_pin: usize) -> uart::UartDriver<'a> {
+        let rx_peripheral = self.peripherals.get_digital_pin(rx_pin);
+        let tx_peripheral = self.peripherals.get_digital_pin(tx_pin);
+
+        let config = uart::config::Config::new().baudrate(Hertz(115_200));
+        match self.peripherals.get_uart(){
+            Peripheral::UART => {
+                return uart::UartDriver::new(
+                    unsafe{uart::UART1::new()},
+                    tx_peripheral.into_any_io_pin().unwrap(),
+                    rx_peripheral.into_any_io_pin().unwrap(),
+                    Option::<Gpio0>::None,
+                    Option::<Gpio1>::None,
+                    &config,
+                ).unwrap();
+            }
+            _ => {
+                panic!("UART Driver already taken!");
+            },
+        }
+    }
 
     pub fn update(&mut self, drivers_in: Vec<&mut DigitalIn>, drivers_out: Vec<&mut DigitalOut>) {
         for driver in drivers_in{
