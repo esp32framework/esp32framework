@@ -16,6 +16,7 @@ use crate::gpio::{AnalogInPwm,
     DigitalOut, 
     AnalogIn, 
     AnalogOut};
+use crate::serial::UART;
 use crate::serial::{I2CMaster, I2CSlave};
 use crate::utils::timer_driver::TimerDriver;
     
@@ -149,21 +150,13 @@ impl <'a>Microcontroller<'a>{
         }
     }
 
-    pub fn set_pins_for_uart(&mut self, rx_pin: usize, tx_pin: usize) -> uart::UartDriver<'a> {
-        let rx_peripheral = self.peripherals.get_digital_pin(rx_pin);
+    pub fn set_pins_for_uart(&mut self, tx_pin: usize, rx_pin: usize) -> UART<'a> {
         let tx_peripheral = self.peripherals.get_digital_pin(tx_pin);
+        let rx_peripheral = self.peripherals.get_digital_pin(rx_pin);
 
-        let config = uart::config::Config::new().baudrate(Hertz(115_200));
         match self.peripherals.get_uart(){
             Peripheral::UART => {
-                return uart::UartDriver::new(
-                    unsafe{uart::UART1::new()},
-                    tx_peripheral.into_any_io_pin().unwrap(),
-                    rx_peripheral.into_any_io_pin().unwrap(),
-                    Option::<Gpio0>::None,
-                    Option::<Gpio1>::None,
-                    &config,
-                ).unwrap();
+                UART::new(tx_peripheral, rx_peripheral).unwrap()
             }
             _ => {
                 panic!("UART Driver already taken!");
