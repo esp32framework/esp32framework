@@ -24,14 +24,16 @@ use crate::gpio::{AnalogInPwm,
     DigitalOut, 
     AnalogIn, 
     AnalogOut};
-    use crate::utils::timer_driver::TimerDriver;
-    use crate::microcontroller::peripherals::Peripherals;
+use crate::utils::timer_driver::TimerDriver;
+use crate::microcontroller::peripherals::Peripherals;
+use crate::microcontroller::interrupt_driver::InterruptDriver;
 
 const TICKS_PER_MILLI: f32 = TICK_RATE_HZ as f32 / 1000 as f32;
 
 pub struct Microcontroller<'a> {
     peripherals: Peripherals,
     timer_drivers: Vec<TimerDriver<'a>>,
+    interrupt_drivers: Vec<Box<dyn InterruptDriver + 'a>>,
     adc_driver: SharableAdcDriver<'a>,
     notification: Notification
 }
@@ -45,6 +47,7 @@ impl <'a>Microcontroller<'a>{
             peripherals: peripherals,
             timer_drivers: vec![],
             adc_driver: Rc::new(RefCell::new(None)),
+            interrupt_drivers: Vec::new(),
             notification: Notification::new()
         }
     }
@@ -65,13 +68,17 @@ impl <'a>Microcontroller<'a>{
     /// Creates a DigitalIn on the ESP pin with number 'pin_num' to read digital inputs.
     pub fn set_pin_as_digital_in(&mut self, pin_num: usize)-> DigitalIn<'a> {
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
-        DigitalIn::new(self.get_timer_driver(), pin_peripheral).unwrap()
+        let dgin = DigitalIn::new(self.get_timer_driver(), pin_peripheral, Some(self.notification.notifier())).unwrap();
+        self.interrupt_drivers.push(Box::new(dgin.clone()));
+        dgin
     }
     
     /// Creates a DigitalOut on the ESP pin with number 'pin_num' to writee digital outputs.
     pub fn set_pin_as_digital_out(&mut self, pin_num: usize) -> DigitalOut<'a> {
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
-        DigitalOut::new(pin_peripheral, self.get_timer_driver()).unwrap()
+        let dgout = DigitalOut::new(self.get_timer_driver(), pin_peripheral).unwrap();
+        self.interrupt_drivers.push(Box::new(dgout.clone()));
+        dgout
     }
     
     /// Starts an adc driver if no other was started before. Bitwidth is always set to 12, since 
@@ -117,13 +124,17 @@ impl <'a>Microcontroller<'a>{
     pub fn set_pin_as_analog_out(&mut self, pin_num: usize, freq_hz: u32, resolution: u32) -> AnalogOut<'a> {
         let (pwm_channel, pwm_timer) = self.peripherals.get_next_pwm();
         let pin_peripheral = self.peripherals.get_pwm_pin(pin_num);
-        AnalogOut::<'a>::new(pwm_channel, pwm_timer, pin_peripheral, self.get_timer_driver(), freq_hz, resolution).unwrap()
+        let anlg_out = AnalogOut::new(pwm_channel, pwm_timer, pin_peripheral, self.get_timer_driver(), freq_hz, resolution).unwrap();
+        self.interrupt_drivers.push(Box::new(anlg_out.clone()));
+        anlg_out
     } 
 
     pub fn set_pin_as_default_analog_out(&mut self, pin_num: usize) -> AnalogOut<'a> {
         let (pwm_channel, pwm_timer) = self.peripherals.get_next_pwm();
         let pin_peripheral = self.peripherals.get_pwm_pin(pin_num);
-        AnalogOut::<'a>::default(pwm_channel, pwm_timer, pin_peripheral, self.get_timer_driver()).unwrap()
+        let anlg_out = AnalogOut::default(pwm_channel, pwm_timer, pin_peripheral, self.get_timer_driver()).unwrap();
+        self.interrupt_drivers.push(Box::new(anlg_out.clone()));
+        anlg_out
     }
 
 
@@ -140,20 +151,24 @@ impl <'a>Microcontroller<'a>{
         AnalogInPwm::default(timer_driver, pin_peripheral).unwrap()
     }
     
-    pub fn update(&mut self, drivers_in: Vec<&mut DigitalIn>, drivers_out: Vec<&mut DigitalOut>) {
+    pub fn update(&mut self) {
         //timer_drivers must be updated before other drivers since this may efect the other drivers updates
         for timer_driver in &mut self.timer_drivers{
-            timer_driver.update_interrupts().unwrap();
+            timer_driver.update_interrupt().unwrap();
         }
-        for driver in drivers_in{
-            driver.update_interrupt().unwrap();
-        }
-        for driver in drivers_out{
+        for driver in &mut self.interrupt_drivers{
             driver.update_interrupt().unwrap();
         }
     }
     
-    pub fn wait_for_updates(&mut self, miliseconds:u32, mut analog_outs: Vec<&mut AnalogOut>){
+    fn wait_for_updates_indefinitly(&mut self){
+        loop{
+            self.notification.wait_any();
+            self.update();
+        }
+    }
+
+    fn wait_for_updates_until(&mut self, miliseconds:u32){
         let starting_time = Instant::now();
         let mut elapsed = Duration::from_millis(0);
         let sleep_time = Duration::from_millis(miliseconds as u64);
@@ -161,14 +176,19 @@ impl <'a>Microcontroller<'a>{
         while elapsed < sleep_time{
             let timeout = ((sleep_time - elapsed).as_millis() as f32 * TICKS_PER_MILLI as f32) as u32;
             if self.notification.wait(timeout).is_some(){
-                self.update(vec![], vec![]);
-                for analog_out in &mut analog_outs{
-                    analog_out.update_interrupt().unwrap();
-                    println!("{}", analog_out.duty.load(std::sync::atomic::Ordering::SeqCst));
-                }
+                println!("Updating");
+                self.update();
             }
             elapsed = starting_time.elapsed();
         }   
+    }
+
+    pub fn wait_for_updates(&mut self, miliseconds:Option<u32>){
+        match miliseconds{
+            Some(milis) => self.wait_for_updates_until(milis),
+            None => self.wait_for_updates_indefinitly(),
+        }
+        
     }
 
     pub fn sleep(&mut self, miliseconds:u32){

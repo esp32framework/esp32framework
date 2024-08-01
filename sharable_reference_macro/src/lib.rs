@@ -57,7 +57,7 @@ pub fn sharable_reference_wrapper(args: TokenStream, item: TokenStream) -> Token
         let input = parse_macro_input!(item as ItemImpl);
         let args = parse_macro_input!(args as StringArgs);
         let (impl_signature, is_trait) = get_impl_signature(&input);
-        let new_methods = get_pub_instance_methods(&input, &args, is_trait);
+        let new_methods = get_new_items(&input, &args, is_trait);
 
     let new_impl = quote! { 
         #impl_signature{
@@ -92,9 +92,10 @@ impl Parse for StringArgs {
     }
 }
 
-/// Returns a vec of the signatures of all public instance methods (those that dont have self) of an 
-/// impl block. Also if the impl block is a trait returns all of its methods
-fn get_pub_instance_methods(input :&ItemImpl, args: &StringArgs, is_trait: bool)-> Vec<TokenStream2>{
+/// Returns a vec of all the items of the impl block returning for the methods only the signatures of 
+/// all public instance methods (those that dont have self) of an impl block. Also if the impl block 
+/// is a trait returns all of its methods
+fn get_new_items(input :&ItemImpl, args: &StringArgs, is_trait: bool)-> Vec<TokenStream2>{
     let mut new_items: Vec<TokenStream2> = Vec::new();
     for item in &input.items{
         match item{
@@ -160,15 +161,17 @@ fn get_inputs_from_arg(arg: FnArg, borrow: &mut TokenStream2, args: &StringArgs)
             None
         },
         syn::FnArg::Typed(pat_type) => {
-            let arg = &pat_type.pat;
-            let arg_str = pat_type.pat.to_token_stream().to_string();
-            let method_input = if args.strings.contains(&arg_str){
-                quote! {self.#arg}
-            }else{
-                quote! {#arg}
-            };
-            println!("method_inpu: {}", method_input);
-            Some(method_input)
+            if let syn::Pat::Ident(id) = &pat_type.pat.as_ref(){
+                let arg = &id.ident;
+                let arg_str = pat_type.pat.to_token_stream().to_string();
+                let method_input = if args.strings.contains(&arg_str){
+                    quote! {self.#arg}
+                }else{
+                    quote! {#arg}
+                };
+                return Some(method_input)
+            }
+            None
         },
     }
 }

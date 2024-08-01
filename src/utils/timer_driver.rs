@@ -6,9 +6,11 @@ use std::{
 };
 
 use esp_idf_svc::hal::{task::notification::Notifier, timer};
-use crate::utils::timer_driver::timer::TimerConfig;
+use crate::{microcontroller::interrupt_driver::InterruptDriver, utils::timer_driver::timer::TimerConfig};
 use crate::microcontroller::peripherals::Peripheral;
 use sharable_reference_macro::sharable_reference_wrapper;
+
+use super::esp32_framework_error::Esp32FrameworkError;
 
 const MICRO_IN_SEC: u64 = 1000000;
 
@@ -304,7 +306,7 @@ impl <'a>_TimerDriver<'a>{
     }
 
     /// Handles the diferent type of interrupts and reenabling the interrupt when necesary
-    pub fn update_interrupts(&mut self) -> Result<(), TimerDriverError> {
+    fn _update_interrupt(&mut self)-> Result<(), TimerDriverError> {  
         let mut updates = self.interrupt_update.handle_any_updates();
         while updates{
             if let Some(mut interrupt_update) = self.interrupts.pop(){
@@ -331,6 +333,13 @@ impl <'a>_TimerDriver<'a>{
             updates = self.interrupt_update.handle_any_updates();
         }
         Ok(())
+    }
+}
+
+#[sharable_reference_wrapper("id")]
+impl <'a> InterruptDriver for _TimerDriver<'a>{
+    fn update_interrupt(&mut self)-> Result<(), Esp32FrameworkError> {
+        self._update_interrupt().map_err(|err| Esp32FrameworkError::TimerDriverError(err))
     }
 }
 

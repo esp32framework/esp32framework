@@ -1,6 +1,11 @@
 use esp_idf_svc::hal::gpio::*;
+use sharable_reference_macro::sharable_reference_wrapper;
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
+use crate::microcontroller::interrupt_driver::InterruptDriver;
+use crate::utils::esp32_framework_error::Esp32FrameworkError;
 use crate::utils::timer_driver::{TimerDriver,TimerDriverError};
 use crate::microcontroller::peripherals::Peripheral;
 
@@ -15,10 +20,17 @@ pub enum DigitalOutError{
 }
 
 /// Driver to handle a digital output for a particular Pin
-pub struct DigitalOut<'a>{
+pub struct _DigitalOut<'a>{
     pin_driver: PinDriver<'a, AnyIOPin, Output>,
     timer_driver: TimerDriver<'a>,
     interrupt_update_code: Arc<AtomicInterruptUpdateCode>
+}
+
+/// Driver to handle a digital output for a particular Pin
+/// Wrapper of [_DigitalOut]
+#[derive(Clone)]
+pub struct DigitalOut<'a>{
+    inner: Rc<RefCell<_DigitalOut<'a>>>
 }
 
 /// After an interrupt is triggered an InterruptUpdate will be set and handled
@@ -48,13 +60,14 @@ impl InterruptUpdate{
     }
 }
 
-impl <'a>DigitalOut<'a> {
-    /// Creates a new DigitalOut for a Pin.
-    pub fn new(per: Peripheral, timer_driver: TimerDriver<'a>) -> Result<DigitalOut<'a>, DigitalOutError>{
+#[sharable_reference_wrapper]
+impl <'a>_DigitalOut<'a> {
+    /// Creates a new _DigitalOut for a Pin.
+    pub fn new(timer_driver: TimerDriver<'a>, per: Peripheral) -> Result<_DigitalOut<'a>, DigitalOutError>{
         let gpio = per.into_any_io_pin().map_err(|_| DigitalOutError::InvalidPeripheral)?;
         let pin_driver = PinDriver::output(gpio).map_err(|_| DigitalOutError::CannotSetPinAsOutput)?;
 
-        Ok(DigitalOut {
+        Ok(_DigitalOut {
             pin_driver: pin_driver,
             timer_driver: timer_driver,
             interrupt_update_code: Arc::from(InterruptUpdate::None.get_atomic_code()),
@@ -114,7 +127,7 @@ impl <'a>DigitalOut<'a> {
     }
 
     /// Handles the diferent type of interrupts and reenabling the interrupt when necesary
-    pub fn update_interrupt(&mut self) -> Result<(), DigitalOutError> {
+    pub fn _update_interrupt(&mut self) -> Result<(), DigitalOutError> {
         let interrupt_update = InterruptUpdate::from_atomic_code(self.interrupt_update_code.clone());
         self.interrupt_update_code.store(InterruptUpdate::None.get_code(), Ordering::SeqCst);
         
@@ -124,5 +137,20 @@ impl <'a>DigitalOut<'a> {
             }
             InterruptUpdate::None => Ok(()),
         }
+    }
+}
+
+impl<'a> DigitalOut<'a>{
+    pub fn new(timer_driver: TimerDriver, per: Peripheral)->Result<DigitalOut, DigitalOutError>{
+        Ok(DigitalOut{inner: Rc::new(RefCell::from(_DigitalOut::new(timer_driver, per)?))})
+    }
+}
+
+#[sharable_reference_wrapper]
+impl <'a> InterruptDriver for _DigitalOut<'a>{
+    /// Handles the diferent type of interrupts that, executing the user callback and reenabling the 
+    /// interrupt when necesary
+    fn update_interrupt(&mut self)-> Result<(), Esp32FrameworkError> {
+        self._update_interrupt().map_err(|err| Esp32FrameworkError::DigitalOutError(err))
     }
 }

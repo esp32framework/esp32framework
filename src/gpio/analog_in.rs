@@ -1,3 +1,6 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use esp_idf_svc::hal::adc::attenuation::adc_atten_t;
 use esp_idf_svc::hal::gpio::*;
 use esp_idf_svc::hal::adc::*;
@@ -14,15 +17,22 @@ pub enum AnalogInError{
     ErrorReading
 }
 
-pub type AnalogInLowAtten<'a> = AnalogIn<'a, {attenuation::DB_2_5}>;
-pub type AnalogInMediumAtten<'a> = AnalogIn<'a, {attenuation::DB_6}>;
-pub type AnalogInHighAtten<'a> = AnalogIn<'a, {attenuation::DB_11}>;
-pub type AnalogInNoAtten<'a> = AnalogIn<'a, {attenuation::adc_atten_t_ADC_ATTEN_DB_0}>;
+pub type AnalogInLowAtten<'a> = _AnalogIn<'a, {attenuation::DB_2_5}>;
+pub type AnalogInMediumAtten<'a> = _AnalogIn<'a, {attenuation::DB_6}>;
+pub type AnalogInHighAtten<'a> = _AnalogIn<'a, {attenuation::DB_11}>;
+pub type AnalogInNoAtten<'a> = _AnalogIn<'a, {attenuation::adc_atten_t_ADC_ATTEN_DB_0}>;
 
 /// Driver for receiving analog inputs from a particular pin
-pub struct AnalogIn<'a, const A: adc_atten_t>{ 
+pub struct _AnalogIn<'a, const A: adc_atten_t>{ 
     adc_channel_driver: AnalogChannels<'a, A>,
     adc_driver_ref: SharableAdcDriver<'a>,
+}
+
+/// Driver for receiving digital inputs from a particular Pin
+/// Wrapper of [_AnalogIn]
+#[derive(Clone)]
+pub struct AnalogIn<'a, const A: adc_atten_t>{
+    inner: Rc<RefCell<_AnalogIn<'a, A>>>
 }
 
 enum AnalogChannels<'a, const A: adc_atten_t>{
@@ -35,17 +45,17 @@ enum AnalogChannels<'a, const A: adc_atten_t>{
     Channel6(AdcChannelDriver<'a, A, Gpio6>),  
 }
 
-impl <'a, const A: adc_atten_t> AnalogIn<'a, A> {
-    /// Create a new AnalogIn for a specific pin.
-    pub fn new(pin: Peripheral, adc_driver: SharableAdcDriver<'a>) -> Result<AnalogIn<'a, A>, AnalogInError> {
+impl <'a, const A: adc_atten_t> _AnalogIn<'a, A> {
+    /// Create a new _AnalogIn for a specific pin.
+    pub fn new(pin: Peripheral, adc_driver: SharableAdcDriver<'a>) -> Result<_AnalogIn<'a, A>, AnalogInError> {
         {
             let driver = adc_driver.borrow_mut();
             if let None = *driver {
                 return Err(AnalogInError::MissingAdcDriver)
             }
         }
-        Ok(AnalogIn {
-            adc_channel_driver: AnalogIn::new_channel(pin)?,
+        Ok(_AnalogIn {
+            adc_channel_driver: _AnalogIn::new_channel(pin)?,
             adc_driver_ref: adc_driver,
         })
     }

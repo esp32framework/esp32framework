@@ -1,9 +1,14 @@
 use esp_idf_svc::hal::ledc::*;
 use esp_idf_svc::hal::prelude::*;
 use esp_idf_svc::sys::ESP_FAIL;
+use sharable_reference_macro::sharable_reference_wrapper;
+use crate::microcontroller::interrupt_driver::InterruptDriver;
 use crate::microcontroller::peripherals::Peripheral;
+use crate::utils::esp32_framework_error::Esp32FrameworkError;
 use crate::utils::timer_driver::TimerDriver;
 use crate::utils::timer_driver::TimerDriverError;
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::sync::atomic::AtomicBool;
 use std::sync::{
     Arc,
@@ -20,14 +25,14 @@ pub enum AnalogOutError{
     TimerDriverError(TimerDriverError)
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum ExtremeDutyPolicy{
     BounceBack,
     Reset,
     None
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum FixedChangeType{
     Increase(ExtremeDutyPolicy),
     Decrease(ExtremeDutyPolicy),
@@ -35,14 +40,21 @@ enum FixedChangeType{
 }
 
 /// Driver to handle an analog output for a particular pin
-pub struct AnalogOut<'a> {
+pub struct _AnalogOut<'a> {
     driver: LedcDriver<'a>,
     timer_driver: TimerDriver<'a>,
-    pub duty: Arc<AtomicU32>,
+    duty: Arc<AtomicU32>,
     change_duty_update: ChangeDutyUpdate,
     fixed_change_increasing: Arc<AtomicBool>,
     fixed_change_type: FixedChangeType,
     amount_of_cycles: Option<u32>,
+}
+
+/// Driver to handle a digital output for a particular Pin
+/// Wrapper of [_AnalogOut]
+#[derive(Clone)]
+pub struct AnalogOut<'a>{
+    inner: Rc<RefCell<_AnalogOut<'a>>>
 }
 
 #[derive(Clone)]
@@ -75,20 +87,21 @@ impl ChangeDutyUpdate{
     }
 }
 
-impl <'a>AnalogOut<'a> {
+#[sharable_reference_wrapper]
+impl <'a>_AnalogOut<'a> {
     //TODO: Dejar elegir al usuario low y high resolution, segun que timer
     
-    /// Creates a new AnalogOut from a pin number, frequency and resolution.
-    pub fn new(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>, freq_hz: u32, resolution: u32) -> Result<AnalogOut<'a>, AnalogOutError> {
-        let resolution = AnalogOut::create_resolution(resolution);
+    /// Creates a new _AnalogOut from a pin number, frequency and resolution.
+    pub fn new(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>, freq_hz: u32, resolution: u32) -> Result<_AnalogOut<'a>, AnalogOutError> {
+        let resolution = _AnalogOut::create_resolution(resolution);
         let config = &config::TimerConfig::new().frequency(freq_hz.Hz().into()).resolution(resolution);
-        AnalogOut::_new(peripheral_channel, timer, gpio_pin, timer_driver, config)
+        _AnalogOut::_new(peripheral_channel, timer, gpio_pin, timer_driver, config)
     }
     
-    /// Creates a new AnalogOut for a specific pin with a given configuration of frecuency and resolution.
-    pub fn _new(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>, config: &config::TimerConfig )-> Result<AnalogOut<'a>, AnalogOutError> {
+    /// Creates a new _AnalogOut for a specific pin with a given configuration of frecuency and resolution.
+    pub fn _new(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>, config: &config::TimerConfig )-> Result<_AnalogOut<'a>, AnalogOutError> {
 
-        let ledc_timer_driver = AnalogOut::create_timer_driver(timer, config)?;
+        let ledc_timer_driver = _AnalogOut::create_timer_driver(timer, config)?;
         let gpio = gpio_pin.into_any_io_pin().map_err(|_| AnalogOutError::InvalidPeripheral)?;
         
         let pwm_driver =  match peripheral_channel {
@@ -99,7 +112,7 @@ impl <'a>AnalogOut<'a> {
             _ => return Err(AnalogOutError::InvalidPeripheral),
         }.map_err(|_| AnalogOutError::InvalidArg)?;
     
-        Ok(AnalogOut{driver: pwm_driver,
+        Ok(_AnalogOut{driver: pwm_driver,
             timer_driver: timer_driver, 
             duty: Arc::new(AtomicU32::new(0)), 
             change_duty_update: ChangeDutyUpdate::new(),
@@ -109,9 +122,14 @@ impl <'a>AnalogOut<'a> {
         })
     }
 
-    /// Creates a new AnalogOut with a default frecuency of 1000Hz and a resolution of 8bits.
-    pub fn default(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>) -> Result<AnalogOut<'a>, AnalogOutError>{
-        AnalogOut::_new(peripheral_channel, timer, gpio_pin, timer_driver, &config::TimerConfig::new())
+    // TODO remove this function
+    pub fn duty(&self)->u32{
+        self.duty.load(Ordering::SeqCst)
+    }
+
+    /// Creates a new _AnalogOut with a default frecuency of 1000Hz and a resolution of 8bits.
+    pub fn default(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>) -> Result<_AnalogOut<'a>, AnalogOutError>{
+        _AnalogOut::_new(peripheral_channel, timer, gpio_pin, timer_driver, &config::TimerConfig::new())
     }
 
     /// Creates a new Resolution from a u32 value.
@@ -338,11 +356,40 @@ impl <'a>AnalogOut<'a> {
     }
 
     /// Handles the diferent type of interrupts.
-    pub fn update_interrupt(&mut self) -> Result<(), AnalogOutError> {
+    fn _update_interrupt(&mut self) -> Result<(), AnalogOutError> {
         if self.change_duty_update.handle_change_duty(){
+            println!("{:?}duty: {}", self.fixed_change_type, self.duty());
             self.change_duty_on_cycle()?
         }
         Ok(())
+    }
+}
+
+impl<'a> AnalogOut<'a>{
+    pub fn new(peripheral_channel: Peripheral, timer: Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>, freq_hz: u32, resolution: u32)->Result<AnalogOut, AnalogOutError>{
+        Ok(AnalogOut{inner: Rc::new(RefCell::from(_AnalogOut::new(
+            peripheral_channel,
+            timer, 
+            gpio_pin, 
+            timer_driver, 
+            freq_hz,
+            resolution
+        )?))})
+    }
+
+    /// Creates a new _AnalogOut with a default frecuency of 1000Hz and a resolution of 8bits.
+    pub fn default(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>) -> Result<AnalogOut<'a>, AnalogOutError>{
+        Ok(AnalogOut{inner: Rc::new(RefCell::from(_AnalogOut::default(
+            peripheral_channel, timer, gpio_pin, timer_driver)?))})
+    }
+}
+
+#[sharable_reference_wrapper]
+impl <'a> InterruptDriver for _AnalogOut<'a>{
+    /// Handles the diferent type of interrupts that, executing the user callback and reenabling the 
+    /// interrupt when necesary
+    fn update_interrupt(&mut self)-> Result<(), Esp32FrameworkError> {
+        self._update_interrupt().map_err(|err| Esp32FrameworkError::AnalogOutError(err))
     }
 }
 
