@@ -300,7 +300,7 @@ impl <'a>DS3231<'a> {
     }
 
     /// Returns the temperature on Celsius.
-    pub fn get_temperature(&mut self) -> f32 {
+    pub fn get_temperature(&mut self) -> f32 { // TODO: The values are not being deserialized with BCD, only twos complement. Check in datasheet if BCD needs to be used to.
         let mut buffer: [u8; 2] = [0; 2];
         self.i2c.write_read(DS3231_ADDR, &[TEMP_ADDR], &mut buffer,BLOCK).unwrap();
 
@@ -309,9 +309,6 @@ impl <'a>DS3231<'a> {
 
         temp_integer + temp_fractional
     }
-
-
-    
 }
 
 impl<'a> READER for DS3231<'a> {
