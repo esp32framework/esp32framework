@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use esp32framework::{serial::{read_n_times_and_sum, show_data, read_n_times_and_aggregate, I2CError, I2CMaster, READER}, Microcontroller};
+use esp32framework::{serial::{I2CMaster, READER}, Microcontroller};
 use esp_idf_svc::hal::delay::BLOCK;
 
 const DS3231_ADDR: u8 = 0x68;
@@ -157,7 +157,7 @@ fn main() {
             sum
         };
         
-        let result = read_n_times_and_aggregate(&mut ds3231, "secs".to_string(),10 ,1000, closure).unwrap();
+        let result = ds3231.read_n_times_and_aggregate("secs".to_string(),10 ,1000, closure).unwrap();
         println!("Ya salio con resultado {:?}", result);
         // micro.sleep(1000);
     }

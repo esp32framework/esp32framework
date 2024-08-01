@@ -3,3 +3,5 @@
 
 - sharable timers
 - multi iterrupt timers
+
+- En la aprte del trait READER de i2c se devuelve un hashmap<String, String>. Lo que se puede hacer es definir un type "Clave" y un type "Valor" y que pase a devolver un hashmap<Clave, Valor>.
