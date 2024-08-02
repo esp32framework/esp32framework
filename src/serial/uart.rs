@@ -1,6 +1,8 @@
-use esp_idf_svc::hal::{uart::{config, UartDriver, UART0, UART1}, units::{FromValueType, Hertz}};
+use esp_idf_svc::hal::{delay::BLOCK, uart::{config, UartDriver, UART0, UART1}, units::{FromValueType, Hertz}};
 use crate::microcontroller::peripherals::Peripheral;
 use esp_idf_svc::hal::gpio::{Gpio0, Gpio1};
+
+use super::micro_to_ticks;
 
 
 const DEFAULT_BAUDRATE: u32 = 115;
@@ -10,6 +12,7 @@ pub enum UARTError{
     InvalidPin,
     InvalidUartNumber,
     WriteError,
+    ReadError,
 }
 
 
@@ -50,5 +53,17 @@ impl <'a>UART<'a> {
     
     pub fn write(&mut self, bytes_to_write: &[u8]) -> Result<usize, UARTError> {
         self.driver.write(bytes_to_write).map_err(|_| UARTError::WriteError)
+    }
+
+    /// Reads from the UART buffer without a timeout. This means that the function will be blocking 
+    /// until the buffer passed gets full. If the buffer never gets full, the function will never return.
+    pub fn read(&mut self, buffer: &mut [u8]) -> Result<usize, UARTError> {
+        self.driver.read(buffer, BLOCK).map_err(|_| UARTError::ReadError)
+    }
+
+    /// Reads from the UART buffer with a timeout in us (microsec). The function will return once the timeout is reached or the buffer is full.
+    pub fn read_with_timeout(&mut self, buffer: &mut [u8], timeout_us: u32) -> Result<usize, UARTError> {
+        let timeout: u32 = micro_to_ticks(timeout_us);
+        self.driver.read(buffer, timeout).map_err(|_| UARTError::ReadError)
     }
 }

@@ -1,3 +1,5 @@
+use core::str;
+
 use esp_idf_svc::hal::delay::BLOCK;
 use esp_idf_svc::hal::gpio;
 use esp_idf_svc::hal::peripherals::Peripherals;
@@ -10,13 +12,19 @@ use esp_idf_svc::sys::UART_NUM_MAX;
 
 fn main(){
     let mut micro = Microcontroller::new();
-    let mut uart = micro.set_pins_for_uart(16,17, 1);
-
+    let mut uart = micro.set_pins_for_uart(10,11, 1);
+    let mut buf: [u8; 7] = [0; 7];
     println!("Starting UART loopback test");
 
     loop {
         let bytes = uart.write(b"mensaje\n").unwrap();
         println!("Lo escribi: {:?} bytes", bytes);
+        
+        //uart.read_with_timeout(&mut buf,1).unwrap();
+        uart.read_with_timeout(&mut buf, 1).unwrap();
+        
+        println!("Lo lei: {:?} bytes", buf);
+        println!("Lo lei en ascii: {:?} bytes", str::from_utf8(&buf));
         FreeRtos::delay_ms(1000);
     }
 }
