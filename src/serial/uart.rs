@@ -8,6 +8,7 @@ const DEFAULT_BAUDRATE: u32 = 115;
 #[derive(Debug)]
 pub enum UARTError{
     InvalidPin,
+    InvalidUartNumber,
     WriteError,
 }
 
@@ -17,19 +18,32 @@ pub struct UART<'a> {
 }
 
 impl <'a>UART<'a> {
-    pub fn new(tx: Peripheral, rx: Peripheral) -> Result<UART<'a>, UARTError > {
+    pub fn new(tx: Peripheral, rx: Peripheral, uart_peripheral: Peripheral) -> Result<UART<'a>, UARTError > {
         let rx_peripheral = rx.into_any_io_pin().map_err(|_| UARTError::InvalidPin)?;
         let tx_peripheral = tx.into_any_io_pin().map_err(|_| UARTError::InvalidPin)?;
-
         let config = config::Config::new().baudrate(Hertz(115_200));
-        let driver = UartDriver::new(
-                unsafe{ UART1::new()},
+        
+        let driver = match uart_peripheral {
+            Peripheral::UART(0) => {UartDriver::new(
+                unsafe{ UART0::new()},
                 tx_peripheral,
                 rx_peripheral,
                 Option::<Gpio0>::None,
                 Option::<Gpio1>::None,
                 &config,
-            ).unwrap(); 
+            ).unwrap()},
+            Peripheral:: UART(1) => {
+                UartDriver::new(
+                    unsafe{ UART1::new()},
+                    tx_peripheral,
+                    rx_peripheral,
+                    Option::<Gpio0>::None,
+                    Option::<Gpio1>::None,
+                    &config,
+                ).unwrap()
+            },
+            _ => return Err(UARTError::InvalidUartNumber),
+        };
         
         Ok(UART{driver})
     }

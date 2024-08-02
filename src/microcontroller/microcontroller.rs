@@ -150,18 +150,12 @@ impl <'a>Microcontroller<'a>{
         }
     }
 
-    pub fn set_pins_for_uart(&mut self, tx_pin: usize, rx_pin: usize) -> UART<'a> {
+    pub fn set_pins_for_uart(&mut self, tx_pin: usize, rx_pin: usize, uart_num: usize) -> UART<'a> {
         let tx_peripheral = self.peripherals.get_digital_pin(tx_pin);
         let rx_peripheral = self.peripherals.get_digital_pin(rx_pin);
+        let uart_peripheral = self.peripherals.get_uart(uart_num);
 
-        match self.peripherals.get_uart(){
-            Peripheral::UART => {
-                UART::new(tx_peripheral, rx_peripheral).unwrap()
-            }
-            _ => {
-                panic!("UART Driver already taken!");
-            },
-        }
+        UART::new(tx_peripheral, rx_peripheral, uart_peripheral).unwrap()
     }
 
     pub fn update(&mut self, drivers_in: Vec<&mut DigitalIn>, drivers_out: Vec<&mut DigitalOut>) {

@@ -5,11 +5,12 @@ use esp_idf_svc::hal::prelude::*;
 use esp_idf_svc::hal::uart::*;
 use esp_idf_svc::hal::delay::FreeRtos;
 use esp32framework::{Microcontroller, gpio::{AnalogIn, InterruptType}, serial::UART};
+use esp_idf_svc::sys::UART_NUM_MAX;
 
 
 fn main(){
     let mut micro = Microcontroller::new();
-    let mut uart = micro.set_pins_for_uart(16,17);
+    let mut uart = micro.set_pins_for_uart(16,17, 1);
 
     println!("Starting UART loopback test");
 
@@ -45,7 +46,7 @@ fn main(){
 //     println!("Starting UART loopback test");
 //     let config = config::Config::new().baudrate(Hertz(115_200));
 //     let uart = UartDriver::new(
-//         peripherals.uart1,
+//         peripherals.uart2,
 //         tx,
 //         rx,
 //         Option::<gpio::Gpio0>::None,
