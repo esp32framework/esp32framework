@@ -16,6 +16,8 @@ use crate::gpio::{AnalogInPwm,
     DigitalOut, 
     AnalogIn, 
     AnalogOut};
+use crate::serial::Parity;
+use crate::serial::StopBit;
 use crate::serial::UART;
 use crate::serial::{I2CMaster, I2CSlave};
 use crate::utils::timer_driver::TimerDriver;
@@ -150,12 +152,20 @@ impl <'a>Microcontroller<'a>{
         }
     }
 
-    pub fn set_pins_for_uart(&mut self, tx_pin: usize, rx_pin: usize, uart_num: usize) -> UART<'a> {
+    pub fn set_pins_for_default_uart(&mut self, tx_pin: usize, rx_pin: usize, uart_num: usize) -> UART<'a> {
         let tx_peripheral = self.peripherals.get_digital_pin(tx_pin);
         let rx_peripheral = self.peripherals.get_digital_pin(rx_pin);
         let uart_peripheral = self.peripherals.get_uart(uart_num);
 
-        UART::new(tx_peripheral, rx_peripheral, uart_peripheral).unwrap()
+        UART::default(tx_peripheral, rx_peripheral, uart_peripheral).unwrap()
+    }
+
+    pub fn set_pins_for_uart(&mut self, tx_pin: usize, rx_pin: usize, uart_num: usize, baudrate: u32, parity: Parity, stopbit: StopBit) -> UART<'a> {
+        let tx_peripheral = self.peripherals.get_digital_pin(tx_pin);
+        let rx_peripheral = self.peripherals.get_digital_pin(rx_pin);
+        let uart_peripheral = self.peripherals.get_uart(uart_num);
+
+        UART::new(tx_peripheral, rx_peripheral, uart_peripheral, baudrate, parity, stopbit).unwrap()
     }
 
     pub fn update(&mut self, drivers_in: Vec<&mut DigitalIn>, drivers_out: Vec<&mut DigitalOut>) {

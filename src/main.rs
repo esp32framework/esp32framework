@@ -12,7 +12,7 @@ use esp_idf_svc::sys::UART_NUM_MAX;
 
 fn main(){
     let mut micro = Microcontroller::new();
-    let mut uart = micro.set_pins_for_uart(10,11, 1);
+    let mut uart = micro.set_pins_for_default_uart(10,11, 1);
     let mut buf: [u8; 7] = [0; 7];
     println!("Starting UART loopback test");
 
