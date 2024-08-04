@@ -159,6 +159,7 @@ impl <'a>_DigitalIn<'a> {
     pub fn _trigger_on_interrupt<G: FnMut() + Send + 'static, F: FnMut() + 'static>(&mut self , user_callback: F, callback: G, interrupt_type: InterruptType) -> Result<(), DigitalInError>{
         self.change_interrupt_type(interrupt_type)?;
         self.user_callback = Box::new(user_callback);
+        self.user_callback = Box::new(user_callback);
         match self.debounce_ms{
             Some(debounce_ms) => {
                 let wrapper = self.trigger_if_mantains_after(debounce_ms)?;
@@ -173,7 +174,7 @@ impl <'a>_DigitalIn<'a> {
     /// user callback to be executed.
     pub fn trigger_on_interrupt<F: FnMut() + 'static>(&mut self , user_callback: F, interrupt_type: InterruptType)->Result<(), DigitalInError>{
         let interrupt_update_code_ref= self.interrupt_update_code.clone();
-        let callback = move ||{
+        let callback = move || {
             interrupt_update_code_ref.store(InterruptUpdate::ExecAndEnablePin.get_code(), Ordering::SeqCst);
         };
         self._trigger_on_interrupt(user_callback, callback, interrupt_type)

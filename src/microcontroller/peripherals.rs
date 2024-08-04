@@ -8,6 +8,8 @@ const DIGITAL_PINS_BOUNDS: (usize, usize) = (0,23);
 const PWM_PIN_BOUNDS: (usize, usize) = (0,23);
 const ANALOG_PINS_BOUNDS: (usize, usize) = (0, 6);
 const TIMER_BOUND: (usize, usize) = (0,1);
+const UART_COUNT: usize = 2;
+const UART_BOUNDS: (usize, usize) = (0, 1);
 
 
 #[derive(Debug)]
@@ -22,6 +24,8 @@ pub enum Peripheral{
     PWMChannel(u8),
     PWMTimer(u8),
     Adc,
+    I2C,
+    UART(u8),
     None
 }
 
@@ -81,7 +85,9 @@ pub struct Peripherals {
     timers: [Peripheral; TIMERS_COUNT],
     pwm_channels: [Peripheral; PWM_COUNT],
     pwm_timers: [Peripheral; PWM_COUNT],
-    adc: Peripheral
+    adc: Peripheral,
+    i2c: Peripheral,
+    uart: [Peripheral; UART_COUNT],
 }
 
 impl Peripherals {
@@ -91,12 +97,16 @@ impl Peripherals {
         let pwm_channels: [Peripheral; PWM_COUNT] = [Peripheral::PWMChannel(0),Peripheral::PWMChannel(1),Peripheral::PWMChannel(2),Peripheral::PWMChannel(3)];
         let pwm_timers: [Peripheral; PWM_COUNT] = [Peripheral::PWMTimer(0), Peripheral::PWMTimer(1), Peripheral::PWMTimer(2), Peripheral::PWMTimer(3)];
         let adc: Peripheral = Peripheral::Adc;
+        let i2c: Peripheral = Peripheral::I2C;
+        let uart: [Peripheral; UART_COUNT] = [Peripheral::UART(0), Peripheral::UART(1)];
         Peripherals {
             pins,
             timers,
             pwm_channels,
             pwm_timers,
             adc,
+            i2c,
+            uart,
         }
     }
 
@@ -141,5 +151,15 @@ impl Peripherals {
         }
         (Peripheral::None, Peripheral::None)
     }
-}
 
+    pub fn get_i2c(&mut self) -> Peripheral {
+        self.i2c.take()
+    }
+
+    pub fn get_uart(&mut self, uart_num: usize) -> Peripheral {
+        if uart_num >= UART_BOUNDS.0 && uart_num <= UART_BOUNDS.1 {
+            return self.uart[uart_num].take()
+        }
+        Peripheral::None
+    }
+}

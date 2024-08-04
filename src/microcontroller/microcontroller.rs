@@ -1,19 +1,21 @@
 use std::rc::Rc;
 use std::time::Duration;
 use std::time::Instant;
-use config::Resolution;
 use esp_idf_svc::hal;
 use esp_idf_svc::hal::adc::ADC1;
 use esp_idf_svc::hal::gpio::*;
 use esp_idf_svc::hal::adc::*;
-use esp_idf_svc::hal::adc::config::Config;
+use esp_idf_svc::hal::adc::config::{Config, Resolution};
 use esp_idf_svc::hal::delay::FreeRtos;
 use esp_idf_svc::hal::delay::TICK_RATE_HZ;
 use esp_idf_svc::hal::units::Time;
 use esp_idf_svc::hal::task::notification::Notification;
+use esp_idf_svc::hal::i2c;
+use esp_idf_svc::hal::uart;
+use esp_idf_svc::hal::units::Hertz; // TODO: DELETE THIS
 use std::cell::RefCell;
-
 pub type SharableAdcDriver<'a> = Rc<RefCell<Option<AdcDriver<'a, ADC1>>>>;
+pub type SharableI2CDriver<'a> = Rc<RefCell<Option<i2c::I2C0>>>;
 
 use crate::gpio::AnalogInHighAtten;
 use crate::gpio::AnalogInLowAtten;
@@ -24,8 +26,13 @@ use crate::gpio::{AnalogInPwm,
     DigitalOut, 
     AnalogIn, 
     AnalogOut};
+use crate::serial::Parity;
+use crate::serial::StopBit;
+use crate::serial::UART;
+use crate::serial::{I2CMaster, I2CSlave};
 use crate::utils::timer_driver::TimerDriver;
-use crate::microcontroller::peripherals::Peripherals;
+    
+use crate::microcontroller::peripherals::*;
 use crate::microcontroller::interrupt_driver::InterruptDriver;
 
 const TICKS_PER_MILLI: f32 = TICK_RATE_HZ as f32 / 1000 as f32;
@@ -35,7 +42,8 @@ pub struct Microcontroller<'a> {
     timer_drivers: Vec<TimerDriver<'a>>,
     interrupt_drivers: Vec<Box<dyn InterruptDriver + 'a>>,
     adc_driver: SharableAdcDriver<'a>,
-    notification: Notification
+    notification: Notification,
+    i2c_driver: SharableI2CDriver<'a>
 }
 
 impl <'a>Microcontroller<'a>{
@@ -48,7 +56,8 @@ impl <'a>Microcontroller<'a>{
             timer_drivers: vec![],
             adc_driver: Rc::new(RefCell::new(None)),
             interrupt_drivers: Vec::new(),
-            notification: Notification::new()
+            notification: Notification::new(),
+            i2c_driver: Rc::new(RefCell::new(None)),
         }
     }
 
@@ -151,6 +160,50 @@ impl <'a>Microcontroller<'a>{
         AnalogInPwm::default(timer_driver, pin_peripheral).unwrap()
     }
     
+    pub fn set_pins_for_i2c_master(&mut self, sda_pin: usize, scl_pin: usize) -> I2CMaster<'a> {
+        let sda_peripheral = self.peripherals.get_digital_pin(sda_pin);
+        let scl_peripheral = self.peripherals.get_digital_pin(scl_pin);
+
+        match self.peripherals.get_i2c(){
+            Peripheral::I2C => {
+                I2CMaster::new(sda_peripheral, scl_peripheral, unsafe{i2c::I2C0::new()}).unwrap()
+            }
+            _ => {
+                panic!("I2C Driver already taken!");
+            },
+        }
+    }
+
+    pub fn set_pins_for_i2c_slave(&mut self, sda_pin: usize, scl_pin: usize, slave_addr: u8) -> I2CSlave<'a> {
+        let sda_peripheral = self.peripherals.get_digital_pin(sda_pin);
+        let scl_peripheral = self.peripherals.get_digital_pin(scl_pin);
+
+        match self.peripherals.get_i2c(){
+            Peripheral::I2C => {
+                I2CSlave::new(sda_peripheral, scl_peripheral, unsafe{i2c::I2C0::new()}, slave_addr).unwrap()
+            }
+            _ => {
+                panic!("I2C Driver already taken!");
+            },
+        }
+    }
+
+    pub fn set_pins_for_default_uart(&mut self, tx_pin: usize, rx_pin: usize, uart_num: usize) -> UART<'a> {
+        let tx_peripheral = self.peripherals.get_digital_pin(tx_pin);
+        let rx_peripheral = self.peripherals.get_digital_pin(rx_pin);
+        let uart_peripheral = self.peripherals.get_uart(uart_num);
+
+        UART::default(tx_peripheral, rx_peripheral, uart_peripheral).unwrap()
+    }
+
+    pub fn set_pins_for_uart(&mut self, tx_pin: usize, rx_pin: usize, uart_num: usize, baudrate: u32, parity: Parity, stopbit: StopBit) -> UART<'a> {
+        let tx_peripheral = self.peripherals.get_digital_pin(tx_pin);
+        let rx_peripheral = self.peripherals.get_digital_pin(rx_pin);
+        let uart_peripheral = self.peripherals.get_uart(uart_num);
+
+        UART::new(tx_peripheral, rx_peripheral, uart_peripheral, baudrate, parity, stopbit).unwrap()
+    }
+
     pub fn update(&mut self) {
         //timer_drivers must be updated before other drivers since this may efect the other drivers updates
         for timer_driver in &mut self.timer_drivers{
