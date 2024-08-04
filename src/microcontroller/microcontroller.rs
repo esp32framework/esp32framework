@@ -1,11 +1,12 @@
 use std::rc::Rc;
-use config::Resolution;
 use esp_idf_svc::hal::adc::ADC1;
 use esp_idf_svc::hal::gpio::*;
 use esp_idf_svc::hal::adc::*;
-use esp_idf_svc::hal::adc::config::Config;
+use esp_idf_svc::hal::adc::config::{Config, Resolution};
 use esp_idf_svc::hal::delay::FreeRtos;
 use esp_idf_svc::hal::i2c;
+use esp_idf_svc::hal::uart;
+use esp_idf_svc::hal::units::Hertz; // TODO: DELETE THIS
 use std::cell::RefCell;
 pub type SharableAdcDriver<'a> = Rc<RefCell<Option<AdcDriver<'a, ADC1>>>>;
 pub type SharableI2CDriver<'a> = Rc<RefCell<Option<i2c::I2C0>>>;
@@ -15,6 +16,9 @@ use crate::gpio::{AnalogInPwm,
     DigitalOut, 
     AnalogIn, 
     AnalogOut};
+use crate::serial::Parity;
+use crate::serial::StopBit;
+use crate::serial::UART;
 use crate::serial::{I2CMaster, I2CSlave};
 use crate::utils::timer_driver::TimerDriver;
     
@@ -146,7 +150,23 @@ impl <'a>Microcontroller<'a>{
                 panic!("I2C Driver already taken!");
             },
         }
-    } 
+    }
+
+    pub fn set_pins_for_default_uart(&mut self, tx_pin: usize, rx_pin: usize, uart_num: usize) -> UART<'a> {
+        let tx_peripheral = self.peripherals.get_digital_pin(tx_pin);
+        let rx_peripheral = self.peripherals.get_digital_pin(rx_pin);
+        let uart_peripheral = self.peripherals.get_uart(uart_num);
+
+        UART::default(tx_peripheral, rx_peripheral, uart_peripheral).unwrap()
+    }
+
+    pub fn set_pins_for_uart(&mut self, tx_pin: usize, rx_pin: usize, uart_num: usize, baudrate: u32, parity: Parity, stopbit: StopBit) -> UART<'a> {
+        let tx_peripheral = self.peripherals.get_digital_pin(tx_pin);
+        let rx_peripheral = self.peripherals.get_digital_pin(rx_pin);
+        let uart_peripheral = self.peripherals.get_uart(uart_num);
+
+        UART::new(tx_peripheral, rx_peripheral, uart_peripheral, baudrate, parity, stopbit).unwrap()
+    }
 
     pub fn update(&mut self, drivers_in: Vec<&mut DigitalIn>, drivers_out: Vec<&mut DigitalOut>) {
         for driver in drivers_in{
