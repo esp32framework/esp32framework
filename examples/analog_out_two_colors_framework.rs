@@ -4,8 +4,8 @@ use esp32framework::Microcontroller;
 /// of the colours Red and Blue of a RGB led.
 fn main(){
     let mut micro = Microcontroller::new();
-    let mut red_analog_out = micro.set_pin_as_default_analog_out(10);
-    let mut blue_analog_out = micro.set_pin_as_default_analog_out(8);
+    let mut red_analog_out = micro.set_pin_as_default_analog_out(2);
+    let mut blue_analog_out = micro.set_pin_as_default_analog_out(3);
     red_analog_out.start_increasing(100, 0.05, 0.0).unwrap();
     blue_analog_out.start_decreasing_bounce_back(100, 0.05, 0.0, None).unwrap();
     

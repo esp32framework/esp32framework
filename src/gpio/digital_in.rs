@@ -159,7 +159,6 @@ impl <'a>_DigitalIn<'a> {
     pub fn _trigger_on_interrupt<G: FnMut() + Send + 'static, F: FnMut() + 'static>(&mut self , user_callback: F, callback: G, interrupt_type: InterruptType) -> Result<(), DigitalInError>{
         self.change_interrupt_type(interrupt_type)?;
         self.user_callback = Box::new(user_callback);
-        self.user_callback = Box::new(user_callback);
         match self.debounce_ms{
             Some(debounce_ms) => {
                 let wrapper = self.trigger_if_mantains_after(debounce_ms)?;
