@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use esp_idf_svc::{hal::{i2c::{I2cConfig, I2cDriver, I2cSlaveConfig, I2cSlaveDriver, I2C0}, units::FromValueType}, sys::{ESP_ERR_INVALID_ARG, ESP_ERR_NO_MEM, ESP_ERR_TIMEOUT}};
 use crate::microcontroller::peripherals::Peripheral;
 
@@ -96,4 +97,3 @@ impl <'a>I2CSlave<'a> {
     }
 
 }
-

@@ -35,8 +35,17 @@ const DAY_ALARM_2_ADDR        : u8 = 0x0D;
 const CONTROL_ADDR          : u8 = 0x0E;
 const CONTROL_STATUS_ADDR   : u8 = 0x0F;
 
+const TEMP_ADDR             : u8 = 0x11;
+
 const ALARM_MSB_ON: u8 = 128;
 
+/// Possible alar rates for alarm 1.
+/// EverySecond: The alarm activates every second. When using this rate, remember to update the alarm with update_alarm_1(). 
+/// Seconds: Receives (second). The alarm activates when seconds match.
+/// MinutesAndSeconds: Receives (minutes, seconds). The alarm activates when minutes and seconds match.
+/// HoursMinutesAndSeconds: Receives (hours, minutes, seconds). The alarm activates when hour, minutes and seconds match.
+/// DateHoursMinutesAndSeconds: Receives (date, hours, minutes, seconds). The alarm activates when date, hour, minutes and seconds match.
+/// DayHoursMinutesAndSeconds: Receives (day, hours, minutes, seconds). The alarm activates when day, hour, minutes and seconds match.
 pub enum Alarm1Rate {
     EverySecond,
     Seconds(u8),
@@ -46,6 +55,12 @@ pub enum Alarm1Rate {
     DayHoursMinutesAndSeconds(u8, u8, u8, u8),
 }
 
+/// Possible alar rates for alarm 2.
+/// EveryMinute: The alarm activates every minute (00 seconds of every minute).
+/// Minutes: Receives (minutes). The alarm activates when minutes match.
+/// HoursAndMinutes: Receives (hours, minutes). The alarm activates when hour and minutes match.
+/// DateHoursAndMinutes: Receives (date, hours, minutes). The alarm activates when date, hour and minutes.
+/// DayHoursAndMinutes: Receives (date, hours, minutes). The alarm activates when date, hour and minutes.
 pub enum Alarm2Rate {
     EveryMinute,
     Minutes(u8),
@@ -54,6 +69,7 @@ pub enum Alarm2Rate {
     DayHoursAndMinutes(u8, u8, u8),
 }
 
+/// Component of DateTime.
 pub enum DateTimeComponent {
     Second,
     Minute,
@@ -62,15 +78,6 @@ pub enum DateTimeComponent {
     Date,
     Month,
     Year,
-}
-
-pub struct Alarm1 {
-    pub second: u8,
-    pub minute: u8,
-    pub hour: u8,
-    pub day: u8,
-    pub is_week_day: bool
-
 }
 
 pub struct DateTime {
@@ -83,25 +90,31 @@ pub struct DateTime {
     pub year: u8
 } 
 
-
+/// Simple abstraction of the DS3231 that facilitates its handling
 pub struct DS3231<'a> {
     i2c: I2CMaster<'a>
 }
 
 
 impl <'a>DS3231<'a> {
+    
+    /// Simply returns the DS3231 struct
     pub fn new(i2c: I2CMaster<'a>) -> DS3231<'a> {
         DS3231 { i2c }
     }
 
+    /// Receives a decimal and serializies with BCD
     fn decimal_to_bcd(&self, decimal: u8) -> u8 {
         ((decimal / 10) << 4) | (decimal % 10)
     }
 
+    /// Receives a bcd serialized decimal and deserializes it into a decimal
     fn bcd_to_decimal(&self, bcd: u8) -> u8 {
         (bcd & 0x0F) + ((bcd >> 4) * 10)
     }
 
+    /// Receives a DateTime indicating the exact time in which the clock should be
+    /// and sets the DS3231 into that time.
     pub fn set_time(&mut self, date_time: DateTime) -> Result<(), I2CError> {
         self.set(date_time.second, DateTimeComponent::Second)?;
         self.set(date_time.minute, DateTimeComponent::Minute)?;
@@ -112,6 +125,7 @@ impl <'a>DS3231<'a> {
         self.set(date_time.year, DateTimeComponent::Year)
     }
 
+    /// Allows to set just a component (seconds, minutes, hours, etc) of the time to the DS3231.
     pub fn set(&mut self, value: u8, time_component: DateTimeComponent) -> Result<(), I2CError> {
         if !time_component.is_between_boundaries(value) {
             return Err(I2CError::InvalidArg);
@@ -119,6 +133,7 @@ impl <'a>DS3231<'a> {
         self.write_clock(value, time_component.addr())
     }
 
+    /// Allows to read just a component (seconds, minutes, hours, etc) of the time to the DS3231.
     pub fn read(&mut self, component: DateTimeComponent) -> Result<u8, I2CError> {
         let mut buffer: [u8; 1] = [0];
 
@@ -128,16 +143,19 @@ impl <'a>DS3231<'a> {
         Ok(parsed_data)
     }
 
+    /// Reads DS3231 registers starting from 'addr'.
     fn read_clock(&mut self, addr: u8, buffer: &mut [u8]) -> Result<(), I2CError> {
         self.i2c.write(DS3231_ADDR, &[addr], BLOCK)?;
         self.i2c.read(DS3231_ADDR, buffer, BLOCK)
     }
 
+    /// Writes DS3231 registers starting from 'addr'.
     fn write_clock(&mut self, time: u8, addr: u8) -> Result<(), I2CError> {
         let bcd_time = self.decimal_to_bcd(time);
         self.i2c.write(DS3231_ADDR, &[addr, bcd_time], BLOCK)
     }
 
+    /// Parses the BCD decimals and uses a bit mask on some registers that have unnecessary bits.
     fn parse_component(&self, read_value: u8, component: DateTimeComponent) -> u8 {
         match component {
             DateTimeComponent::Second => self.bcd_to_decimal(read_value & 0x7f),
@@ -146,6 +164,7 @@ impl <'a>DS3231<'a> {
         }
     }
 
+    /// Restarts the whole clock, setting every time component to 0.
     pub fn restart(&mut self) -> Result<(), I2CError> {
         let date_time = DateTime  {
             second: 0,
@@ -159,6 +178,16 @@ impl <'a>DS3231<'a> {
         self.set_time(date_time)
     }
 
+    /// When reading the whole date and time, the data needs to be parsed.
+    /// This is done here and returns a HashMap for the user to have the data
+    /// in the easiest way posible. The keys to get the different components are:
+    /// Seconds -> secs
+    /// Minutes -> min
+    /// Hour -> hrs
+    /// Day of the week -> dow
+    /// Day of the month -> day_number
+    /// Month -> month
+    /// Year -> year
     fn parse_read_data(&self, data: [u8; 13] )-> HashMap<String, String> {
         let mut res = HashMap::new();
         let secs = self.bcd_to_decimal(data[0] & 0x7f);  // 0 1 1 1 1 1 1 1
@@ -189,7 +218,7 @@ impl <'a>DS3231<'a> {
         res
     }   
 
-    /// returns decimal
+    /// Reads only 1 register and returns its decimal value
     fn read_last_value(&mut self, addr: u8) -> Result<u8, I2CError> {
         let mut buffer: [u8; 1] = [0];
         self.read_clock(addr, &mut buffer)?;
@@ -197,6 +226,7 @@ impl <'a>DS3231<'a> {
         Ok(value)
     }
 
+    /// Inside function to set alarm 1. Writes every necessary register.
     fn _set_alarm_1(&mut self, day: u8, hours: u8, minutes:u8, seconds: u8) -> Result<(), I2CError> {
         self.write_clock(seconds, SECONDS_ALARM_1_ADDR)?;
         self.write_clock(minutes, MINUTES_ALARM_1_ADDR)?;
@@ -210,6 +240,7 @@ impl <'a>DS3231<'a> {
         self.write_clock( last_value & 0xFE , CONTROL_STATUS_ADDR)
     }
 
+    /// Inside function to set alarm 2. Writes every necessary register.
     fn _set_alarm_2(&mut self, day: u8, hours: u8, minutes: u8) -> Result<(), I2CError> {
         self.write_clock(minutes, MINUTES_ALARM_2_ADDR)?;
         self.write_clock(hours, HOURS_ALARM_2_ADDR)?;
@@ -222,7 +253,8 @@ impl <'a>DS3231<'a> {
         self.write_clock(last_status_value & 0xFD, CONTROL_STATUS_ADDR)
     }
     
-    pub fn set_alarm_1(&mut self, alarm_rate: Alarm1Rate) -> Result<(), I2CError> { // TODO: Remember to see when to put back on 0 the A1F or A2F bit 
+    /// By receiving an Alarm1Rate, it is possible to set different rates on alarm 1.
+    pub fn set_alarm_1(&mut self, alarm_rate: Alarm1Rate) -> Result<(), I2CError> {
         match alarm_rate {
             Alarm1Rate::EverySecond => self._set_alarm_1(ALARM_MSB_ON, ALARM_MSB_ON, ALARM_MSB_ON, ALARM_MSB_ON),
             Alarm1Rate::Seconds(secs) => self._set_alarm_1(ALARM_MSB_ON, ALARM_MSB_ON, ALARM_MSB_ON, secs),
@@ -233,7 +265,8 @@ impl <'a>DS3231<'a> {
         }
     }
     
-    pub fn set_alarm_2(&mut self, alarm_rate: Alarm2Rate) -> Result<(), I2CError> { // TODO: Remember to see when to put back on 0 the A1F or A2F bit 
+    /// By receiving an Alarm2Rate, it is possible to set different rates on alarm 2.
+    pub fn set_alarm_2(&mut self, alarm_rate: Alarm2Rate) -> Result<(), I2CError> {
         match alarm_rate {
             Alarm2Rate::EveryMinute => self._set_alarm_2(ALARM_MSB_ON, ALARM_MSB_ON, ALARM_MSB_ON),
             Alarm2Rate::Minutes(mins) => self._set_alarm_2(ALARM_MSB_ON, ALARM_MSB_ON, mins),
@@ -243,19 +276,39 @@ impl <'a>DS3231<'a> {
         }
     }
 
+    /// Updates the control/status register so the alarm can be activated again. 
     pub fn update_alarm_1(&mut self) -> Result<(), I2CError> {
         // Update the control/status register. To activate the alarm we want to set bit 0 to 0 
         let last_value = self.read_last_value(CONTROL_STATUS_ADDR)?;
         self.write_clock( last_value & 0xFE , CONTROL_STATUS_ADDR)
     }
 
+    /// Updates the control/status register so the alarm can be activated again. 
     pub fn update_alarm_2(&mut self) -> Result<(), I2CError> {
         // Update the control/status register. To activate the alarm we want to set bit 1 to 0 
         let last_value = self.read_last_value(CONTROL_STATUS_ADDR)?;
         self.write_clock( last_value & 0xFD , CONTROL_STATUS_ADDR)
     }
 
-    
+    /// Receives a decimal on two's complement and returns its decimal value.
+    fn twos_complement_to_decimal(&self, value: u8) -> f32 {
+        if value & 0x80 != 0 {
+            -((!value + 1) as f32)
+        } else {
+            value as f32
+        }
+    }
+
+    /// Returns the temperature on Celsius.
+    pub fn get_temperature(&mut self) -> f32 { // TODO: The values are not being deserialized with BCD, only twos complement. Check in datasheet if BCD needs to be used to.
+        let mut buffer: [u8; 2] = [0; 2];
+        self.i2c.write_read(DS3231_ADDR, &[TEMP_ADDR], &mut buffer,BLOCK).unwrap();
+
+        let temp_integer = self.twos_complement_to_decimal(buffer[0]);
+        let temp_fractional = self.twos_complement_to_decimal(buffer[1] >> 6) * 0.25;  // We only need the 2 most significant bits of the register
+
+        temp_integer + temp_fractional
+    }
 }
 
 impl<'a> READER for DS3231<'a> {
@@ -268,6 +321,8 @@ impl<'a> READER for DS3231<'a> {
 }
 
 impl DateTimeComponent {
+
+    /// Returns the register address of the desired DateTime component.
     fn addr(&self) -> u8 {
         match self {
             DateTimeComponent::Second => SECONDS_ADDR,
@@ -280,6 +335,7 @@ impl DateTimeComponent {
         }
     }
 
+    /// For each component it checks if the value is between possible boundaries set by the bits in the register.
     pub fn is_between_boundaries(&self, val: u8) -> bool {
         match self {
             DateTimeComponent::Second => self.check_boundaries(val, MIN_VALUE, MAX_SECS),
@@ -292,6 +348,7 @@ impl DateTimeComponent {
         }
     }
 
+    /// Receives a value and the boundaries. Returstrue if the values is between boundaries, else false.
     fn check_boundaries(&self, val: u8, min_boundarie: u8, max_boundarie: u8) -> bool {
         val >= min_boundarie && val <= max_boundarie
     }
