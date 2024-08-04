@@ -1,11 +1,17 @@
 use esp_idf_svc::hal::gpio::*;
+use esp_idf_svc::hal::task::notification::Notifier;
+use std::cell::RefCell;
+use std::num::NonZeroU32;
+use std::rc::Rc;
 use std::sync::atomic::{AtomicU8, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 pub use esp_idf_svc::hal::gpio::{InterruptType, Pull};
+use crate::microcontroller::interrupt_driver::InterruptDriver;
+use crate::utils::esp32_framework_error::Esp32FrameworkError;
 use crate::utils::timer_driver::{TimerDriver,TimerDriverError};
 use crate::utils::error_text_parser::map_enable_disable_errors;
 use crate::microcontroller::peripherals::Peripheral;
-
+use sharable_reference_macro::sharable_reference_wrapper;
 type AtomicInterruptUpdateCode = AtomicU8;
 
 #[derive(Debug)]
@@ -21,13 +27,21 @@ pub enum DigitalInError {
 }
 
 /// Driver for receiving digital inputs from a particular Pin
-pub struct DigitalIn<'a>{
+struct _DigitalIn<'a>{
     pub pin_driver: PinDriver<'a, AnyIOPin, Input>,
     timer_driver: TimerDriver<'a>,
     interrupt_type: Option<InterruptType>,
     pub interrupt_update_code: Arc<AtomicInterruptUpdateCode>,
-    user_callback: fn()->(),
-    debounce_ms: Option<u32>,
+    user_callback: Box<dyn FnMut()>,
+    debounce_ms: Option<u64>,
+    notifier: Option<Arc<Notifier>>
+}
+
+/// Driver for receiving digital inputs from a particular Pin
+/// Wrapper of [_DigitalIn]
+#[derive(Clone)]
+pub struct DigitalIn<'a>{
+    inner: Rc<RefCell<_DigitalIn<'a>>>
 }
 
 /// After an interrupt is triggered an InterruptUpdate will be set and handled
@@ -35,7 +49,6 @@ enum InterruptUpdate {
     ExecAndEnablePin,
     EnableTimerDriver,
     TimerReached,
-    UnsubscribeTimerDriver,
     ExecAndUnsubscribePin,
     None
 }
@@ -54,8 +67,7 @@ impl InterruptUpdate{
             0 => Self::ExecAndEnablePin,
             1 => Self::EnableTimerDriver,
             2 => Self::TimerReached,
-            3 => Self::UnsubscribeTimerDriver,
-            4 => Self::ExecAndUnsubscribePin,
+            3 => Self::ExecAndUnsubscribePin,
             _ => Self::None,
         }
     }
@@ -65,19 +77,21 @@ impl InterruptUpdate{
     }
 }
 
-impl <'a>DigitalIn<'a> {
+#[sharable_reference_wrapper]
+impl <'a>_DigitalIn<'a> {
     /// Create a new DigitalIn for a Pin by default pull is set to Down.
-    pub fn new(timer_driver: TimerDriver<'a>, per: Peripheral) -> Result<DigitalIn, DigitalInError> { //flank default: asc
+    pub fn new(timer_driver: TimerDriver<'a>, per: Peripheral, notifier: Option<Arc<Notifier>>) -> Result<_DigitalIn, DigitalInError> { //flank default: asc
         let gpio = per.into_any_io_pin().map_err(|_| DigitalInError::InvalidPeripheral)?;
-        let mut pin_driver = PinDriver::input(gpio).map_err(|_| DigitalInError::CannotSetPinAsInput)?;
+        let pin_driver = PinDriver::input(gpio).map_err(|_| DigitalInError::CannotSetPinAsInput)?;
 
-        let mut digital_in = DigitalIn {
+        let mut digital_in = _DigitalIn {
             pin_driver: pin_driver,
             timer_driver: timer_driver,
             interrupt_type: None, 
             interrupt_update_code: Arc::from(InterruptUpdate::None.get_atomic_code()),
             debounce_ms: None,
-            user_callback: || -> () {},
+            user_callback: Box::new(|| {}),
+            notifier: notifier
         };
 
         digital_in.set_pull(Pull::Down).unwrap();
@@ -100,14 +114,14 @@ impl <'a>DigitalIn<'a> {
     
     /// After an interrupt, sets an interrupt that will trigger after an amount of microseconds. If the
     /// Level remains the same afterwards then the interrupt update is set to execute user callback
-    fn trigger_if_mantains_after(&mut self, time_micro:u32)-> Result<impl FnMut() + Send + 'static, DigitalInError>{
+    fn trigger_if_mantains_after(&mut self, time_micro:u64)-> Result<impl FnMut() + Send + 'static, DigitalInError>{
         
         let interrupt_update_code_ref = self.interrupt_update_code.clone();
         let after_timer_cljr = move || {
             interrupt_update_code_ref.store(InterruptUpdate::TimerReached.get_code(), Ordering::SeqCst);
         };
 
-        self.timer_driver.interrupt_after(time_micro, after_timer_cljr).map_err(|err| DigitalInError::TimerDriverError(err))?;
+        self.timer_driver.interrupt_after(time_micro, after_timer_cljr);
         
         let interrupt_update_code_ref = self.interrupt_update_code.clone();
         let start_timer_cljr = move || {
@@ -118,19 +132,33 @@ impl <'a>DigitalIn<'a> {
     }
 
     /// Subscribes the function to the pin driver interrupt and enables it
-    fn subscribe_trigger<F: FnMut() + Send + 'static>(&mut self, func: F) -> Result<(), DigitalInError>{
-        unsafe {
-            self.pin_driver.subscribe(func).map_err(|err| map_enable_disable_errors(err))?;
-        }
+    fn subscribe_trigger<F: FnMut() + Send + 'static>(&mut self, mut func: F) -> Result<(), DigitalInError>{
+        match &self.notifier{
+            Some(notifier) => {
+                let notif = notifier.clone();
+                let callback = move || {
+                    func();
+                    unsafe { notif.notify_and_yield(NonZeroU32::new(1).unwrap()) };
+                };
+                unsafe {
+                    self.pin_driver.subscribe(callback).map_err(|err| map_enable_disable_errors(err))?;
+                };
+            },
+            None => unsafe {
+                self.pin_driver.subscribe(func).map_err(|err| map_enable_disable_errors(err))?;
+            },
+        };
+
+        
         self.pin_driver.enable_interrupt().map_err(|err| map_enable_disable_errors(err))
     }
     
     /// Sets a callback that sets an InterruptUpdate on the received interrupt type, which will then
     /// execute the user callback. If a debounce is set then the level must be mantained for the
     /// user callback to be executed.
-    pub fn _trigger_on_interrupt<F: FnMut() + Send + 'static>(&mut self , user_callback: fn()->(), callback: F, interrupt_type: InterruptType) -> Result<(), DigitalInError>{
+    pub fn _trigger_on_interrupt<G: FnMut() + Send + 'static, F: FnMut() + 'static>(&mut self , user_callback: F, callback: G, interrupt_type: InterruptType) -> Result<(), DigitalInError>{
         self.change_interrupt_type(interrupt_type)?;
-        self.user_callback = user_callback;
+        self.user_callback = Box::new(user_callback);
         match self.debounce_ms{
             Some(debounce_ms) => {
                 let wrapper = self.trigger_if_mantains_after(debounce_ms)?;
@@ -143,7 +171,7 @@ impl <'a>DigitalIn<'a> {
     /// Sets a callback that sets an InterruptUpdate on the received interrupt type, which will then
     /// execute the user callback. If a debounce is set then the level must be mantained for the
     /// user callback to be executed.
-    pub fn trigger_on_interrupt(&mut self , user_callback: fn()->(), interrupt_type: InterruptType)->Result<(), DigitalInError>{
+    pub fn trigger_on_interrupt<F: FnMut() + 'static>(&mut self , user_callback: F, interrupt_type: InterruptType)->Result<(), DigitalInError>{
         let interrupt_update_code_ref= self.interrupt_update_code.clone();
         let callback = move ||{
             interrupt_update_code_ref.store(InterruptUpdate::ExecAndEnablePin.get_code(), Ordering::SeqCst);
@@ -186,13 +214,12 @@ impl <'a>DigitalIn<'a> {
             (self.user_callback)();
         }
         
-        self.timer_driver.disable().map_err(|err| DigitalInError::TimerDriverError(err))?;
         self.pin_driver.enable_interrupt().map_err(|err| map_enable_disable_errors(err))
     }
 
     /// Handles the diferent type of interrupts that, executing the user callback and reenabling the 
     /// interrupt when necesary
-    pub fn update_interrupt(&mut self)-> Result<(), DigitalInError>{
+    fn _update_interrupt(&mut self)-> Result<(), DigitalInError>{
         let interrupt_update = InterruptUpdate::from_atomic_code(self.interrupt_update_code.clone());
         self.interrupt_update_code.store(InterruptUpdate::None.get_code(), Ordering::SeqCst);
 
@@ -207,7 +234,6 @@ impl <'a>DigitalIn<'a> {
                 (self.user_callback)();
                 self.pin_driver.unsubscribe().map_err(|err| map_enable_disable_errors(err))
                 },
-            InterruptUpdate::UnsubscribeTimerDriver => self.timer_driver.unsubscribe().map_err(|err| DigitalInError::TimerDriverError(err)),
             InterruptUpdate::None => Ok(()),
         }
     }
@@ -230,11 +256,26 @@ impl <'a>DigitalIn<'a> {
     /// Sets the debounce time to an amount of microseconds. This means that if an interrupt is set,
     /// then the level must be the same after the debounce time for the user callback to be executed.
     /// Debounce time does not work with InterruptType::AnyEdge, an error will be returned
-    pub fn set_debounce(&mut self, time_micro: u32)->Result<(), DigitalInError>{
+    pub fn set_debounce(&mut self, time_micro: u64)->Result<(), DigitalInError>{
         match self.interrupt_type{
             Some(InterruptType::AnyEdge) => Err(DigitalInError::CannotSetDebounceOnAnyEdgeInterruptType)?,
             _ => self.debounce_ms = Some(time_micro),
         }
         Ok(())
+    }
+}
+
+impl<'a> DigitalIn<'a>{
+    pub fn new(timer_driver: TimerDriver, per: Peripheral, notifier: Option<Arc<Notifier>>)->Result<DigitalIn, DigitalInError>{
+        Ok(DigitalIn{inner: Rc::new(RefCell::from(_DigitalIn::new(timer_driver, per, notifier)?))})
+    }
+}
+
+#[sharable_reference_wrapper]
+impl <'a> InterruptDriver for _DigitalIn<'a>{
+    /// Handles the diferent type of interrupts that, executing the user callback and reenabling the 
+    /// interrupt when necesary
+    fn update_interrupt(&mut self)-> Result<(), Esp32FrameworkError> {
+        self._update_interrupt().map_err(|err| Esp32FrameworkError::DigitalInError(err))
     }
 }

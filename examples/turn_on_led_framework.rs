@@ -12,17 +12,11 @@ fn main(){
     button.trigger_on_interrupt(callback, InterruptType::NegEdge);
     let mut count: i32 = 0;
     
-    loop {
-        if FLAG.load(Ordering::Relaxed) {
-            FLAG.store(false, Ordering::Relaxed);
-            count = count.wrapping_add(1);
-            println!("Press Count {}", count);
-            led.toggle();
-        }
-        micro.update(vec![&mut button], vec![]);
-    }
-}
-
-fn callback(){
-    FLAG.store(true, Ordering::Relaxed);
+    let mut count :u32 = 0;
+    let callback = move || {
+        count += 1;
+        println!("Press Count {}", count);
+        led.toggle();
+    };
+    micro.wait_for_updates(None)
 }

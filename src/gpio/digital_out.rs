@@ -1,6 +1,11 @@
 use esp_idf_svc::hal::gpio::*;
+use sharable_reference_macro::sharable_reference_wrapper;
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
+use crate::microcontroller::interrupt_driver::InterruptDriver;
+use crate::utils::esp32_framework_error::Esp32FrameworkError;
 use crate::utils::timer_driver::{TimerDriver,TimerDriverError};
 use crate::microcontroller::peripherals::Peripheral;
 
@@ -15,16 +20,22 @@ pub enum DigitalOutError{
 }
 
 /// Driver to handle a digital output for a particular Pin
-pub struct DigitalOut<'a>{
+pub struct _DigitalOut<'a>{
     pin_driver: PinDriver<'a, AnyIOPin, Output>,
     timer_driver: TimerDriver<'a>,
     interrupt_update_code: Arc<AtomicInterruptUpdateCode>
 }
 
+/// Driver to handle a digital output for a particular Pin
+/// Wrapper of [_DigitalOut]
+#[derive(Clone)]
+pub struct DigitalOut<'a>{
+    inner: Rc<RefCell<_DigitalOut<'a>>>
+}
+
 /// After an interrupt is triggered an InterruptUpdate will be set and handled
 enum InterruptUpdate {
-    FinishedBlinking,
-    KeepBlinking,
+    Blink,
     None
 }
 
@@ -39,8 +50,7 @@ impl InterruptUpdate{
 
     fn from_code(code:u8)-> Self {
         match code{
-            0 => Self::FinishedBlinking,
-            1 => Self::KeepBlinking,
+            0 => Self::Blink,
             _ => Self::None,
         }
     }
@@ -50,13 +60,14 @@ impl InterruptUpdate{
     }
 }
 
-impl <'a>DigitalOut<'a> {
-    /// Creates a new DigitalOut for a Pin.
-    pub fn new(per: Peripheral, timer_driver: TimerDriver<'a>) -> Result<DigitalOut<'a>, DigitalOutError>{
+#[sharable_reference_wrapper]
+impl <'a>_DigitalOut<'a> {
+    /// Creates a new _DigitalOut for a Pin.
+    pub fn new(timer_driver: TimerDriver<'a>, per: Peripheral) -> Result<_DigitalOut<'a>, DigitalOutError>{
         let gpio = per.into_any_io_pin().map_err(|_| DigitalOutError::InvalidPeripheral)?;
         let pin_driver = PinDriver::output(gpio).map_err(|_| DigitalOutError::CannotSetPinAsOutput)?;
 
-        Ok(DigitalOut {
+        Ok(_DigitalOut {
             pin_driver: pin_driver,
             timer_driver: timer_driver,
             interrupt_update_code: Arc::from(InterruptUpdate::None.get_atomic_code()),
@@ -100,7 +111,7 @@ impl <'a>DigitalOut<'a> {
     
     /// Makes the pin blink for a certain amount of times defined by *amount_of_blinks*,
     /// the time states can be adjusted using *time_between_states_micro* (micro sec)
-    pub fn blink(&mut self, mut amount_of_blinks: u32, time_between_states_micro: u32) -> Result<(), DigitalOutError> {
+    pub fn blink(&mut self, mut amount_of_blinks: u32, time_between_states_micro: u64) -> Result<(), DigitalOutError> {
         amount_of_blinks *= 2;
         if amount_of_blinks == 0 {
             return Ok(())
@@ -108,29 +119,38 @@ impl <'a>DigitalOut<'a> {
 
         let interrupt_update_code_ref = self.interrupt_update_code.clone();
         let callback = move || {
-            if amount_of_blinks == 0 {
-                interrupt_update_code_ref.store(InterruptUpdate::FinishedBlinking.get_code(), Ordering::SeqCst);
-            }else{
-                amount_of_blinks -= 1;
-                interrupt_update_code_ref.store(InterruptUpdate::KeepBlinking.get_code(), Ordering::SeqCst);
-            }
+            interrupt_update_code_ref.store(InterruptUpdate::Blink.get_code(), Ordering::SeqCst);
         };
-        self.timer_driver.interrupt_after(time_between_states_micro, callback).map_err(|err| DigitalOutError::TimerDriverError(err))?;
+
+        self.timer_driver.interrupt_after_n_times(time_between_states_micro, Some(amount_of_blinks), true, callback);
         self.timer_driver.enable().map_err(|err| DigitalOutError::TimerDriverError(err))
     }
 
     /// Handles the diferent type of interrupts and reenabling the interrupt when necesary
-    pub fn update_interrupt(&mut self) -> Result<(), DigitalOutError> {
+    pub fn _update_interrupt(&mut self) -> Result<(), DigitalOutError> {
         let interrupt_update = InterruptUpdate::from_atomic_code(self.interrupt_update_code.clone());
         self.interrupt_update_code.store(InterruptUpdate::None.get_code(), Ordering::SeqCst);
         
         match interrupt_update{
-            InterruptUpdate::FinishedBlinking => {self.timer_driver.unsubscribe().map_err(|err| DigitalOutError::TimerDriverError(err))},
-            InterruptUpdate::KeepBlinking => {
-                self.toggle();
-                self.timer_driver.enable().map_err(|err| DigitalOutError::TimerDriverError(err))
+            InterruptUpdate::Blink => {
+                self.toggle()
             }
             InterruptUpdate::None => Ok(()),
         }
+    }
+}
+
+impl<'a> DigitalOut<'a>{
+    pub fn new(timer_driver: TimerDriver, per: Peripheral)->Result<DigitalOut, DigitalOutError>{
+        Ok(DigitalOut{inner: Rc::new(RefCell::from(_DigitalOut::new(timer_driver, per)?))})
+    }
+}
+
+#[sharable_reference_wrapper]
+impl <'a> InterruptDriver for _DigitalOut<'a>{
+    /// Handles the diferent type of interrupts that, executing the user callback and reenabling the 
+    /// interrupt when necesary
+    fn update_interrupt(&mut self)-> Result<(), Esp32FrameworkError> {
+        self._update_interrupt().map_err(|err| Esp32FrameworkError::DigitalOutError(err))
     }
 }
