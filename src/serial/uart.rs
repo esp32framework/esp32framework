@@ -47,7 +47,7 @@ impl <'a>UART<'a> {
                 Option::<Gpio1>::None,
                 &config,
             ).unwrap()},
-            Peripheral:: UART(1) => {
+            Peripheral::UART(1) => {
                 UartDriver::new(
                     unsafe{ UART1::new()},
                     tx_peripheral,
