@@ -1,4 +1,4 @@
-use std::mem;
+use std::{default, mem};
 use esp_idf_svc::hal::gpio::*;
 
 const PIN_COUNT: usize = 24;
@@ -18,6 +18,7 @@ pub enum PeripheralError {
 }
 
 /// Represents the esp32 Peripheral allowing to instanciate diferent Peripheral Types 
+#[derive(Default)]
 pub enum Peripheral{
     Pin(u8),
     Timer(u8),
@@ -25,14 +26,9 @@ pub enum Peripheral{
     PWMTimer(u8),
     Adc,
     I2C,
-    UART(u8),
+    Uart(u8),
+    #[default]
     None
-}
-
-impl Default for Peripheral {
-    fn default() -> Self {
-        Peripheral::None
-    }
 }
 
 impl Peripheral {
@@ -98,7 +94,7 @@ impl Peripherals {
         let pwm_timers: [Peripheral; PWM_COUNT] = [Peripheral::PWMTimer(0), Peripheral::PWMTimer(1), Peripheral::PWMTimer(2), Peripheral::PWMTimer(3)];
         let adc: Peripheral = Peripheral::Adc;
         let i2c: Peripheral = Peripheral::I2C;
-        let uart: [Peripheral; UART_COUNT] = [Peripheral::UART(0), Peripheral::UART(1)];
+        let uart: [Peripheral; UART_COUNT] = [Peripheral::Uart(0), Peripheral::Uart(1)];
         Peripherals {
             pins,
             timers,

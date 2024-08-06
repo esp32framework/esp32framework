@@ -64,10 +64,7 @@ struct ChangeDutyUpdate {
 
 impl FixedChangeType{
     fn increasing_starting_direction(&self)-> bool{
-        match self{
-            FixedChangeType::Increase(_policy) => true,
-            _ => false
-        }
+        matches!(self, FixedChangeType::Increase(_policy))
     }
 }
 
@@ -94,7 +91,7 @@ impl <'a>_AnalogOut<'a> {
     /// Creates a new _AnalogOut from a pin number, frequency and resolution.
     pub fn new(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>, freq_hz: u32, resolution: u32) -> Result<_AnalogOut<'a>, AnalogOutError> {
         let resolution = _AnalogOut::create_resolution(resolution);
-        let config = &config::TimerConfig::new().frequency(freq_hz.Hz().into()).resolution(resolution);
+        let config = &config::TimerConfig::new().frequency(freq_hz.Hz()).resolution(resolution);
         _AnalogOut::_new(peripheral_channel, timer, gpio_pin, timer_driver, config)
     }
     
@@ -214,7 +211,7 @@ impl <'a>_AnalogOut<'a> {
         };
         
         self.timer_driver.interrupt_after_n_times(increase_after_miliseconds * 1000, None, true, callback);
-        self.timer_driver.enable().map_err(|err| AnalogOutError::TimerDriverError(err))?;
+        self.timer_driver.enable().map_err(AnalogOutError::TimerDriverError)?;
         self.fixed_change_type = fixed_change_type;
         Ok(())
     }
@@ -350,7 +347,7 @@ impl <'a>_AnalogOut<'a> {
 
         self.driver.set_duty(duty).map_err(|_| AnalogOutError::ErrorSettingOutput)?;
         if !stay_subscribed {
-            self.timer_driver.remove_interrupt().map_err(|err| AnalogOutError::TimerDriverError(err))?;
+            self.timer_driver.remove_interrupt().map_err(AnalogOutError::TimerDriverError)?;
         }
         Ok(())
     }
@@ -389,7 +386,7 @@ impl <'a> InterruptDriver for _AnalogOut<'a>{
     /// Handles the diferent type of interrupts that, executing the user callback and reenabling the 
     /// interrupt when necesary
     fn update_interrupt(&mut self)-> Result<(), Esp32FrameworkError> {
-        self._update_interrupt().map_err(|err| Esp32FrameworkError::AnalogOutError(err))
+        self._update_interrupt().map_err(Esp32FrameworkError::AnalogOut)
     }
 }
 

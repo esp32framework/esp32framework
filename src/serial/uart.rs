@@ -39,7 +39,7 @@ impl <'a>UART<'a> {
         let config = set_config(baudrate, parity, stopbit)?;
 
         let driver = match uart_peripheral {
-            Peripheral::UART(0) => {UartDriver::new(
+            Peripheral::Uart(0) => {UartDriver::new(
                 unsafe{ UART0::new()},
                 tx_peripheral,
                 rx_peripheral,
@@ -47,7 +47,7 @@ impl <'a>UART<'a> {
                 Option::<Gpio1>::None,
                 &config,
             ).unwrap()},
-            Peripheral:: UART(1) => {
+            Peripheral:: Uart(1) => {
                 UartDriver::new(
                     unsafe{ UART1::new()},
                     tx_peripheral,

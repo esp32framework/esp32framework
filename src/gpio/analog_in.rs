@@ -50,7 +50,7 @@ impl <'a, const A: adc_atten_t> _AnalogIn<'a, A> {
     pub fn new(pin: Peripheral, adc_driver: SharableAdcDriver<'a>) -> Result<_AnalogIn<'a, A>, AnalogInError> {
         {
             let driver = adc_driver.borrow_mut();
-            if let None = *driver {
+            if driver.is_none(){
                 return Err(AnalogInError::MissingAdcDriver)
             }
         }

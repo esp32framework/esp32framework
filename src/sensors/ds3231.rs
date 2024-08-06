@@ -312,7 +312,7 @@ impl <'a>DS3231<'a> {
 }
 
 impl<'a> READER for DS3231<'a> {
-    fn read_and_parse<'b>(&'b mut self) -> HashMap<String, String> {
+    fn read_and_parse(& mut self) -> HashMap<String, String> {
         let mut data: [u8; 13] = [0_u8; 13];
         self.i2c.write(DS3231_ADDR, &[0_u8], BLOCK).unwrap();
         self.i2c.read(DS3231_ADDR, &mut data, BLOCK).unwrap();

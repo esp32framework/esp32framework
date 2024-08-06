@@ -35,7 +35,7 @@ use crate::utils::timer_driver::TimerDriver;
 use crate::microcontroller::peripherals::*;
 use crate::microcontroller::interrupt_driver::InterruptDriver;
 
-const TICKS_PER_MILLI: f32 = TICK_RATE_HZ as f32 / 1000 as f32;
+const TICKS_PER_MILLI: f32 = TICK_RATE_HZ as f32 / 1000_f32;
 
 pub struct Microcontroller<'a> {
     peripherals: Peripherals,
@@ -71,7 +71,7 @@ impl <'a>Microcontroller<'a>{
 
         let timer_driver_copy = timer_driver.create_child_copy().unwrap();
         self.timer_drivers.push(timer_driver);
-        return timer_driver_copy;
+        timer_driver_copy
     }
 
     /// Creates a DigitalIn on the ESP pin with number 'pin_num' to read digital inputs.
@@ -94,7 +94,7 @@ impl <'a>Microcontroller<'a>{
     /// the ESP32-C6 only allows that width
     fn start_adc_driver(&mut self) {
         let mut adc_driver = self.adc_driver.borrow_mut();
-        if let None = *adc_driver {
+        if adc_driver.is_none() {
             self.peripherals.get_adc();
             let driver = AdcDriver::new(unsafe{ADC1::new()}, &Config::new().resolution(Resolution::Resolution12Bit).calibration(true)).unwrap();
             adc_driver.replace(driver);
@@ -129,7 +129,6 @@ impl <'a>Microcontroller<'a>{
         AnalogInNoAtten::new(pin_peripheral, self.adc_driver.clone()).unwrap()
     }
 
-    /// 
     pub fn set_pin_as_analog_out(&mut self, pin_num: usize, freq_hz: u32, resolution: u32) -> AnalogOut<'a> {
         let (pwm_channel, pwm_timer) = self.peripherals.get_next_pwm();
         let pin_peripheral = self.peripherals.get_pwm_pin(pin_num);
@@ -227,7 +226,7 @@ impl <'a>Microcontroller<'a>{
         let sleep_time = Duration::from_millis(miliseconds as u64);
 
         while elapsed < sleep_time{
-            let timeout = ((sleep_time - elapsed).as_millis() as f32 * TICKS_PER_MILLI as f32) as u32;
+            let timeout = ((sleep_time - elapsed).as_millis() as f32 * TICKS_PER_MILLI) as u32;
             if self.notification.wait(timeout).is_some(){
                 println!("Updating");
                 self.update();
@@ -246,5 +245,11 @@ impl <'a>Microcontroller<'a>{
 
     pub fn sleep(&mut self, miliseconds:u32){
         FreeRtos::delay_ms(miliseconds)
+    }
+}
+
+impl<'a> Default for Microcontroller<'a> {
+    fn default() -> Self {
+    Self::new()
     }
 }

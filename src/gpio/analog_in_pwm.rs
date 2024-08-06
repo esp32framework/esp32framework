@@ -21,7 +21,7 @@ impl <'a>AnalogInPwm<'a> {
     /// Create a new AnalogInPwm for a specific pin. 
     /// The Frecuency to Sampling ratio is defined in 2 by default
     pub fn new(timer_driver: TimerDriver<'a>, per: Peripheral, frequency_hz: u32) -> Result<Self, AnalogInPwmError> {
-        let digital_in = DigitalIn::new(timer_driver, per, None).map_err(|e| AnalogInPwmError::DigitalDriverError(e))?;
+        let digital_in = DigitalIn::new(timer_driver, per, None).map_err(AnalogInPwmError::DigitalDriverError)?;
         Ok(AnalogInPwm {
             digital_in,
             sampling: FREQUENCY_TO_SAMPLING_RATIO * frequency_hz
@@ -47,9 +47,7 @@ impl <'a>AnalogInPwm<'a> {
                 highs += 1
             }
         } 
-        let read_value: f32 = (highs as f32) / (self.sampling as f32);
-        
-        return read_value
+        (highs as f32) / (self.sampling as f32)
     }
 
     /// Returns the intensity value using percentage.

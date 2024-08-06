@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, thread::panicking};
 
 use esp_idf_svc::{hal::delay::FreeRtos, sys::configTICK_RATE_HZ};
 
@@ -8,7 +8,7 @@ pub enum SerialError {
 
 
 pub trait READER {
-    fn read_and_parse<'b>(&'b mut self) -> HashMap<String, String>;
+    fn read_and_parse(& mut self) -> HashMap<String, String>;
 }
 
 pub trait WRITER { 
@@ -49,7 +49,7 @@ pub fn read_n_times_and_avg(data_reader: &mut impl READER, operation_key: String
         }
         FreeRtos::delay_ms(ms_between_reads);
     }
-    Ok((total as f32) / (times as f32))
+    Ok(total / (times as f32))
 }
 
 pub fn read_n_times_and_aggregate<C, T>(data_reader: &mut impl READER, operation_key: String, times: usize, ms_between_reads: u32, execute_closure: C) -> Result<T, SerialError>
@@ -93,13 +93,8 @@ C2: Fn(HashMap<String, String>) -> (),
 pub fn write_when_true(data_reader: &mut (impl READER + WRITER), operation_key: String, ms_between_reads: u32, addr: u8, bytes_to_write: &[u8]) -> Result<(), SerialError> { 
     loop {
         let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
-        match parsed_data.get(&operation_key) {
-            Some(_) => {
-                if let Err(e) = data_reader.parse_and_write(addr, bytes_to_write) {
-                    return Err(e);
-                }
-            },
-            None => {}
+        if parsed_data.contains_key(&operation_key){
+            data_reader.parse_and_write(addr, bytes_to_write)?;
         }
         FreeRtos::delay_ms(ms_between_reads);
     }
@@ -107,9 +102,7 @@ pub fn write_when_true(data_reader: &mut (impl READER + WRITER), operation_key: 
 
 pub fn write_with_frecuency(data_reader: &mut impl WRITER, ms_between_writes: u32, addr: u8, bytes_to_write: &[u8]) -> Result<(), SerialError> {
     loop{
-        if let Err(e) = data_reader.parse_and_write(addr, bytes_to_write) {
-            return Err(e);
-        }
+        data_reader.parse_and_write(addr, bytes_to_write)?;
         FreeRtos::delay_ms(ms_between_writes);
     }
 }

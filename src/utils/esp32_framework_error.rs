@@ -12,10 +12,10 @@ use crate::{
 
 #[derive(Debug)]
 pub enum Esp32FrameworkError{
-    AnalogInError(AnalogInError),
-    AnalogInPwmError(AnalogInPwmError),
-    AnalogOutError(AnalogOutError),
-    DigitalInError(DigitalInError),
-    DigitalOutError(DigitalOutError),
-    TimerDriverError(TimerDriverError)
+    AnalogIn(AnalogInError),
+    AnalogInPwm(AnalogInPwmError),
+    AnalogOut(AnalogOutError),
+    DigitalIn(DigitalInError),
+    DigitalOut(DigitalOutError),
+    TimerDriver(TimerDriverError)
 }

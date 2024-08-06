@@ -56,6 +56,6 @@ impl <'a>HCSR04<'a> {
         
         let travel_time = rec_echo_time - send_echo_time;
         let cm: f64 = SOUND_SPEED_CM_US * travel_time as f64;
-        cm / 2 as f64 // We divide by 2 because if not we get the distance of the roundtrip
+        cm / 2.0 // We divide by 2 because if not we get the distance of the roundtrip
     }
 }
