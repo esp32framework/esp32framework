@@ -26,8 +26,8 @@ use crate::serial::UART;
 use crate::serial::{I2CMaster, I2CSlave};
 use crate::utils::timer_driver::TimerDriver;
     
-use crate::microcontroller::peripherals::*;
-use crate::microcontroller::interrupt_driver::InterruptDriver;
+use crate::microcontroller_src::peripherals::*;
+use crate::microcontroller_src::interrupt_driver::InterruptDriver;
 
 const TICKS_PER_MILLI: f32 = TICK_RATE_HZ as f32 / 1000_f32;
 

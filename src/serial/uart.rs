@@ -1,5 +1,5 @@
 use esp_idf_svc::hal::{delay::BLOCK, uart::{config, UartDriver, UART0, UART1}, units::Hertz};
-use crate::microcontroller::peripherals::Peripheral;
+use crate::microcontroller_src::peripherals::Peripheral;
 use esp_idf_svc::hal::gpio::{Gpio0, Gpio1};
 
 use super::micro_to_ticks;

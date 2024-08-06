@@ -6,11 +6,11 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 pub use esp_idf_svc::hal::gpio::{InterruptType, Pull};
-use crate::microcontroller::interrupt_driver::InterruptDriver;
+use crate::microcontroller_src::interrupt_driver::InterruptDriver;
 use crate::utils::esp32_framework_error::Esp32FrameworkError;
 use crate::utils::timer_driver::{TimerDriver,TimerDriverError};
 use crate::utils::error_text_parser::map_enable_disable_errors;
-use crate::microcontroller::peripherals::Peripheral;
+use crate::microcontroller_src::peripherals::Peripheral;
 use sharable_reference_macro::sharable_reference_wrapper;
 type AtomicInterruptUpdateCode = AtomicU8;
 

@@ -4,10 +4,10 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
-use crate::microcontroller::interrupt_driver::InterruptDriver;
+use crate::microcontroller_src::interrupt_driver::InterruptDriver;
 use crate::utils::esp32_framework_error::Esp32FrameworkError;
 use crate::utils::timer_driver::{TimerDriver,TimerDriverError};
-use crate::microcontroller::peripherals::Peripheral;
+use crate::microcontroller_src::peripherals::Peripheral;
 
 type AtomicInterruptUpdateCode = AtomicU8;
 

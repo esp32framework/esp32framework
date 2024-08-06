@@ -6,8 +6,8 @@ use std::{
 };
 
 use esp_idf_svc::hal::{task::notification::Notifier, timer};
-use crate::{microcontroller::interrupt_driver::InterruptDriver, utils::timer_driver::timer::TimerConfig};
-use crate::microcontroller::peripherals::Peripheral;
+use crate::{microcontroller_src::interrupt_driver::InterruptDriver, utils::timer_driver::timer::TimerConfig};
+use crate::microcontroller_src::peripherals::Peripheral;
 use sharable_reference_macro::sharable_reference_wrapper;
 
 use super::esp32_framework_error::Esp32FrameworkError;
