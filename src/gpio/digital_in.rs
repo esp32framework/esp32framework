@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use std::num::NonZeroU32;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU8, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 pub use esp_idf_svc::hal::gpio::{InterruptType, Pull};
 use crate::microcontroller::interrupt_driver::InterruptDriver;
 use crate::utils::esp32_framework_error::Esp32FrameworkError;
@@ -85,13 +85,13 @@ impl <'a>_DigitalIn<'a> {
         let pin_driver = PinDriver::input(gpio).map_err(|_| DigitalInError::CannotSetPinAsInput)?;
 
         let mut digital_in = _DigitalIn {
-            pin_driver: pin_driver,
-            timer_driver: timer_driver,
+            pin_driver,
+            timer_driver,
             interrupt_type: None, 
             interrupt_update_code: Arc::from(InterruptUpdate::None.get_atomic_code()),
             debounce_ms: None,
             user_callback: Box::new(|| {}),
-            notifier: notifier
+            notifier
         };
 
         digital_in.set_pull(Pull::Down).unwrap();

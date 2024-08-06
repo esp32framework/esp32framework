@@ -12,7 +12,7 @@ use std::rc::Rc;
 use std::sync::atomic::AtomicBool;
 use std::sync::{
     Arc,
-    atomic::{AtomicU8, AtomicU32, Ordering}
+    atomic::{AtomicU32, Ordering}
 };
 
 #[derive(Debug)]
@@ -110,7 +110,7 @@ impl <'a>_AnalogOut<'a> {
         }.map_err(|_| AnalogOutError::InvalidArg)?;
     
         Ok(_AnalogOut{driver: pwm_driver,
-            timer_driver: timer_driver, 
+            timer_driver, 
             duty: Arc::new(AtomicU32::new(0)), 
             change_duty_update: ChangeDutyUpdate::new(),
             fixed_change_increasing: Arc::new(AtomicBool::new(false)),

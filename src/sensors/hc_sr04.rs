@@ -1,5 +1,5 @@
-use std::{num::NonZero, sync::{atomic::AtomicU32, Arc}};
-use esp_idf_svc::{hal::{delay::Delay, gpio::InterruptType, task::notification::{self, Notifier}}, sys::esp_timer_get_time};
+use std::sync::{atomic::AtomicU32, Arc};
+use esp_idf_svc::{hal::delay::Delay, sys::esp_timer_get_time};
 use crate::gpio::{DigitalIn, DigitalOut};
 use esp_idf_svc::hal::task::notification::Notification;
 

@@ -1,18 +1,13 @@
 use std::rc::Rc;
 use std::time::Duration;
 use std::time::Instant;
-use esp_idf_svc::hal;
 use esp_idf_svc::hal::adc::ADC1;
-use esp_idf_svc::hal::gpio::*;
 use esp_idf_svc::hal::adc::*;
 use esp_idf_svc::hal::adc::config::{Config, Resolution};
 use esp_idf_svc::hal::delay::FreeRtos;
 use esp_idf_svc::hal::delay::TICK_RATE_HZ;
-use esp_idf_svc::hal::units::Time;
 use esp_idf_svc::hal::task::notification::Notification;
 use esp_idf_svc::hal::i2c;
-use esp_idf_svc::hal::uart;
-use esp_idf_svc::hal::units::Hertz; // TODO: DELETE THIS
 use std::cell::RefCell;
 pub type SharableAdcDriver<'a> = Rc<RefCell<Option<AdcDriver<'a, ADC1>>>>;
 pub type SharableI2CDriver<'a> = Rc<RefCell<Option<i2c::I2C0>>>;
@@ -24,7 +19,6 @@ use crate::gpio::AnalogInNoAtten;
 use crate::gpio::{AnalogInPwm,
     DigitalIn,
     DigitalOut, 
-    AnalogIn, 
     AnalogOut};
 use crate::serial::Parity;
 use crate::serial::StopBit;
@@ -52,7 +46,7 @@ impl <'a>Microcontroller<'a>{
         let peripherals = Peripherals::new();
         
         Microcontroller{
-            peripherals: peripherals,
+            peripherals,
             timer_drivers: vec![],
             adc_driver: Rc::new(RefCell::new(None)),
             interrupt_drivers: Vec::new(),

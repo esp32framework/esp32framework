@@ -108,9 +108,9 @@ impl TimeInterrupt{
         TimeInterrupt{
             after: time,
             alarm_time: 0,
-            id: id,
+            id,
             remaining_triggers: amount_of_triggers,
-            auto_reenable: auto_reenable,
+            auto_reenable,
             callback,
         }
     }

@@ -1,5 +1,5 @@
 use crate::{
-    gpio::digital_in::{DigitalIn, DigitalInError, InterruptType}, microcontroller::peripherals::Peripheral, 
+    gpio::digital_in::{DigitalIn, DigitalInError}, microcontroller::peripherals::Peripheral, 
     utils::timer_driver::TimerDriver
 };
 use esp_idf_svc::hal::ledc::config::TimerConfig;

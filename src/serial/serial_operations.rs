@@ -1,4 +1,4 @@
-use std::{collections::HashMap, thread::panicking};
+use std::collections::HashMap;
 
 use esp_idf_svc::{hal::delay::FreeRtos, sys::configTICK_RATE_HZ};
 
@@ -74,7 +74,7 @@ C: Fn(Vec<String>) -> T
 pub fn execute_when_true<C1, C2>(data_reader: &mut impl READER, operation_key: String, ms_between_reads: u32, condition_closure: C1, execute_closure: C2) -> Result<(), SerialError> 
 where
 C1: Fn(String) -> bool,
-C2: Fn(HashMap<String, String>) -> (),
+C2: Fn(HashMap<String, String>),
 {
     loop {
         let parsed_data: HashMap<String, String> = data_reader.read_and_parse();

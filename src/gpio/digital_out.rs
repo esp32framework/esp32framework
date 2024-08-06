@@ -68,8 +68,8 @@ impl <'a>_DigitalOut<'a> {
         let pin_driver = PinDriver::output(gpio).map_err(|_| DigitalOutError::CannotSetPinAsOutput)?;
 
         Ok(_DigitalOut {
-            pin_driver: pin_driver,
-            timer_driver: timer_driver,
+            pin_driver,
+            timer_driver,
             interrupt_update_code: Arc::from(InterruptUpdate::None.get_atomic_code()),
         })
     }
