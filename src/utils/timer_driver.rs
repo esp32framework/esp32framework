@@ -6,8 +6,8 @@ use std::{
 };
 
 use esp_idf_svc::hal::{task::notification::Notifier, timer};
-use crate::{microcontroller::interrupt_driver::InterruptDriver, utils::timer_driver::timer::TimerConfig};
-use crate::microcontroller::peripherals::Peripheral;
+use crate::{microcontroller_src::interrupt_driver::InterruptDriver, utils::timer_driver::timer::TimerConfig};
+use crate::microcontroller_src::peripherals::Peripheral;
 use sharable_reference_macro::sharable_reference_wrapper;
 
 use super::esp32_framework_error::Esp32FrameworkError;
@@ -108,9 +108,9 @@ impl TimeInterrupt{
         TimeInterrupt{
             after: time,
             alarm_time: 0,
-            id: id,
+            id,
             remaining_triggers: amount_of_triggers,
-            auto_reenable: auto_reenable,
+            auto_reenable,
             callback,
         }
     }
@@ -118,7 +118,7 @@ impl TimeInterrupt{
     /// If any triggers remain execute the callback
     fn trigger(&mut self){
         if let Some(ref mut amount) = self.remaining_triggers{
-            if *amount <= 0{
+            if *amount == 0{
                 return
             }
             *amount-=1;
@@ -235,9 +235,7 @@ impl <'a>_TimerDriver<'a>{
     fn diactivate(&mut self, id: u8){
         for interrupt in &self.interrupts{
             if id == interrupt.id{
-                if !self.inactive_alarms.contains_key(&id){
-                    self.inactive_alarms.insert(id, DisabledTimeInterrupt::Waiting);
-                }
+                self.inactive_alarms.entry(id).or_insert(DisabledTimeInterrupt::Waiting);
             }
         }
     }
@@ -260,7 +258,7 @@ impl <'a>_TimerDriver<'a>{
             self.diactivate(id);
         }
         
-        if self.interrupts.len() == 0 || starting_len == 0{
+        if self.interrupts.is_empty() || starting_len == 0{
             if enable{
                 self.driver.enable_interrupt().map_err(|_| TimerDriverError::CouldNotSetTimer)?;
             }else{
@@ -339,7 +337,7 @@ impl <'a>_TimerDriver<'a>{
 #[sharable_reference_wrapper("id")]
 impl <'a> InterruptDriver for _TimerDriver<'a>{
     fn update_interrupt(&mut self)-> Result<(), Esp32FrameworkError> {
-        self._update_interrupt().map_err(|err| Esp32FrameworkError::TimerDriverError(err))
+        self._update_interrupt().map_err(Esp32FrameworkError::TimerDriver)
     }
 }
 

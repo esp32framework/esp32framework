@@ -9,7 +9,7 @@ pub enum SerialError {
 /// Trait for performing reading and parsing operations.
 pub trait READER {
     /// Reads data and parses it into a `HashMap<String, String>`.
-    fn read_and_parse<'b>(&'b mut self) -> HashMap<String, String>;
+    fn read_and_parse(& mut self) -> HashMap<String, String>;
 }
 
 /// Trait for performing writing and parsing operations.
@@ -58,7 +58,7 @@ pub fn read_n_times_and_avg(data_reader: &mut impl READER, operation_key: String
         }
         FreeRtos::delay_ms(ms_between_reads);
     }
-    Ok((total as f32) / (times as f32))
+    Ok(total / (times as f32))
 }
 
 /// Reads "times",Collects the values as a `Vec<String>` and applies the provided closure to this vector. Returns the result
@@ -89,7 +89,7 @@ C: Fn(Vec<String>) -> T
 pub fn execute_when_true<C1, C2>(data_reader: &mut impl READER, operation_key: String, ms_between_reads: u32, condition_closure: C1, execute_closure: C2) -> Result<(), SerialError> 
 where
 C1: Fn(String) -> bool,
-C2: Fn(HashMap<String, String>) -> (),
+C2: Fn(HashMap<String, String>),
 {
     loop {
         let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
@@ -112,13 +112,8 @@ C2: Fn(HashMap<String, String>) -> (),
 pub fn write_when_true(data_reader: &mut (impl READER + WRITER), operation_key: String, ms_between_reads: u32, addr: u8, bytes_to_write: &[u8]) -> Result<(), SerialError> { 
     loop {
         let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
-        match parsed_data.get(&operation_key) {
-            Some(_) => {
-                if let Err(e) = data_reader.parse_and_write(addr, bytes_to_write) {
-                    return Err(e);
-                }
-            },
-            None => {}
+        if parsed_data.contains_key(&operation_key){
+            data_reader.parse_and_write(addr, bytes_to_write)?;
         }
         FreeRtos::delay_ms(ms_between_reads);
     }
@@ -128,9 +123,7 @@ pub fn write_when_true(data_reader: &mut (impl READER + WRITER), operation_key: 
 /// write operation fails.
 pub fn write_with_frecuency(data_reader: &mut impl WRITER, ms_between_writes: u32, addr: u8, bytes_to_write: &[u8]) -> Result<(), SerialError> {
     loop{
-        if let Err(e) = data_reader.parse_and_write(addr, bytes_to_write) {
-            return Err(e);
-        }
+        data_reader.parse_and_write(addr, bytes_to_write)?;
         FreeRtos::delay_ms(ms_between_writes);
     }
 }

@@ -1,5 +1,5 @@
-use std::{num::NonZero, sync::{atomic::AtomicU32, Arc}};
-use esp_idf_svc::{hal::{delay::Delay, gpio::InterruptType, task::notification::{self, Notifier}}, sys::esp_timer_get_time};
+use std::sync::{atomic::AtomicU32, Arc};
+use esp_idf_svc::{hal::delay::Delay, sys::esp_timer_get_time};
 use crate::gpio::{DigitalIn, DigitalOut};
 use esp_idf_svc::hal::task::notification::Notification;
 
@@ -56,6 +56,6 @@ impl <'a>HCSR04<'a> {
         
         let travel_time = rec_echo_time - send_echo_time;
         let cm: f64 = SOUND_SPEED_CM_US * travel_time as f64;
-        cm / 2 as f64 // We divide by 2 because if not we get the distance of the roundtrip
+        cm / 2.0 // We divide by 2 because if not we get the distance of the roundtrip
     }
 }

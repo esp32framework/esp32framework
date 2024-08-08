@@ -4,10 +4,10 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
-use crate::microcontroller::interrupt_driver::InterruptDriver;
+use crate::microcontroller_src::interrupt_driver::InterruptDriver;
 use crate::utils::esp32_framework_error::Esp32FrameworkError;
 use crate::utils::timer_driver::{TimerDriver,TimerDriverError};
-use crate::microcontroller::peripherals::Peripheral;
+use crate::microcontroller_src::peripherals::Peripheral;
 
 type AtomicInterruptUpdateCode = AtomicU8;
 
@@ -68,8 +68,8 @@ impl <'a>_DigitalOut<'a> {
         let pin_driver = PinDriver::output(gpio).map_err(|_| DigitalOutError::CannotSetPinAsOutput)?;
 
         Ok(_DigitalOut {
-            pin_driver: pin_driver,
-            timer_driver: timer_driver,
+            pin_driver,
+            timer_driver,
             interrupt_update_code: Arc::from(InterruptUpdate::None.get_atomic_code()),
         })
     }
@@ -82,9 +82,9 @@ impl <'a>_DigitalOut<'a> {
     /// Gets the current pin level
     pub fn get_level(&mut self) -> Level {
         if self.pin_driver.is_set_high() {
-            return Level::High
+            Level::High
         }else{
-            return Level::Low
+            Level::Low
         }
     }
 
@@ -111,8 +111,8 @@ impl <'a>_DigitalOut<'a> {
     
     /// Makes the pin blink for a certain amount of times defined by *amount_of_blinks*,
     /// the time states can be adjusted using *time_between_states_micro* (micro sec)
-    pub fn blink(&mut self, mut amount_of_blinks: u32, time_between_states_micro: u64) -> Result<(), DigitalOutError> {
-        amount_of_blinks *= 2;
+    pub fn blink(&mut self, amount_of_blinks: u32, time_between_states_micro: u64) -> Result<(), DigitalOutError> {
+        let amount_of_blinks = amount_of_blinks * 2;
         if amount_of_blinks == 0 {
             return Ok(())
         }
@@ -123,7 +123,7 @@ impl <'a>_DigitalOut<'a> {
         };
 
         self.timer_driver.interrupt_after_n_times(time_between_states_micro, Some(amount_of_blinks), true, callback);
-        self.timer_driver.enable().map_err(|err| DigitalOutError::TimerDriverError(err))
+        self.timer_driver.enable().map_err(DigitalOutError::TimerDriverError)
     }
 
     /// Handles the diferent type of interrupts and reenabling the interrupt when necesary
@@ -151,6 +151,6 @@ impl <'a> InterruptDriver for _DigitalOut<'a>{
     /// Handles the diferent type of interrupts that, executing the user callback and reenabling the 
     /// interrupt when necesary
     fn update_interrupt(&mut self)-> Result<(), Esp32FrameworkError> {
-        self._update_interrupt().map_err(|err| Esp32FrameworkError::DigitalOutError(err))
+        self._update_interrupt().map_err(Esp32FrameworkError::DigitalOut)
     }
 }

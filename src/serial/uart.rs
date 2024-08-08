@@ -1,5 +1,5 @@
-use esp_idf_svc::hal::{delay::BLOCK, uart::{config, UartDriver, UART0, UART1}, units::{FromValueType, Hertz}};
-use crate::microcontroller::peripherals::Peripheral;
+use esp_idf_svc::hal::{delay::BLOCK, uart::{config, UartDriver, UART0, UART1}, units::Hertz};
+use crate::microcontroller_src::peripherals::Peripheral;
 use esp_idf_svc::hal::gpio::{Gpio0, Gpio1};
 
 use super::micro_to_ticks;
@@ -39,7 +39,7 @@ impl <'a>UART<'a> {
         let config = set_config(baudrate, parity, stopbit)?;
 
         let driver = match uart_peripheral {
-            Peripheral::UART(0) => {UartDriver::new(
+            Peripheral::Uart(0) => {UartDriver::new(
                 unsafe{ UART0::new()},
                 tx_peripheral,
                 rx_peripheral,

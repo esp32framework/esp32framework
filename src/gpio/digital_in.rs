@@ -4,13 +4,13 @@ use std::cell::RefCell;
 use std::num::NonZeroU32;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU8, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 pub use esp_idf_svc::hal::gpio::{InterruptType, Pull};
-use crate::microcontroller::interrupt_driver::InterruptDriver;
+use crate::microcontroller_src::interrupt_driver::InterruptDriver;
 use crate::utils::esp32_framework_error::Esp32FrameworkError;
 use crate::utils::timer_driver::{TimerDriver,TimerDriverError};
 use crate::utils::error_text_parser::map_enable_disable_errors;
-use crate::microcontroller::peripherals::Peripheral;
+use crate::microcontroller_src::peripherals::Peripheral;
 use sharable_reference_macro::sharable_reference_wrapper;
 type AtomicInterruptUpdateCode = AtomicU8;
 
@@ -85,17 +85,17 @@ impl <'a>_DigitalIn<'a> {
         let pin_driver = PinDriver::input(gpio).map_err(|_| DigitalInError::CannotSetPinAsInput)?;
 
         let mut digital_in = _DigitalIn {
-            pin_driver: pin_driver,
-            timer_driver: timer_driver,
+            pin_driver,
+            timer_driver,
             interrupt_type: None, 
             interrupt_update_code: Arc::from(InterruptUpdate::None.get_atomic_code()),
             debounce_ms: None,
             user_callback: Box::new(|| {}),
-            notifier: notifier
+            notifier
         };
 
         digital_in.set_pull(Pull::Down).unwrap();
-        return Ok(digital_in)
+        Ok(digital_in)
     }
 
     /// Set the pin Pull either to Pull Up or Down
@@ -141,16 +141,16 @@ impl <'a>_DigitalIn<'a> {
                     unsafe { notif.notify_and_yield(NonZeroU32::new(1).unwrap()) };
                 };
                 unsafe {
-                    self.pin_driver.subscribe(callback).map_err(|err| map_enable_disable_errors(err))?;
+                    self.pin_driver.subscribe(callback).map_err(map_enable_disable_errors)?;
                 };
             },
             None => unsafe {
-                self.pin_driver.subscribe(func).map_err(|err| map_enable_disable_errors(err))?;
+                self.pin_driver.subscribe(func).map_err(map_enable_disable_errors)?;
             },
         };
 
         
-        self.pin_driver.enable_interrupt().map_err(|err| map_enable_disable_errors(err))
+        self.pin_driver.enable_interrupt().map_err(map_enable_disable_errors)
     }
     
     /// Sets a callback that sets an InterruptUpdate on the received interrupt type, which will then
@@ -180,11 +180,12 @@ impl <'a>_DigitalIn<'a> {
     }
     
     /// Sets a callback to be triggered only n times before unsubscribing the interrupt.
-    pub fn trigger_on_interrupt_first_n_times(&mut self, mut amount_of_times: usize , user_callback: fn()->(), interrupt_type: InterruptType) -> Result<(), DigitalInError> {
+    pub fn trigger_on_interrupt_first_n_times(&mut self, amount_of_times: usize , user_callback: fn()->(), interrupt_type: InterruptType) -> Result<(), DigitalInError> {
         if amount_of_times == 0 {
             return Ok(())
         }
         
+        let mut amount_of_times = amount_of_times;
         let interrupt_update_code_ref = self.interrupt_update_code.clone();
         let callback = move || {
             amount_of_times -= 1;
@@ -214,7 +215,7 @@ impl <'a>_DigitalIn<'a> {
             (self.user_callback)();
         }
         
-        self.pin_driver.enable_interrupt().map_err(|err| map_enable_disable_errors(err))
+        self.pin_driver.enable_interrupt().map_err(map_enable_disable_errors)
     }
 
     /// Handles the diferent type of interrupts that, executing the user callback and reenabling the 
@@ -226,13 +227,13 @@ impl <'a>_DigitalIn<'a> {
         match interrupt_update {
             InterruptUpdate::ExecAndEnablePin => {
                 (self.user_callback)();
-                self.pin_driver.enable_interrupt().map_err(|err| map_enable_disable_errors(err))
+                self.pin_driver.enable_interrupt().map_err(map_enable_disable_errors)
             },
-            InterruptUpdate::EnableTimerDriver => self.timer_driver.enable().map_err(|err| DigitalInError::TimerDriverError(err)),
+            InterruptUpdate::EnableTimerDriver => self.timer_driver.enable().map_err(DigitalInError::TimerDriverError),
             InterruptUpdate::TimerReached => self.timer_reached(),
             InterruptUpdate::ExecAndUnsubscribePin => {
                 (self.user_callback)();
-                self.pin_driver.unsubscribe().map_err(|err| map_enable_disable_errors(err))
+                self.pin_driver.unsubscribe().map_err(map_enable_disable_errors)
                 },
             InterruptUpdate::None => Ok(()),
         }
@@ -276,6 +277,6 @@ impl <'a> InterruptDriver for _DigitalIn<'a>{
     /// Handles the diferent type of interrupts that, executing the user callback and reenabling the 
     /// interrupt when necesary
     fn update_interrupt(&mut self)-> Result<(), Esp32FrameworkError> {
-        self._update_interrupt().map_err(|err| Esp32FrameworkError::DigitalInError(err))
+        self._update_interrupt().map_err(Esp32FrameworkError::DigitalIn)
     }
 }
