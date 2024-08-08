@@ -47,7 +47,7 @@ impl <'a>UART<'a> {
                 Option::<Gpio1>::None,
                 &config,
             ).unwrap()},
-            Peripheral:: Uart(1) => {
+            Peripheral::UART(1) => {
                 UartDriver::new(
                     unsafe{ UART1::new()},
                     tx_peripheral,
@@ -63,11 +63,13 @@ impl <'a>UART<'a> {
         Ok(UART{driver})
     }
     
-    /// Returns a UART with default baud rate of 115200 Hz, none parity and 
+    /// Returns a UART with default baud rate of 115200 Hz, none parity and one bit stop bit.
     pub fn default(tx: Peripheral, rx: Peripheral, uart_peripheral: Peripheral) -> Result<UART<'a>, UARTError > {
         UART::new(tx,rx,uart_peripheral, DEFAULT_BAUDRATE, Parity::None, StopBit::One)
     }
     
+    /// Write multiple bytes from a slice. Returns how many bytes were written or an error 
+    /// if the write operation fails.
     pub fn write(&mut self, bytes_to_write: &[u8]) -> Result<usize, UARTError> {
         self.driver.write(bytes_to_write).map_err(|_| UARTError::WriteError)
     }

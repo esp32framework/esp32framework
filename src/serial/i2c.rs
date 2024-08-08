@@ -1,5 +1,6 @@
 use esp_idf_svc::{hal::{i2c::{I2cConfig, I2cDriver, I2cSlaveConfig, I2cSlaveDriver, I2C0}, units::FromValueType}, sys::{ESP_ERR_INVALID_ARG, ESP_ERR_NO_MEM, ESP_ERR_TIMEOUT}};
-use crate::microcontroller_src::peripherals::Peripheral;
+use crate::microcontroller::peripherals::Peripheral;
+use super::micro_to_ticks;
 
 
 const DEFAULT_BAUDRATE: u32 = 100;
@@ -37,7 +38,10 @@ impl <'a>I2CMaster<'a> {
         )
     }
 
-    pub fn read(&mut self, addr: u8, buffer: &mut [u8], timeout: u32) -> Result<(), I2CError> {
+    /// Reads data from the specified address into the provided buffer with a timeout in us (microsec). The function 
+    /// will return once the timeout is reached or the buffer is full.
+    pub fn read(&mut self, addr: u8, buffer: &mut [u8], timeout_us: u32) -> Result<(), I2CError> {
+        let timeout: u32 = micro_to_ticks(timeout_us);
         self.driver.read(addr, buffer, timeout).map_err(|error| match error.code() {
             ESP_ERR_INVALID_ARG => I2CError::InvalidArg,
             ESP_ERR_NO_MEM => I2CError::BufferTooSmall,
@@ -45,7 +49,9 @@ impl <'a>I2CMaster<'a> {
         })
     }
 
-    pub fn write(&mut self, addr: u8, bytes_to_write: &[u8], timeout: u32) -> Result<(), I2CError> {
+    /// Write multiple bytes from a slice to the specified address. Returns an error if the write operation fails.
+    pub fn write(&mut self, addr: u8, bytes_to_write: &[u8], timeout_us: u32) -> Result<(), I2CError> {
+        let timeout: u32 = micro_to_ticks(timeout_us);
         self.driver.write(addr, bytes_to_write, timeout).map_err(|error| match error.code() {
             ESP_ERR_INVALID_ARG => I2CError::InvalidArg,
             ESP_ERR_NO_MEM => I2CError::BufferTooSmall,
@@ -53,7 +59,10 @@ impl <'a>I2CMaster<'a> {
         })
     }
 
-    pub fn write_read(&mut self, addr: u8, bytes_to_write: &[u8], buffer: &mut [u8], timeout: u32) -> Result<(), I2CError>{
+    /// Writes multiple bytes from a slice to the specified address and then reads the answer and stores it into the 
+    /// provided buffer.
+    pub fn write_read(&mut self, addr: u8, bytes_to_write: &[u8], buffer: &mut [u8], timeout_us: u32) -> Result<(), I2CError>{
+        let timeout: u32 = micro_to_ticks(timeout_us);
         self.driver.write_read(addr, bytes_to_write, buffer, timeout).map_err(|error| match error.code() {
             ESP_ERR_INVALID_ARG => I2CError::InvalidArg,
             ESP_ERR_NO_MEM => I2CError::BufferTooSmall,
@@ -81,14 +90,20 @@ impl <'a>I2CSlave<'a> {
         )
     }
 
-    pub fn read(&mut self, buffer: &mut [u8], timeout: u32) -> Result<usize, I2CError> {
+    /// Reads data from the specified address into the provided buffer with a timeout in us (microsec). The function 
+    /// will return once the timeout is reached or the buffer is full.
+    pub fn read(&mut self, buffer: &mut [u8], timeout_us: u32) -> Result<usize, I2CError> {
+        let timeout: u32 = micro_to_ticks(timeout_us);
         self.driver.read(buffer, timeout).map_err(|error| match error.code() {
             ESP_ERR_TIMEOUT => I2CError::TimeoutError,
             _ => I2CError::InvalidArg,
         })
     }
-
-    pub fn write(&mut self, bytes_to_write: &[u8], timeout: u32) -> Result<usize, I2CError> {
+    
+    /// Write multiple bytes from a slice. Returns how many bytes were written or an error 
+    /// if the write operation fails.
+    pub fn write(&mut self, bytes_to_write: &[u8], timeout_us: u32) -> Result<usize, I2CError> {
+        let timeout: u32 = micro_to_ticks(timeout_us);
         self.driver.write(bytes_to_write, timeout).map_err(|error| match error.code() {
             ESP_ERR_TIMEOUT => I2CError::TimeoutError,
             _ => I2CError::InvalidArg,
