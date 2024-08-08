@@ -38,6 +38,8 @@ impl <'a>I2CMaster<'a> {
         )
     }
 
+    /// Reads data from the specified address into the provided buffer with a timeout in us (microsec). The function 
+    /// will return once the timeout is reached or the buffer is full.
     pub fn read(&mut self, addr: u8, buffer: &mut [u8], timeout_us: u32) -> Result<(), I2CError> {
         let timeout: u32 = micro_to_ticks(timeout_us);
         self.driver.read(addr, buffer, timeout).map_err(|error| match error.code() {
@@ -47,6 +49,7 @@ impl <'a>I2CMaster<'a> {
         })
     }
 
+    /// Write multiple bytes from a slice to the specified address. Returns an error if the write operation fails.
     pub fn write(&mut self, addr: u8, bytes_to_write: &[u8], timeout_us: u32) -> Result<(), I2CError> {
         let timeout: u32 = micro_to_ticks(timeout_us);
         self.driver.write(addr, bytes_to_write, timeout).map_err(|error| match error.code() {
@@ -56,6 +59,8 @@ impl <'a>I2CMaster<'a> {
         })
     }
 
+    /// Writes multiple bytes from a slice to the specified address and then reads the answer and stores it into the 
+    /// provided buffer.
     pub fn write_read(&mut self, addr: u8, bytes_to_write: &[u8], buffer: &mut [u8], timeout_us: u32) -> Result<(), I2CError>{
         let timeout: u32 = micro_to_ticks(timeout_us);
         self.driver.write_read(addr, bytes_to_write, buffer, timeout).map_err(|error| match error.code() {
@@ -85,6 +90,8 @@ impl <'a>I2CSlave<'a> {
         )
     }
 
+    /// Reads data from the specified address into the provided buffer with a timeout in us (microsec). The function 
+    /// will return once the timeout is reached or the buffer is full.
     pub fn read(&mut self, buffer: &mut [u8], timeout_us: u32) -> Result<usize, I2CError> {
         let timeout: u32 = micro_to_ticks(timeout_us);
         self.driver.read(buffer, timeout).map_err(|error| match error.code() {
@@ -92,7 +99,9 @@ impl <'a>I2CSlave<'a> {
             _ => I2CError::InvalidArg,
         })
     }
-
+    
+    /// Write multiple bytes from a slice. Returns how many bytes were written or an error 
+    /// if the write operation fails.
     pub fn write(&mut self, bytes_to_write: &[u8], timeout_us: u32) -> Result<usize, I2CError> {
         let timeout: u32 = micro_to_ticks(timeout_us);
         self.driver.write(bytes_to_write, timeout).map_err(|error| match error.code() {
