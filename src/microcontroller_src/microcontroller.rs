@@ -3,19 +3,17 @@ use std::time::Duration;
 use std::time::Instant;
 use esp_idf_svc::hal::adc::ADC1;
 use esp_idf_svc::hal::adc::*;
-use esp_idf_svc::hal::adc::config::{Config, Resolution};
+// use esp_idf_svc::hal::adc::config::{Config, Resolution};
 use esp_idf_svc::hal::delay::FreeRtos;
 use esp_idf_svc::hal::delay::TICK_RATE_HZ;
 use esp_idf_svc::hal::task::notification::Notification;
 use esp_idf_svc::hal::i2c;
+use oneshot::AdcDriver;
 use std::cell::RefCell;
-pub type SharableAdcDriver<'a> = Rc<RefCell<Option<AdcDriver<'a, ADC1>>>>;
+pub type SharableAdcDriver<'a> = Rc<AdcDriver<'a, ADC1>>;
 pub type SharableI2CDriver<'a> = Rc<RefCell<Option<i2c::I2C0>>>;
 
-use crate::gpio::AnalogInHighAtten;
-use crate::gpio::AnalogInLowAtten;
-use crate::gpio::AnalogInMediumAtten;
-use crate::gpio::AnalogInNoAtten;
+use crate::gpio::AnalogIn;
 use crate::gpio::{AnalogInPwm,
     DigitalIn,
     DigitalOut, 
@@ -35,7 +33,7 @@ pub struct Microcontroller<'a> {
     peripherals: Peripherals,
     timer_drivers: Vec<TimerDriver<'a>>,
     interrupt_drivers: Vec<Box<dyn InterruptDriver + 'a>>,
-    adc_driver: SharableAdcDriver<'a>,
+    adc_driver: Option<SharableAdcDriver<'a>>,
     notification: Notification,
     i2c_driver: SharableI2CDriver<'a>
 }
@@ -48,7 +46,7 @@ impl <'a>Microcontroller<'a>{
         Microcontroller{
             peripherals,
             timer_drivers: vec![],
-            adc_driver: Rc::new(RefCell::new(None)),
+            adc_driver: None,
             interrupt_drivers: Vec::new(),
             notification: Notification::new(),
             i2c_driver: Rc::new(RefCell::new(None)),
@@ -87,40 +85,39 @@ impl <'a>Microcontroller<'a>{
     /// Starts an adc driver if no other was started before. Bitwidth is always set to 12, since 
     /// the ESP32-C6 only allows that width
     fn start_adc_driver(&mut self) {
-        let mut adc_driver = self.adc_driver.borrow_mut();
-        if adc_driver.is_none() {
+        if self.adc_driver.is_none() {
             self.peripherals.get_adc();
-            let driver = AdcDriver::new(unsafe{ADC1::new()}, &Config::new().resolution(Resolution::Resolution12Bit).calibration(true)).unwrap();
-            adc_driver.replace(driver);
+            let driver = AdcDriver::new(unsafe{ADC1::new()}).unwrap();
+            self.adc_driver.replace(Rc::new(driver));
         }
     }
 
     /// Sets pin as analog input with attenuation set to 2.5dB
-    pub fn set_pin_as_analog_in_low_atten(&mut self, pin_num: usize) -> AnalogInLowAtten<'a> {
+    pub fn set_pin_as_analog_in_low_atten(&mut self, pin_num: usize) -> AnalogIn<'a> {
         self.start_adc_driver();
         let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
-        AnalogInLowAtten::new(pin_peripheral, self.adc_driver.clone()).unwrap()
+        AnalogIn::new(pin_peripheral, self.adc_driver.clone().unwrap(), attenuation::DB_2_5).unwrap()
     }
     
     /// Sets pin as analog input with attenuation set to 6dB  
-    pub fn set_pin_as_analog_in_medium_atten(&mut self, pin_num: usize) -> AnalogInMediumAtten<'a> {
+    pub fn set_pin_as_analog_in_medium_atten(&mut self, pin_num: usize) -> AnalogIn<'a> {
         self.start_adc_driver();
         let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
-        AnalogInMediumAtten::new(pin_peripheral, self.adc_driver.clone()).unwrap()
+        AnalogIn::new(pin_peripheral, self.adc_driver.clone().unwrap(), attenuation::DB_6).unwrap()
     }
     
     /// Sets pin as analog input with attenuation set to 11dB  
-    pub fn set_pin_as_analog_in_high_atten(&mut self, pin_num: usize) -> AnalogInHighAtten<'a> {
+    pub fn set_pin_as_analog_in_high_atten(&mut self, pin_num: usize) -> AnalogIn<'a> {
         self.start_adc_driver();
         let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
-        AnalogInHighAtten::new(pin_peripheral, self.adc_driver.clone()).unwrap()
+        AnalogIn::new(pin_peripheral, self.adc_driver.clone().unwrap(), attenuation::DB_11).unwrap()
     }
 
     /// Sets pin as analog input with attenuation set to 0dB  
-    pub fn set_pin_as_analog_in_no_atten(&mut self, pin_num: usize) -> AnalogInNoAtten<'a> {
+    pub fn set_pin_as_analog_in_no_atten(&mut self, pin_num: usize) -> AnalogIn<'a> {
         self.start_adc_driver();
         let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
-        AnalogInNoAtten::new(pin_peripheral, self.adc_driver.clone()).unwrap()
+        AnalogIn::new(pin_peripheral, self.adc_driver.clone().unwrap(), attenuation::NONE).unwrap()
     }
 
     pub fn set_pin_as_analog_out(&mut self, pin_num: usize, freq_hz: u32, resolution: u32) -> AnalogOut<'a> {
