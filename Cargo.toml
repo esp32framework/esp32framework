@@ -25,8 +25,9 @@ embassy = ["esp-idf-svc/embassy-sync", "esp-idf-svc/critical-section", "esp-idf-
 
 [dependencies]
 log = { version = "0.4", default-features = false }
-esp-idf-svc = { version = "0.48", default-features = false }
+esp-idf-svc = { version = "0.49.1", default-features = false }
+esp32-nimble = {version = "0.7.0"}
 sharable_reference_macro = { path = "./sharable_reference_macro" }
 
 [build-dependencies]
-embuild = "0.31.3"
+embuild = { version = "0.31.3", features = ["espidf"] }

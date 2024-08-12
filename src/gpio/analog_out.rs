@@ -1,4 +1,6 @@
 use esp_idf_svc::hal::ledc::*;
+use esp_idf_svc::hal::peripheral;
+use esp_idf_svc::hal::peripheral::PeripheralRef;
 use esp_idf_svc::hal::prelude::*;
 use esp_idf_svc::sys::ESP_FAIL;
 use sharable_reference_macro::sharable_reference_wrapper;
@@ -8,6 +10,8 @@ use crate::utils::esp32_framework_error::Esp32FrameworkError;
 use crate::utils::timer_driver::TimerDriver;
 use crate::utils::timer_driver::TimerDriverError;
 use std::cell::RefCell;
+use std::ops::Deref;
+use std::ops::DerefMut;
 use std::rc::Rc;
 use std::sync::atomic::AtomicBool;
 use std::sync::{
@@ -97,18 +101,14 @@ impl <'a>_AnalogOut<'a> {
     
     /// Creates a new _AnalogOut for a specific pin with a given configuration of frecuency and resolution.
     pub fn _new(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>, config: &config::TimerConfig )-> Result<_AnalogOut<'a>, AnalogOutError> {
-
-        let ledc_timer_driver = _AnalogOut::create_timer_driver(timer, config)?;
-        let gpio = gpio_pin.into_any_io_pin().map_err(|_| AnalogOutError::InvalidPeripheral)?;
-        
-        let pwm_driver =  match peripheral_channel {
-            Peripheral::PWMChannel(0) => LedcDriver::new(unsafe {CHANNEL0::new()}, ledc_timer_driver, gpio),
-            Peripheral::PWMChannel(1) => LedcDriver::new(unsafe {CHANNEL1::new()}, ledc_timer_driver, gpio),
-            Peripheral::PWMChannel(2) => LedcDriver::new(unsafe {CHANNEL2::new()}, ledc_timer_driver, gpio),
-            Peripheral::PWMChannel(3) => LedcDriver::new(unsafe {CHANNEL3::new()}, ledc_timer_driver, gpio),
-            _ => return Err(AnalogOutError::InvalidPeripheral),
-        }.map_err(|_| AnalogOutError::InvalidArg)?;
-    
+        let pwm_driver = match timer{
+            Peripheral::PWMTimer(0) => _AnalogOut::create_pwm_driver(peripheral_channel, unsafe{TIMER0::new()}, gpio_pin,config),
+            Peripheral::PWMTimer(1) => _AnalogOut::create_pwm_driver(peripheral_channel, unsafe{TIMER1::new()}, gpio_pin,config),
+            Peripheral::PWMTimer(2) => _AnalogOut::create_pwm_driver(peripheral_channel, unsafe{TIMER2::new()}, gpio_pin,config),
+            Peripheral::PWMTimer(3) => _AnalogOut::create_pwm_driver(peripheral_channel, unsafe{TIMER3::new()}, gpio_pin,config),
+            _ => Err(AnalogOutError::InvalidPeripheral)?
+        }?;
+            
         Ok(_AnalogOut{driver: pwm_driver,
             timer_driver, 
             duty: Arc::new(AtomicU32::new(0)), 
@@ -150,33 +150,25 @@ impl <'a>_AnalogOut<'a> {
         }
     }
 
-    /// Creates a new LedcTimerDriver from a Peripheral::PWMTimer
-    fn create_timer_driver(timer: Peripheral, config: &config::TimerConfig) -> Result<LedcTimerDriver<'a>, AnalogOutError> {
-        let res = match timer {
-            Peripheral::PWMTimer(0) => LedcTimerDriver::new(
-                unsafe{TIMER0::new()},
-                config,
-            ),
-            Peripheral::PWMTimer(1) => LedcTimerDriver::new(
-                unsafe{TIMER1::new()},
-                config,
-            ),
-            Peripheral::PWMTimer(2) => LedcTimerDriver::new(
-                unsafe{TIMER2::new()},
-                config,
-            ),
-            Peripheral::PWMTimer(3) => LedcTimerDriver::new(
-                unsafe{TIMER3::new()},
-                config,
-            ),
-            Peripheral::None => Err(AnalogOutError::TooManyPWMOutputs)?,
-            _ => Err(AnalogOutError::InvalidPeripheral)?
-        };
-
-        res.map_err(|error| match error.code(){
+    /// Creates a new LedcDriver from a Peripheral::PWMTimer
+    fn create_pwm_driver<L: 'a + LedcTimer<SpeedMode = LowSpeed>>(peripheral_channel: Peripheral, timer: impl peripheral::Peripheral<P = L> + 'a, gpio_pin: Peripheral, config: &config::TimerConfig) -> Result<LedcDriver<'a>, AnalogOutError> {
+        let ledc_timer_driver = LedcTimerDriver::new(
+            timer,
+            config,
+        ).map_err(|error| match error.code(){
             ESP_FAIL => AnalogOutError::InvalidFrequencyOrDuty,
             _ => AnalogOutError::InvalidArg,
-        })
+        })?;
+
+        let gpio = gpio_pin.into_any_io_pin().map_err(|_| AnalogOutError::InvalidPeripheral)?;
+        
+        match peripheral_channel {
+            Peripheral::PWMChannel(0) => LedcDriver::new(unsafe {CHANNEL0::new()}, ledc_timer_driver, gpio),
+            Peripheral::PWMChannel(1) => LedcDriver::new(unsafe {CHANNEL1::new()}, ledc_timer_driver, gpio),
+            Peripheral::PWMChannel(2) => LedcDriver::new(unsafe {CHANNEL2::new()}, ledc_timer_driver, gpio),
+            Peripheral::PWMChannel(3) => LedcDriver::new(unsafe {CHANNEL3::new()}, ledc_timer_driver, gpio),
+            _ => return Err(AnalogOutError::InvalidPeripheral),
+        }.map_err(|_| AnalogOutError::InvalidArg)
     }
 
     /// Changes the intensity of the signal using the High-Low level ratio

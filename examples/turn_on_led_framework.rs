@@ -9,7 +9,6 @@ fn main(){
     let mut button = micro.set_pin_as_digital_in(9);
     let mut led = micro.set_pin_as_digital_out(3);
     button.set_debounce(200 * 1000).unwrap();
-    button.trigger_on_interrupt(callback, InterruptType::NegEdge);
     let mut count: i32 = 0;
     
     let mut count :u32 = 0;
@@ -18,5 +17,6 @@ fn main(){
         println!("Press Count {}", count);
         led.toggle();
     };
+    button.trigger_on_interrupt(callback, InterruptType::NegEdge);
     micro.wait_for_updates(None)
 }

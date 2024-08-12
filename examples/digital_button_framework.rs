@@ -6,13 +6,12 @@ fn main(){
     let mut micro = Microcontroller::new();
     let mut button = micro.set_pin_as_digital_in(9);
     button.set_debounce(200 * 1000).unwrap();
-    button.trigger_on_interrupt(callback, InterruptType::NegEdge);
     
     let mut count :u32 = 0;
     let callback = move || {
         count += 1;
         println!("Press Count {}", count);
-        led.toggle();
     };
+    button.trigger_on_interrupt(callback, InterruptType::NegEdge);
     micro.wait_for_updates(None)
 }
