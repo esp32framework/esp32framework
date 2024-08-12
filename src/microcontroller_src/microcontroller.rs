@@ -92,6 +92,7 @@ impl <'a>Microcontroller<'a>{
         }
     }
 
+    // TODO: simplificar instanciacion analog in
     /// Sets pin as analog input with attenuation set to 2.5dB
     pub fn set_pin_as_analog_in_low_atten(&mut self, pin_num: usize) -> AnalogIn<'a> {
         self.start_adc_driver();
@@ -135,7 +136,6 @@ impl <'a>Microcontroller<'a>{
         self.interrupt_drivers.push(Box::new(anlg_out.clone()));
         anlg_out
     }
-
 
     pub fn set_pin_as_analog_in_pwm(&mut self, pin_num: usize, freq_hz: u32) -> AnalogInPwm<'a> {
         

@@ -10,7 +10,7 @@ fn bcd_to_decimal(bcd: u8) -> u8 {
 
 fn main() {
     let mut micro = Microcontroller::new();
-    let mut driver = micro.set_pins_for_i2c(5,6);
+    let mut driver = micro.set_pins_for_i2c_master(5,6);
     let mut buffer = [0u8; 19];
 
     loop {
@@ -26,7 +26,6 @@ fn main() {
         println!("Raw data: {:?}",buffer);
         println!("Parsed: {:?}/{:?}/{:?} {:?}:{:?}:{:?}", day_of_week,month,year,hours,minutes,seconds);
         
-        FreeRtos::delay_ms(500);
+        micro.sleep(500)
     }
-
 }

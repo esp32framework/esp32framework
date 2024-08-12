@@ -8,9 +8,8 @@ All these data will be collected and then be analyzed with the intention of gett
 a percentage of the error.
 */
 
-use esp32framework::Microcontroller;
 use rand::prelude::*;
-use esp32framework::{gpio::{analog_in_pwm::AnalogInPwm, analog_out::{self, AnalogOut}}, microcontroller::*};
+use esp32framework::{gpio::{AnalogInPwm, AnalogOut}, Microcontroller};
 
 use esp_idf_svc::hal::delay::FreeRtos;
 
@@ -19,17 +18,17 @@ const READS_PER_LOOP: u32 = 5;
 const FREQUENCY_OUT: u32 = 10000;
 const RESOLUTION_OUT: u32 = 12;
 
-const OUTPUT_PIN_1: u32 = 2;
-const INPUT_PIN_1: u32 = 3;
+const OUTPUT_PIN_1: usize = 2;
+const INPUT_PIN_1: usize = 3;
 
-const OUTPUT_PIN_2: u32 = 4;
-const INPUT_PIN_2: u32 = 5;
+const OUTPUT_PIN_2: usize = 4;
+const INPUT_PIN_2: usize = 5;
 
 const SLEEP_TIME: u32 = 50;
 
 
 fn main(){
-    let mut micro = microcontroller::Microcontroller::new();
+    let mut micro = Microcontroller::new();
     
     // Different sets of configurations will be tested for the input and output
 
@@ -63,21 +62,19 @@ fn main(){
         // Read of Config 2
         read_config(&mut analog_out_b, &analog_in_pwm_b, &ratio, &input_freq_b, &output_freq_b, &output_res_b);
 
-        FreeRtos::delay_ms(SLEEP_TIME);
+        micro.sleep(SLEEP_TIME);
     }
 
-    loop {
-        FreeRtos::delay_ms(1000);
-    }
+    micro.wait_for_updates(None)
 }
 
 /// Returns analog_in_1, analog_in_2, analog_out_1, analog_out_2
-fn create_analogs(frequency_in_1: u32, frequency_in_2: &u32, micro: Microcontroller) -> (AnalogInPwm, AnalogInPwm, AnalogOut, AnalogOut) {
-    let analog_in_1 = micro.set_pin_as_analog_in_pwm(INPUT_PIN_1, frequency_in_1);
+fn create_analogs(frequency_in_1: u32, frequency_in_2: u32, mut micro: Microcontroller) -> (AnalogInPwm, AnalogInPwm, AnalogOut, AnalogOut) {
+    let mut analog_in_1 = micro.set_pin_as_analog_in_pwm(INPUT_PIN_1, frequency_in_1);
     analog_in_1.set_sampling(frequency_in_1);
     let analog_out_1 = micro.set_pin_as_analog_out(OUTPUT_PIN_1, FREQUENCY_OUT, RESOLUTION_OUT);
     
-    let analog_in_2 = micro.set_pin_as_analog_in_pwm(INPUT_PIN_2, frequency_in_2);
+    let mut analog_in_2 = micro.set_pin_as_analog_in_pwm(INPUT_PIN_2, frequency_in_2);
     analog_in_2.set_sampling(frequency_in_2);
     let analog_out_2 = micro.set_pin_as_analog_out(OUTPUT_PIN_2, FREQUENCY_OUT, RESOLUTION_OUT);
 
