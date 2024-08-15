@@ -86,47 +86,69 @@
 
 
 
+
 use esp32_nimble::{BLEAdvertisementData, BLEDevice, NimbleProperties, uuid128};
-use std::format;
+use esp32framework::{ble::*, Microcontroller};
+use std::{format, time::Duration};
+
 
 fn main() {
-    esp_idf_svc::sys::link_patches();
-    esp_idf_svc::log::EspLogger::initialize_default();
-
+    let mut micro = Microcontroller::new();
     let ble_device = BLEDevice::take();
-    let ble_advertising1 = ble_device.get_advertising();
-    
-    // Configure el servicio y las características que se publicitarán en la publicidad connectionless
-    let service_uuid1 = esp32_nimble::utilities::BleUuid::from_uuid32(1);
-    let service_uuid2 = esp32_nimble::utilities::BleUuid::from_uuid32(2);
-    
-    let mut advertisement1 = BLEAdvertisementData::new();
-    
-    advertisement1
-        .name("ESP32-Beacon")
-        .add_service_uuid(service_uuid1)
-        .add_service_uuid(service_uuid2)
-        .service_data(esp32_nimble::utilities::BleUuid::from_uuid16(0), &[0x5;1]);
+    let data: Vec<u8> = vec![0x00, 0x01, 0x04, 0x09];
+    let service_id: ServiceId = ServiceId::StandardService(StandarServiceId::Battery);
+    let service = Service::new(&service_id, data);
+    let services: Vec<Service> = vec![service];
+    let mut beacon = BleBeacon::new(ble_device, "MATEO :D".to_string(), services);
+    beacon.start_advertisement(&service_id, Duration::from_secs(0)).unwrap();
 
-    // Configura los datos de publicidad
-    ble_advertising1.lock().advertisement_type(esp32_nimble::enums::ConnMode::Non).set_data(
-        &mut advertisement1
-    ).unwrap();
-
-    // Empieza la publicidad
-    ble_advertising1.lock().start().unwrap();
-
-    // Se mantiene el dispositivo publicitando indefinidamente
-    let a = vec![(esp32_nimble::utilities::BleUuid::from_uuid16(2), &[2 as u8;1]),(esp32_nimble::utilities::BleUuid::from_uuid16(1), &[1 as u8;1])];
-    
-    for service in a.iter().cycle(){
-        advertisement1.service_data(service.0, service.1);
-        ble_advertising1.lock().advertisement_type(esp32_nimble::enums::ConnMode::Non).set_data(
-            &mut advertisement1
-        ).unwrap();
-        esp_idf_svc::hal::delay::FreeRtos::delay_ms(1000);
+    loop {
+        micro.sleep(1000);
     }
 }
+
+// 00000001   04 01 00
+
+
+// EJEMPLO BLE CONECTIONLESS SIN FRAMEWORK
+// fn main() {
+//     esp_idf_svc::sys::link_patches();
+//     esp_idf_svc::log::EspLogger::initialize_default();
+
+//     let ble_device = BLEDevice::take();
+//     let ble_advertising1 = ble_device.get_advertising();
+    
+//     // Configure el servicio y las características que se publicitarán en la publicidad connectionless
+//     let service_uuid1 = esp32_nimble::utilities::BleUuid::from_uuid32(1);
+//     let service_uuid2 = esp32_nimble::utilities::BleUuid::from_uuid32(2);
+    
+//     let mut advertisement1 = BLEAdvertisementData::new();
+    
+//     advertisement1
+//         .name("ESP32-Beacon")
+//         .add_service_uuid(service_uuid1)
+//         .add_service_uuid(service_uuid2)
+//         .service_data(esp32_nimble::utilities::BleUuid::from_uuid16(0), &[0x5;1]);
+
+//     // Configura los datos de publicidad
+//     ble_advertising1.lock().advertisement_type(esp32_nimble::enums::ConnMode::Non).set_data(
+//         &mut advertisement1
+//     ).unwrap();
+
+//     // Empieza la publicidad
+//     ble_advertising1.lock().start().unwrap();
+
+//     // Se mantiene el dispositivo publicitando indefinidamente
+//     let a = vec![(esp32_nimble::utilities::BleUuid::from_uuid16(2), &[2 as u8;1]),(esp32_nimble::utilities::BleUuid::from_uuid16(1), &[1 as u8;1])];
+    
+//     for service in a.iter().cycle(){
+//         advertisement1.service_data(service.0, service.1);
+//         ble_advertising1.lock().advertisement_type(esp32_nimble::enums::ConnMode::Non).set_data(
+//             &mut advertisement1
+//         ).unwrap();
+//         esp_idf_svc::hal::delay::FreeRtos::delay_ms(1000);
+//     }
+// }
 
 
 
