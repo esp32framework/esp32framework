@@ -1,0 +1,13 @@
+Esp32 server:
+    conectionless vs conectfull
+        abstraeer uuids
+            servicios estandares y servicios custom enum 
+        abstraeer propiedades para customs
+        Editar las decripciones
+        Encender y apagar servicios (verificar si es posible)
+        uuids para descripciones
+
+Esp32 cliente:
+    Posible busqueda de servicios entre dos ESP32 con nuestra misma libreria con su nombre y no su UUID
+
+Capas seguridad
