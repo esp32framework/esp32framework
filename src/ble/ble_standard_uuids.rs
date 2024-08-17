@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum StandarServiceId {
     GAP = 0x1800,
     GATT = 0x1801,
@@ -69,4 +69,10 @@ pub enum StandarServiceId {
     ElectronicShelfLabel = 0x1857,
     GamingAudio = 0x1858,
     MeshProxySolicitation = 0x1859,
+}
+
+impl StandarServiceId{
+    pub fn byte_size(&self)-> usize{
+        2
+    }
 }
