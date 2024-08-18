@@ -1,93 +1,18 @@
 use esp32_nimble::{utilities::BleUuid, uuid128, BLEAdvertisementData, BLEDevice, BLEError, NimbleProperties};
 use uuid::*;
 use std::{collections::HashMap, hash::Hash, format, num::NonZero, time::Duration};
-use super::StandarServiceId;
-
-const MAX_ADV_PAYLOAD_SIZE: usize = 31;
-const PAYLOAD_FIELD_IDENTIFIER_SIZE: usize = 2;
+use super::{StandarServiceId, Service, BleId, BleError};
 
 pub struct BleBeacon<'a>{
     advertising_name: String,
     ble_device: &'a mut BLEDevice,
-    services: HashMap<ServiceId,Service>,
+    services: HashMap<BleId,Service>,
     advertisement: BLEAdvertisementData,
     time_per_service: Duration
 }
 
-#[derive(Clone)]
-pub struct Service{
-    id: ServiceId,
-    data: Vec<u8>
-}
-
-#[derive(Debug)]
-pub enum BleError{
-    ServiceDoesNotFit,
-    ServiceTooBig,
-    ServiceUnknown,
-    StartingFailure,
-    Code(u32, String),
-}
-
-impl From<BLEError> for BleError{
-    fn from(value: BLEError) -> Self {
-        match value.code() {
-            esp_idf_svc::sys::BLE_HS_EMSGSIZE => BleError::ServiceDoesNotFit,
-            _ => BleError::Code(value.code(), value.to_string()),
-        }
-    }
-}
-
-impl Service {
-    pub fn new(id: &ServiceId, data: Vec<u8>) -> Result<Service, BleError> {
-        let header_bytes = if data.is_empty() {PAYLOAD_FIELD_IDENTIFIER_SIZE} else {PAYLOAD_FIELD_IDENTIFIER_SIZE * 2};
-        if data.len() + header_bytes + id.byte_size() > MAX_ADV_PAYLOAD_SIZE {
-            Err(BleError::ServiceTooBig)
-        } else {
-            Ok(Service{id: id.clone(), data})
-        }
-    }
-}
-
-/// in case of repeated name service (using ByName), the first one will be overwritten
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum ServiceId {
-    StandardService(StandarServiceId),
-    ByName(String),
-    FromUuid16(u16),
-    FromUuid32(u32),
-    FromUuid128([u8; 16]),
-}
 
 
-impl Hash for ServiceId {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.to_uuid().to_string().hash(state)
-    }
-}
-
-impl ServiceId {
-    pub fn to_uuid(&self) -> BleUuid {
-        match self {
-            ServiceId::StandardService(service) => {BleUuid::from_uuid16(*service as u16)},
-            ServiceId::ByName(name) => {BleUuid::from_uuid128(Uuid::new_v3(&Uuid::NAMESPACE_OID, name.as_bytes()).into_bytes())},
-            ServiceId::FromUuid16(uuid) => BleUuid::from_uuid16(*uuid),
-            ServiceId::FromUuid32(uuid) => BleUuid::from_uuid32(*uuid),
-            ServiceId::FromUuid128(uuid) => BleUuid::from_uuid128(*uuid),
-        }
-        
-    }
-
-    fn byte_size(&self) -> usize{
-        match self {
-            ServiceId::StandardService(service) => service.byte_size(),
-            ServiceId::ByName(_) => {16},
-            ServiceId::FromUuid16(_) => 2,
-            ServiceId::FromUuid32(_) => 4,
-            ServiceId::FromUuid128(_) => 16,
-        }
-    }
-}
 
 impl <'a>BleBeacon<'a>{
     pub fn new(ble_device: &'a mut BLEDevice, advertising_name: String, services: Vec<Service>) -> Result<Self, BleError>{
@@ -135,13 +60,13 @@ impl <'a>BleBeacon<'a>{
     }
 
     // check if advertisement allows removing service
-    pub fn remove_service(&mut self, service_id: &ServiceId) {
+    pub fn remove_service(&mut self, service_id: &BleId) {
         todo!()
     }
     
     // TODO: change active time with timer
     /// Start advertising one particular service data 
-    pub fn advertise_service_data(&mut self, service_id: &ServiceId) -> Result<(), BleError> {
+    pub fn advertise_service_data(&mut self, service_id: &BleId) -> Result<(), BleError> {
         
         match self.services.get(service_id){
             Some(request_service) => {

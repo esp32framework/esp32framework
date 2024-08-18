@@ -1,119 +1,119 @@
 use esp32_nimble::{uuid128, BLEAdvertisementData, BLEDevice, NimbleProperties};
-//  use std::format;
+ use std::format;
 
-// fn main() {
-//   esp_idf_svc::sys::link_patches();
-//   esp_idf_svc::log::EspLogger::initialize_default();
+fn main() {
+  esp_idf_svc::sys::link_patches();
+  esp_idf_svc::log::EspLogger::initialize_default();
 
-//   let ble_device = BLEDevice::take();
-//   let ble_advertising = ble_device.get_advertising();
+  let ble_device = BLEDevice::take();
+  let ble_advertising = ble_device.get_advertising();
 
-//   let server = ble_device.get_server();
-//   server.on_connect(|server, desc| {
-//     ::log::info!("Client connected: {:?}", desc);
+  let server = ble_device.get_server();
+  server.on_connect(|server, desc| {
+    ::log::info!("Client connected: {:?}", desc);
 
-//     server
-//       .update_conn_params(desc.conn_handle(), 24, 48, 0, 60)
-//       .unwrap();
+    server
+      .update_conn_params(desc.conn_handle(), 24, 48, 0, 60)
+      .unwrap();
 
-//     if server.connected_count() < (esp_idf_svc::sys::CONFIG_BT_NIMBLE_MAX_CONNECTIONS as _) {
-//       ::log::info!("Multi-connect support: start advertising");
-//       ble_advertising.lock().start().unwrap();
-//     }
-//   });
+    if server.connected_count() < (esp_idf_svc::sys::CONFIG_BT_NIMBLE_MAX_CONNECTIONS as _) {
+      ::log::info!("Multi-connect support: start advertising");
+      ble_advertising.lock().start().unwrap();
+    }
+  });
 
-//   server.on_disconnect(|_desc, reason| {
-//     ::log::info!("Client disconnected ({:?})", reason);
-//   });
+  server.on_disconnect(|_desc, reason| {
+    ::log::info!("Client disconnected ({:?})", reason);
+  });
 
-//   let service = server.create_service(uuid128!("fafafafa-fafa-fafa-fafa-fafafafafafa"));
+  let service = server.create_service(uuid128!("fafafafa-fafa-fafa-fafa-fafafafafafa"));
 
-//   // A static characteristic.
-//   let static_characteristic = service.lock().create_characteristic(
-//     uuid128!("d4e0e0d0-1a2b-11e9-ab14-d663bd873d93"),
-//     NimbleProperties::READ,
-//   );
-//   static_characteristic
-//     .lock()
-//     .set_value("Hello, world!".as_bytes());
+  // A static characteristic.
+  let static_characteristic = service.lock().create_characteristic(
+    uuid128!("d4e0e0d0-1a2b-11e9-ab14-d663bd873d93"),
+    NimbleProperties::READ,
+  );
+  static_characteristic
+    .lock()
+    .set_value("Hello, world!".as_bytes());
 
-//   // A characteristic that notifies every second.
-//   let notifying_characteristic = service.lock().create_characteristic(
-//     uuid128!("a3c87500-8ed3-4bdf-8a39-a01bebede295"),
-//     NimbleProperties::READ | NimbleProperties::NOTIFY,
-//   );
-//   notifying_characteristic.lock().set_value(b"Initial value.");
+  // A characteristic that notifies every second.
+  let notifying_characteristic = service.lock().create_characteristic(
+    uuid128!("a3c87500-8ed3-4bdf-8a39-a01bebede295"),
+    NimbleProperties::READ | NimbleProperties::NOTIFY,
+  );
+    notifying_characteristic.lock().set_value(b"Initial value.");
 
-//   // A writable characteristic.
-//   let writable_characteristic = service.lock().create_characteristic(
-//     uuid128!("3c9a3f00-8ed3-4bdf-8a39-a01bebede295"),
-//     NimbleProperties::READ | NimbleProperties::WRITE,
-//   );
-//   writable_characteristic
-//     .lock()
-//     .on_read(move |_, _| {
-//       ::log::info!("Read from writable characteristic.");
-//     })
-//     .on_write(|args| {
-//       ::log::info!(
-//         "Wrote to writable characteristic: {:?} -> {:?}",
-//         args.current_data(),
-//         args.recv_data()
-//       );
-//     });
+  // A writable characteristic.
+  let writable_characteristic = service.lock().create_characteristic(
+    uuid128!("3c9a3f00-8ed3-4bdf-8a39-a01bebede295"),
+    NimbleProperties::READ | NimbleProperties::WRITE,
+  );
+  writable_characteristic
+    .lock()
+    .on_read(move |_, _| {
+      ::log::info!("Read from writable characteristic.");
+    })
+    .on_write(|args| {
+      ::log::info!(
+        "Wrote to writable characteristic: {:?} -> {:?}",
+        args.current_data(),
+        args.recv_data()
+      );
+    });
 
-//   ble_advertising.lock().set_data(
-//     BLEAdvertisementData::new()
-//       .name("ESP32-GATT-Server")
-//       .add_service_uuid(uuid128!("fafafafa-fafa-fafa-fafa-fafafafafafa")),
-//   ).unwrap();
-//   ble_advertising.lock().start().unwrap();
+  ble_advertising.lock().set_data(
+    BLEAdvertisementData::new()
+      .name("ESP32-GATT-Server")
+      .add_service_uuid(uuid128!("fafafafa-fafa-fafa-fafa-fafafafafafa")),
+  ).unwrap();
+  ble_advertising.lock().start().unwrap();
 
-//   server.ble_gatts_show_local();
+  server.ble_gatts_show_local();
 
-//   let mut counter = 0;
-//   loop {
-//     esp_idf_svc::hal::delay::FreeRtos::delay_ms(1000);
-//     notifying_characteristic
-//       .lock()
-//       .set_value(format!("Counter: {counter}").as_bytes())
-//       .notify();
+  let mut counter = 0;
+  loop {
+    esp_idf_svc::hal::delay::FreeRtos::delay_ms(1000);
+    notifying_characteristic
+      .lock()
+      .set_value(format!("Counter: {counter}").as_bytes())
+      .notify();
 
-//     counter += 1;
-//   }
-// }
+    counter += 1;
+  }
+}
 
 
 
 //SINGLE SERVICE EXAMPLE
 /*
 */
-use esp32framework::{ble::*, Microcontroller};
-use std::{format, time::Duration};
+// use esp32framework::{ble::*, Microcontroller};
+// use std::{format, time::Duration};
 
 
-fn main() {
-    let mut micro = Microcontroller::new();
-    let ble_device = BLEDevice::take();
-    let data: Vec<u8> = vec![];
-    let service_id: ServiceId = ServiceId::ByName("Diego".to_string());
-    // let service_id2: ServiceId = ServiceId::ByName("Mateo".to_string());
-    // let service_id3: ServiceId = ServiceId::ByName("Diego".to_string());
-    // let service_id4: ServiceId = ServiceId::ByName("Diego".to_string());
-    println!("El service id Diego es: {:?}", service_id.to_uuid());
-    // println!("El service id Diego es: {:?}", service_id3.to_uuid());
-    // println!("El service id Diego es: {:?}", service_id4.to_uuid());
-    // println!("El service id Mateo es: {:?}", service_id2.to_uuid());
+// fn main() {
+//     let mut micro = Microcontroller::new();
+//     let ble_device = BLEDevice::take();
+//     let data: Vec<u8> = vec![];
+//     let service_id: ServiceId = ServiceId::ByName("Diego".to_string());
+//     // let service_id2: ServiceId = ServiceId::ByName("Mateo".to_string());
+//     // let service_id3: ServiceId = ServiceId::ByName("Diego".to_string());
+//     // let service_id4: ServiceId = ServiceId::ByName("Diego".to_string());
+//     println!("El service id Diego es: {:?}", service_id.to_uuid());
+//     // println!("El service id Diego es: {:?}", service_id3.to_uuid());
+//     // println!("El service id Diego es: {:?}", service_id4.to_uuid());
+//     // println!("El service id Mateo es: {:?}", service_id2.to_uuid());
 
-    let service = Service::new(&service_id, data).unwrap();
-    let services: Vec<Service> = vec![service];
-    let mut beacon = BleBeacon::new(ble_device, "MATEO".to_string(), services).unwrap();
-    beacon.start().unwrap();
+//     let service = Service::new(&service_id, data).unwrap();
+//     let services: Vec<Service> = vec![service];
+//     let mut beacon = BleBeacon::new(ble_device, "MATEO".to_string(), services).unwrap();
+//     beacon.start().unwrap();
 
-    loop {
-        micro.sleep(1000);
-    }
-}
+//     loop {
+//         micro.sleep(1000);
+//     }
+// }
 
 // 00000001   04 01 00
 
