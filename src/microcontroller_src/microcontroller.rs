@@ -8,11 +8,13 @@ use esp_idf_svc::hal::delay::FreeRtos;
 use esp_idf_svc::hal::delay::TICK_RATE_HZ;
 use esp_idf_svc::hal::task::notification::Notification;
 use esp_idf_svc::hal::i2c;
+use esp32_nimble::BLEDevice;
 use oneshot::AdcDriver;
 use std::cell::RefCell;
 pub type SharableAdcDriver<'a> = Rc<AdcDriver<'a, ADC1>>;
 pub type SharableI2CDriver<'a> = Rc<RefCell<Option<i2c::I2C0>>>;
 
+use crate::ble::BleBeacon;
 use crate::gpio::AnalogIn;
 use crate::gpio::{AnalogInPwm,
     DigitalIn,
@@ -46,14 +48,14 @@ impl <'a>Microcontroller<'a>{
         Microcontroller{
             peripherals,
             timer_drivers: vec![],
-            adc_driver: None,
             interrupt_drivers: Vec::new(),
+            adc_driver: None,
             notification: Notification::new(),
             i2c_driver: Rc::new(RefCell::new(None)),
         }
     }
 
-    fn get_timer_driver(&mut self)-> TimerDriver<'a>{
+    pub fn get_timer_driver(&mut self)-> TimerDriver<'a>{
         let mut timer_driver = if self.timer_drivers.len() < 2{
             let timer = self.peripherals.get_timer(self.timer_drivers.len());
             TimerDriver::new(timer, self.notification.notifier()).unwrap()
@@ -194,6 +196,12 @@ impl <'a>Microcontroller<'a>{
         UART::new(tx_peripheral, rx_peripheral, uart_peripheral, baudrate, parity, stopbit).unwrap()
     }
 
+    pub fn ble_beacon(&mut self, advertising_name: String)-> BleBeacon<'a>{
+        self.peripherals.get_ble_device();
+        let ble_device = BLEDevice::take();
+        BleBeacon::new(ble_device, self.get_timer_driver(), advertising_name, vec![]).unwrap()
+    }
+
     pub fn update(&mut self) {
         //timer_drivers must be updated before other drivers since this may efect the other drivers updates
         for timer_driver in &mut self.timer_drivers{
@@ -223,15 +231,14 @@ impl <'a>Microcontroller<'a>{
                 self.update();
             }
             elapsed = starting_time.elapsed();
-        }   
+        }
     }
 
     pub fn wait_for_updates(&mut self, miliseconds:Option<u32>){
         match miliseconds{
             Some(milis) => self.wait_for_updates_until(milis),
             None => self.wait_for_updates_indefinitly(),
-        }
-        
+        }   
     }
 
     pub fn sleep(&mut self, miliseconds:u32){

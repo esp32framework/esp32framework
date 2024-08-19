@@ -205,7 +205,7 @@ impl <'a>_TimerDriver<'a>{
     /// triggers indefinitly. If autoenable is set, after triggering the callback, it will be set again
     /// if not it will have to be reenabled manually by caling enable(). For this to start working 
     /// enable() must be called. There can only be one callback per id.
-    pub fn interrupt_after_n_times<F: FnMut() + Send + 'static>(&mut self, id: u8, micro_seconds: u64, amount_of_triggers: Option<u32>, auto_reenable: bool, callback: F){        
+    pub fn interrupt_after_n_times<F: FnMut() + 'static>(&mut self, id: u8, micro_seconds: u64, amount_of_triggers: Option<u32>, auto_reenable: bool, callback: F){        
         let time = self.micro_to_counter(micro_seconds);
         let alarm = TimeInterrupt::new(id, Box::new(callback), time, amount_of_triggers, auto_reenable);
         self.inactive_alarms.insert(alarm.id, DisabledTimeInterrupt::Interrupt(alarm));
