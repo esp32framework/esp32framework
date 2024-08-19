@@ -27,6 +27,7 @@ pub enum Peripheral{
     Adc,
     I2C,
     Uart(u8),
+    BleDevice,
     #[default]
     None
 }
@@ -84,6 +85,7 @@ pub struct Peripherals {
     adc: Peripheral,
     i2c: Peripheral,
     uart: [Peripheral; UART_COUNT],
+    ble_device: Peripheral
 }
 
 impl Peripherals {
@@ -95,6 +97,7 @@ impl Peripherals {
         let adc: Peripheral = Peripheral::Adc;
         let i2c: Peripheral = Peripheral::I2C;
         let uart: [Peripheral; UART_COUNT] = [Peripheral::Uart(0), Peripheral::Uart(1)];
+        let ble_device = Peripheral::BleDevice;
         Peripherals {
             pins,
             timers,
@@ -103,6 +106,7 @@ impl Peripherals {
             adc,
             i2c,
             uart,
+            ble_device
         }
     }
 
@@ -157,5 +161,9 @@ impl Peripherals {
             return self.uart[uart_num].take()
         }
         Peripheral::None
+    }
+
+    pub fn get_ble_device(&mut self)-> Peripheral{
+        self.ble_device.take()
     }
 }
