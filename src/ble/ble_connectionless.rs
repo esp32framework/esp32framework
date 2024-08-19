@@ -12,8 +12,6 @@ pub struct BleBeacon<'a>{
 }
 
 
-
-
 impl <'a>BleBeacon<'a>{
     pub fn new(ble_device: &'a mut BLEDevice, advertising_name: String, services: Vec<Service>) -> Result<Self, BleError>{
         let mut advertisement = BLEAdvertisementData::new();

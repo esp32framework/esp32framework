@@ -1,4 +1,4 @@
-use esp32_nimble::{utilities::BleUuid, BLEError};
+use esp32_nimble::{utilities::BleUuid, BLEError, NimbleProperties};
 use uuid::Uuid;
 use super::{StandarCharacteristicId, StandarServiceId};
 use std::hash::Hash;
@@ -14,6 +14,10 @@ pub enum BleError{
     ServiceUnknown,
     StartingFailure,
     Code(u32, String),
+    ServiceNotFound,
+    PropertiesError,
+    AdvertisementError,
+    StartingAdvertisementError
 }
 
 impl From<BLEError> for BleError{
@@ -29,7 +33,7 @@ impl From<BLEError> for BleError{
 pub struct Service {
     pub id: BleId,
     pub data: Vec<u8>,
-    pub characteristic: Vec<Characteristic>
+    pub characteristics: Vec<Characteristic>
 }
 
 impl Service {
@@ -38,8 +42,13 @@ impl Service {
         if data.len() + header_bytes + id.byte_size() > MAX_ADV_PAYLOAD_SIZE {
             Err(BleError::ServiceTooBig)
         } else {
-            Ok(Service{id: id.clone(), data,characteristic: vec![]})
+            Ok(Service{id: id.clone(), data, characteristics: vec![]})
         }
+    }
+
+    pub fn add_characteristic(&mut self, characteristic: Characteristic) -> &mut Self {
+        self.characteristics.push(characteristic);
+        self
     }
 }
 
@@ -78,7 +87,7 @@ impl BleId {
         match self {
             BleId::StandardService(service) => service.byte_size(),
             BleId::StandarCharacteristic(characteristic) => characteristic.byte_size(),
-            BleId::ByName(_) => {16},
+            BleId::ByName(_) => 16,
             BleId::FromUuid16(_) => 2,
             BleId::FromUuid32(_) => 4,
             BleId::FromUuid128(_) => 16,
@@ -86,6 +95,80 @@ impl BleId {
     }
 }
 
+
 #[derive(Clone)]
-pub struct Characteristic {
+pub struct Characteristic{
+    pub id: BleId,
+    pub properties: u16,
+    pub data: Vec<u8>
 }
+
+impl Characteristic {
+    pub fn new(id: BleId, data: Vec<u8>) -> Self {
+        Characteristic{id,properties: 0, data}
+    }
+
+    fn toggle(&mut self, value: bool, flag: NimbleProperties) -> &mut Self {
+        if value {
+            self.properties |= flag.bits();
+        }else {
+            self.properties &= !flag.bits();
+        }
+        self
+    }
+
+    pub fn writable(&mut self, value: bool) -> &mut Self {
+        self.toggle(value, NimbleProperties::WRITE)
+    }
+
+    pub fn readeable(&mut self, value: bool) -> &mut Self{
+        self.toggle(value, NimbleProperties::READ)
+    }
+    
+    pub fn notifiable(&mut self, value: bool) -> &mut Self {
+        self.toggle(value, NimbleProperties::NOTIFY)
+    }
+
+    pub fn readeable_enc(&mut self, value: bool) -> &mut Self {
+        self.toggle(value, NimbleProperties::NOTIFY)
+    }
+
+    pub fn readeable_authen(&mut self, value: bool) -> &mut Self {
+        self.toggle(value, NimbleProperties::READ_AUTHEN)
+    }
+
+    pub fn readeable_author(&mut self, value: bool) -> &mut Self {
+        self.toggle(value, NimbleProperties::READ_AUTHOR)
+   
+    }
+
+    pub fn writeable_no_rsp(&mut self, value: bool) -> &mut Self {
+        self.toggle(value, NimbleProperties::WRITE_NO_RSP)
+    }
+
+    pub fn writeable_enc(&mut self, value: bool) -> &mut Self {
+        self.toggle(value, NimbleProperties::WRITE_ENC)
+    }
+
+    pub fn writeable_authen(&mut self, value: bool) -> &mut Self {
+        self.toggle(value, NimbleProperties::WRITE_AUTHEN)
+    }
+
+    pub fn writeable_author(&mut self, value: bool) -> &mut Self {
+        self.toggle(value, NimbleProperties::WRITE_AUTHOR)
+    }
+
+    pub fn broadcastable(&mut self, value: bool) -> &mut Self {
+        self.toggle(value, NimbleProperties::BROADCAST)
+    }
+
+    pub fn indicatable(&mut self, value: bool) -> &mut Self {
+        self.toggle(value, NimbleProperties::INDICATE)
+    }
+    
+    pub fn update_data(&mut self, data: Vec<u8>) -> &mut Self{
+        self.data = data;
+        self
+    }
+
+} 
