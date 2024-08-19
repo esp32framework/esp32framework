@@ -53,7 +53,7 @@ impl <'a>Microcontroller<'a>{
         }
     }
 
-    fn get_timer_driver(&mut self)-> TimerDriver<'a>{
+    pub fn get_timer_driver(&mut self)-> TimerDriver<'a>{
         let mut timer_driver = if self.timer_drivers.len() < 2{
             let timer = self.peripherals.get_timer(self.timer_drivers.len());
             TimerDriver::new(timer, self.notification.notifier()).unwrap()
