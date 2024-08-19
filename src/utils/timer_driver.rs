@@ -123,6 +123,7 @@ impl TimeInterrupt{
         Alarm::new(self.id, self.current_alarm_id, self.after + current_time)
     }
 
+    /// Makes it so all previouse alarms are ignored, by advancing the alarm id
     fn disable_previouse_alarms(&mut self){
         self.current_alarm_id += 1
     }
@@ -241,7 +242,7 @@ impl <'a>_TimerDriver<'a>{
         Ok(())
     }
     
-    /// Diactivates the timeInterrupt corresponding to "id". This is done by setting the id as Waiting.
+    /// Diactivates the timeInterrupt corresponding to "id".
     fn diactivate(&mut self, id: u8){
         if let Some(interrupt) = self.interrupts.get_mut(&id){
             if interrupt.status == TimerInterruptStatus::Enabled{
