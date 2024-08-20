@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
-use esp32_nimble::{utilities::mutex::Mutex, uuid128, BLEAdvertisementData, BLEAdvertising, BLEDevice, BLEServer, NimbleProperties};
+use esp32_nimble::{utilities::mutex::Mutex, uuid128, BLEAdvertisementData, BLEAdvertising, BLEConnDesc, BLEDevice, BLEError, BLEServer, NimbleProperties};
 use esp_idf_svc::hal::task;
 
 use super::{BleError, BleId, Characteristic, Service};
+
+pub type ConnectionInformation = BLEConnDesc;
 
 pub struct BleServer<'a> {
     advertising_name: String,
@@ -29,12 +31,37 @@ impl <'a>BleServer<'a> {
         server
     }
 
-    pub fn connection_handler() {
+    pub fn connection_handler<C>(&mut self, mut handler: C) -> &mut Self
+    where
+        C: FnMut(&ConnectionInformation) + Send + Sync + 'static,
+    {
+        let closure: Box<dyn FnMut(&mut BLEServer, &ConnectionInformation) + Send + Sync> = Box::new(move |server, info| {
+            handler(info);
+        });
 
+        self.ble_server.on_connect(closure);
+        self
     }
 
-    pub fn disconnection_handler() {
+    /// Ver que error pueden salir al desconectarse para ver si se pueden mapear a los nuestros
+    /// En caso de poder hacerlo agregar el Result al closure del usuario
+    ///    let handler = |desc: &BLEConnDesc| {
+    ///     println!("Desconexión detectada con descriptor: {:?}", desc);
+    /// };
 
+    /// // Llama a `disconnect_handler` pasando el `handler` del usuario.
+    /// my_struct.disconnect_handler(handler);
+    pub fn disconnect_handler<H>(&mut self, mut handler: H) -> &mut Self
+    where
+        H: FnMut(&ConnectionInformation) + Send + Sync + 'static,
+    {
+        // Convertir el handler del usuario en un callback con la firma requerida.
+        let closure: Box<dyn FnMut(&ConnectionInformation, Result<(), BLEError>) + Send + Sync> = Box::new(move |desc, _result| {
+            handler(desc);
+        });
+
+        self.ble_server.on_disconnect(closure);
+        self
     }
 
     /// Add or overwrite a service to the server

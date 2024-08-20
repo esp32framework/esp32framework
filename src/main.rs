@@ -20,6 +20,8 @@ fn main() {
   service.add_characteristic(char2);
 
   let mut ble_server = BleServer::new(String::from("Diego"), ble_device, vec![service]);
+  let handler = |info: &ConnectionInformation| { println!("Se conecto el usuario: {:?}", info.address())};
+  ble_server.connection_handler(move |arg0: &ConnectionInformation| handler(arg0));
   ble_server.start().unwrap();
 
   loop {
