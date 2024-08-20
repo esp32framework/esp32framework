@@ -107,12 +107,15 @@ impl <'a>BleBeacon<'a>{
         })
     }
 
+    /// Sets the name of the beacon
     pub fn set_name(&mut self, name: String) -> &mut Self{
         self.advertisement.deref_mut().name(name.as_str());
         self.advertising_name = name;
         self
     }
     
+    /// Adds the service to the advertisement and the services. If service was already inserted then 
+    /// only sets the service data in the advertisement.
     fn insert_service(&mut self, service: &Service){
         add_service_to_advertising(&mut self.advertisement.deref_mut(), service, self.services.deref().contains_key(&service.id));
         self.services.deref_mut().insert(service.id.clone(), service.clone());
@@ -122,12 +125,16 @@ impl <'a>BleBeacon<'a>{
         set_advertising_data(self.ble_device.get_advertising(), &mut self.advertisement.deref_mut())
     }
     
+    /// Adds a service to the beacon which can be advertised. If Service is already set, then the 
+    /// service data is changed
     pub fn set_service(&mut self, service: &Service) -> Result<&mut Self, BleError>{
         self.insert_service(service);
         self.update_advertisement()?;
         Ok(self)
     }
-
+    
+    /// Adds services to the beacon which can be advertised. If a Service is already set, then the 
+    /// service data is changed
     pub fn set_services(&mut self, services: &Vec<Service>) -> Result<(), BleError>{
         for service in services{
             self.insert_service(service)
@@ -135,6 +142,7 @@ impl <'a>BleBeacon<'a>{
         self.update_advertisement()
     }
     
+    /// Resets the advertisement using beacon name and services
     fn reset_advertisement(&mut self) -> Result<(), BleError>{
         let mut advertisement = BLEAdvertisementData::new();
         for service in self.services.deref().values(){
@@ -145,13 +153,14 @@ impl <'a>BleBeacon<'a>{
         self.update_advertisement()
     }
 
-    // check if advertisement allows removing service
+    /// Removes the specified service from the beacon
     pub fn remove_service(&mut self, service_id: &ServiceId) -> Result<&mut Self, BleError>{
         self.services.deref_mut().remove(service_id);
         self.reset_advertisement()?;
         Ok(self)
     }
-
+    
+    /// Removes the specified servicea from the beacon
     pub fn remove_services(&mut self, service_ids: &Vec<ServiceId>)->Result<(), BleError>{
         for service_id in service_ids{
             self.services.deref_mut().remove(service_id);
@@ -175,11 +184,21 @@ impl <'a>BleBeacon<'a>{
         self.timer_driver.remove_interrupt().map_err(BleError::TimerDriverError)
     }
 
+    /// Set the beacon to advertise the data of a specified service. If beacon was looping data then 
+    /// it stops.
     pub fn advertise_service_data(&mut self, service_id: &ServiceId)-> Result<(), BleError>{
         self.stop_looping_data()?;
         self.change_advertised_service_data(service_id)
     }
 
+    /// Sets the time the beacon will advertise the data of a service if [`advertise_all_service_data`]
+    /// was called 
+    pub fn set_time_per_service(&mut self, dur: Duration){
+        self.time_per_service = dur
+    }
+
+    /// The beacon advertises the data of each service every fixed duration. If services are added or 
+    /// removed this is reflected. The time per service can be set with []
     pub fn advertise_all_service_data(&mut self)-> Result<(), BleError>{
         let services = self.services.clone();
         let advertising = self.ble_device.get_advertising();
@@ -203,11 +222,13 @@ impl <'a>BleBeacon<'a>{
         self.timer_driver.enable().map_err(BleError::TimerDriverError)
     }
 
+    /// Start advertising set services of the beacon
     pub fn start(&self) -> Result<(), BleError>{
         let mut ble_adv = self.ble_device.get_advertising().lock();
         ble_adv.start().map_err(|_| BleError::StartingFailure)
     }
     
+    /// Stop advertising set services of the beacon
     pub fn stop(&mut self) -> Result<(), BleError>{
         self.stop_looping_data()?;
         let ble_adv = self.ble_device.get_advertising().lock();

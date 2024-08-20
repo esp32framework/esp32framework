@@ -199,7 +199,7 @@ impl <'a>Microcontroller<'a>{
     pub fn ble_beacon(&mut self, advertising_name: String)-> BleBeacon<'a>{
         self.peripherals.get_ble_device();
         let ble_device = BLEDevice::take();
-        BleBeacon::new(ble_device, self.get_timer_driver(), advertising_name, &vec![]).unwrap()
+        BleBeacon::new(ble_device, self.get_timer_driver(), advertising_name).unwrap()
     }
 
     pub fn update(&mut self) {
