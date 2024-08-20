@@ -6,16 +6,21 @@ use std::{format, time::Duration};
 fn main() {
   let mut micro = Microcontroller::new();
   let ble_device = BLEDevice::take();
-  let ble_advertising = ble_device.get_advertising();
+  // let ble_advertising = ble_device.get_advertising();
   let data: Vec<u8> = vec![];
   let service_id: BleId = BleId::ByName("Diego service".to_string());
   let mut service = Service::new(&service_id, data.clone()).unwrap();
   let characteristic_id: BleId = BleId::ByName("Diego char".to_string());
-  let my_characteristic: Characteristic = Characteristic::new(characteristic_id, data);
+  let mut my_characteristic: Characteristic = Characteristic::new(characteristic_id, vec![]);
+  my_characteristic.writable(true).readeable(true);
+  let mut char2 = Characteristic::new(BleId::ByName("2nd service".to_string()), vec![0x01, 0x02]);
+  char2.notifiable(true).readeable(true);
+
   service.add_characteristic(my_characteristic);
+  service.add_characteristic(char2);
 
   let mut ble_server = BleServer::new(String::from("Diego"), ble_device, vec![service]);
-  ble_server.start();
+  ble_server.start().unwrap();
 
   loop {
     micro.sleep(1000);

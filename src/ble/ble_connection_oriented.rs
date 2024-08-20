@@ -52,12 +52,13 @@ impl <'a>BleServer<'a> {
             self.ble_server.get_service(service_id.to_uuid()).await
         });
         if let Some(service) = server_service {    
-            match NimbleProperties::from_bits(characteristic.properties.to_be()) {
+            match NimbleProperties::from_bits(characteristic.properties.to_le()) {
                 Some(properties) => {
-                    service.lock().create_characteristic(
+                    let mut charac = service.lock().create_characteristic(
                         characteristic.id.to_uuid(),
                         properties,
                     );
+                    charac.lock().set_value(&characteristic.data);
                     return Ok(());
                 },
                 None => {return Err(BleError::PropertiesError)},
