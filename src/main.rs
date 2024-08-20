@@ -207,7 +207,7 @@ use esp32framework::{
     },
     Microcontroller
 };
-/*
+
 fn main(){
     let mut micro = Microcontroller::new();
     let mut beacon = micro.ble_beacon("Mateo lindo".to_string());
@@ -218,33 +218,29 @@ fn main(){
         services2.push(Service::new(&ServiceId::FromUuid16((i*4) as u16), vec![i*4;2]).unwrap());
     }
     
-    beacon.add_services(services1).unwrap();
+    beacon.set_services(&services1).unwrap();
     beacon.advertise_all_service_data().unwrap();
     beacon.start().unwrap();
+    println!("1,2");
     micro.wait_for_updates(Some(10000));
     
-    beacon.add_services(services2).unwrap();
+    beacon.set_services(&services2).unwrap();
+    println!("1,2,4,8");
     micro.wait_for_updates(Some(10000));
     
-    beacon.remove_services(vec![&ServiceId::FromUuid16(1), &ServiceId::FromUuid16(2)]).unwrap();
+    beacon.remove_services(&vec![ServiceId::FromUuid16(1), ServiceId::FromUuid16(2)]).unwrap();
+    println!("4,8");
     micro.wait_for_updates(Some(10000));
     
+    beacon.set_service(&Service::new(&ServiceId::FromUuid16(4), vec![10;2]).unwrap()).unwrap();
+    println!("4 modified");
+    micro.wait_for_updates(Some(10000));
+    
+    println!("4 fixed");
+    beacon.advertise_service_data(&ServiceId::FromUuid16(4)).unwrap();
+    micro.wait_for_updates(Some(10000));
+    
+    println!("stop");
     beacon.stop().unwrap();
     micro.wait_for_updates(None);
-}
-*/
-
-fn main(){
-    let mut micro = Microcontroller::new();
-    let mut timer = micro.get_timer_driver();
-
-    timer.interrupt_after_n_times(1000000, None, true, move || {println!("original")});
-    timer.enable().unwrap();
-    for i in 0..1000{
-        timer.remove_interrupt().unwrap();
-        timer.interrupt_after_n_times(1000000, None, true, move || {println!("{i}")});
-        timer.enable().unwrap();
-    }
-
-    micro.wait_for_updates(None)
 }

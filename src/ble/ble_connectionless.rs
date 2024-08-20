@@ -1,8 +1,7 @@
-use esp32_nimble::{utilities::{mutex::Mutex, BleUuid}, uuid128, BLEAdvertisementData, BLEAdvertising, BLEDevice, BLEError, NimbleProperties};
-use esp_idf_svc::hal::timer::Timer;
+use esp32_nimble::{utilities::{mutex::Mutex, BleUuid}, BLEAdvertisementData, BLEAdvertising, BLEDevice, BLEError};
 use uuid::*;
-use std::{cell::{RefCell, RefMut}, collections::HashMap, format, hash::Hash, num::NonZero, rc::Rc, time::Duration, u64};
-use crate::utils::timer_driver::{TimerDriver, TimerDriverError};
+use std::{cell::RefCell, collections::HashMap, hash::Hash, rc::Rc, time::Duration};
+use crate::utils::{auxiliary::{SharableRef, SharableRefExt}, timer_driver::{TimerDriver, TimerDriverError}};
 
 use super::StandarServiceId;
 
@@ -12,11 +11,10 @@ const PAYLOAD_FIELD_IDENTIFIER_SIZE: usize = 2;
 pub struct BleBeacon<'a>{
     advertising_name: String,
     ble_device: &'a mut BLEDevice,
-    services: HashMap<ServiceId,Service>,
-    advertisement: Rc<RefCell<BLEAdvertisementData>>,
+    services: SharableRef<HashMap<ServiceId,Service>>,
+    advertisement: SharableRef<BLEAdvertisementData>,
     timer_driver: TimerDriver<'a>,
     time_per_service: Duration,
-    looping_service_data: bool
 }
 
 #[derive(Clone, Debug)]
@@ -96,93 +94,77 @@ impl ServiceId {
 }
 
 impl <'a>BleBeacon<'a>{
-    pub fn new(ble_device: &'a mut BLEDevice, timer_driver: TimerDriver<'a>, advertising_name: String, services: Vec<Service>) -> Result<Self, BleError>{
+    pub fn new(ble_device: &'a mut BLEDevice, timer_driver: TimerDriver<'a>, advertising_name: String) -> Result<Self, BleError>{
         let mut advertisement = BLEAdvertisementData::new();
         advertisement.name(&advertising_name);
-        let mut beacon = BleBeacon{
+        Ok(BleBeacon{
             advertising_name, 
             ble_device, 
-            services: HashMap::new(), 
+            services: SharableRef::new_sharable(HashMap::new()),
             advertisement: Rc::new(RefCell::from(advertisement)),
             timer_driver,
             time_per_service: Duration::from_secs(1),
-            looping_service_data: false
-        };
-        beacon.add_services(services)?;
-        Ok(beacon)
-    }
-
-    fn advertisement(&mut self)-> RefMut<BLEAdvertisementData>{
-        self.advertisement.borrow_mut()
+        })
     }
 
     pub fn set_name(&mut self, name: String) -> &mut Self{
-        self.advertisement().name(name.as_str());
+        self.advertisement.deref_mut().name(name.as_str());
         self.advertising_name = name;
         self
     }
     
-    fn insert_service(&mut self, service: Service){
-        self.advertisement().add_service_uuid(service.id.to_uuid());
-        if !service.data.is_empty(){
-            self.advertisement().service_data(service.id.to_uuid(), &service.data);
-        } 
-        self.services.insert(service.id.clone(), service);
+    fn insert_service(&mut self, service: &Service){
+        add_service_to_advertising(&mut self.advertisement.deref_mut(), service, self.services.deref().contains_key(&service.id));
+        self.services.deref_mut().insert(service.id.clone(), service.clone());
     }
-
+    
     fn update_advertisement(&mut self) -> Result<(), BleError>{
-        set_advertising_data(self.ble_device.get_advertising(), &mut self.advertisement())?;
-        self.update_looping_data()
+        set_advertising_data(self.ble_device.get_advertising(), &mut self.advertisement.deref_mut())
     }
-
-    pub fn add_service(&mut self, service: Service) -> Result<&mut Self, BleError>{
+    
+    pub fn set_service(&mut self, service: &Service) -> Result<&mut Self, BleError>{
         self.insert_service(service);
         self.update_advertisement()?;
         Ok(self)
     }
 
-    pub fn add_services(&mut self, services: Vec<Service>) -> Result<(), BleError>{
+    pub fn set_services(&mut self, services: &Vec<Service>) -> Result<(), BleError>{
         for service in services{
             self.insert_service(service)
         }
         self.update_advertisement()
     }
-
+    
     fn reset_advertisement(&mut self) -> Result<(), BleError>{
-        self.advertisement.replace(BLEAdvertisementData::new());
+        let mut advertisement = BLEAdvertisementData::new();
+        for service in self.services.deref().values(){
+            add_service_to_advertising(&mut advertisement, service, false);
+        }
+        self.advertisement.replace(advertisement);
         self.set_name(self.advertising_name.clone());
-        self.add_services(self.services.clone().into_values().collect())
+        self.update_advertisement()
     }
 
     // check if advertisement allows removing service
-    pub fn remove_service(&mut self, service_id: &ServiceId) -> Result<(), BleError>{
-        if self.services.remove(&service_id).is_none(){
-            return Ok(())
-        };
-        self.reset_advertisement()
+    pub fn remove_service(&mut self, service_id: &ServiceId) -> Result<&mut Self, BleError>{
+        self.services.deref_mut().remove(service_id);
+        self.reset_advertisement()?;
+        Ok(self)
     }
 
-    pub fn remove_services(&mut self, service_ids: Vec<&ServiceId>) -> Result<(), BleError>{
-        let mut modified = false;
+    pub fn remove_services(&mut self, service_ids: &Vec<ServiceId>)->Result<(), BleError>{
         for service_id in service_ids{
-            if self.services.remove(service_id).is_some(){
-                modified = true
-            };
+            self.services.deref_mut().remove(service_id);
         }
-
-        if !modified{
-            return Ok(())
-        }
-
         self.reset_advertisement()
     }
     
     /// Start advertising one particular service data 
     fn change_advertised_service_data(&mut self, service_id: &ServiceId) -> Result<(), BleError> {
-        match self.services.get(service_id){
+        match self.services.deref().get(service_id){
             Some(request_service) => {
                 self.advertisement.borrow_mut().service_data(request_service.id.to_uuid(), &request_service.data);
-                set_advertising_data(self.ble_device.get_advertising(), &mut self.advertisement())?;
+                set_advertising_data(self.ble_device.get_advertising(), &mut self.advertisement.deref_mut())?;
                 self.start()
             },
             None => Err(BleError::ServiceUnknown),
@@ -190,11 +172,7 @@ impl <'a>BleBeacon<'a>{
     }
     
     fn stop_looping_data(&mut self)-> Result<(), BleError>{
-        if self.looping_service_data{
-            self.looping_service_data = false;
-            self.timer_driver.remove_interrupt().map_err(BleError::TimerDriverError)?
-        }
-        Ok(())
+        self.timer_driver.remove_interrupt().map_err(BleError::TimerDriverError)
     }
 
     pub fn advertise_service_data(&mut self, service_id: &ServiceId)-> Result<(), BleError>{
@@ -202,25 +180,19 @@ impl <'a>BleBeacon<'a>{
         self.change_advertised_service_data(service_id)
     }
 
-    fn update_looping_data(&mut self)->Result<(), BleError>{
-        if self.looping_service_data{
-            self.advertise_all_service_data()?;
-        }
-        Ok(())
-    }
-
     pub fn advertise_all_service_data(&mut self)-> Result<(), BleError>{
-        self.looping_service_data = true;
-        let services: Vec<Service> = self.services.clone().into_values().collect();
-        println!("services: {:?}", services);
-        let mut services = services.into_iter().cycle();
+        let services = self.services.clone();
         let advertising = self.ble_device.get_advertising();
         let advertisement = self.advertisement.clone();
+        let mut i = 0;
 
         let callback = move || {
-            let service = services.next().unwrap();
+            let services = services.deref();
+            i = i % services.len();
+            let service = services.values().collect::<Vec<&Service>>()[i];
             advertisement.borrow_mut().service_data(service.id.to_uuid(), &service.data);
             set_advertising_data(&advertising, &mut (*advertisement.borrow_mut())).unwrap();
+            i+=1
         };
 
         self.timer_driver.interrupt_after_n_times(
@@ -260,32 +232,11 @@ fn set_advertising_data(ble_adv: &Mutex<BLEAdvertising>, data: &mut BLEAdvertise
     }
 }
 
-// fn main() {
-//     esp_idf_svc::sys::link_patches();
-//     esp_idf_svc::log::EspLogger::initialize_default();
-
-//     let ble_device = BLEDevice::take();
-//     let ble_advertising = ble_device.get_advertising();
-
-//     // Configure el servicio y las características que se publicitarán en la publicidad connectionless
-//     let service_uuid = uuid128!("fafafafa-fafa-fafa-fafa-fafafafafafa");
-
-//     let mut advertisement = BLEAdvertisementData::new();
-
-//     advertisement
-//         .name("ESP32-Beacon")
-//         .add_service_uuid(service_uuid)
-//         .service_data(BleUuid::from_uuid32(0), &[0x5;4]);
-//     // Configura los datos de publicidad
-//     ble_advertising.lock().advertisement_type(esp32_nimble::enums::ConnMode::Non).set_data(
-//         &mut advertisement
-//     ).unwrap();
-
-//     // Empieza la publicidad
-//     ble_advertising.lock().start().unwrap();
-
-//     // Se mantiene el dispositivo publicitando indefinidamente
-//     loop {
-//         esp_idf_svc::hal::delay::FreeRtos::delay_ms(1000);
-//     }
-// }
+fn add_service_to_advertising(data: &mut BLEAdvertisementData, service: &Service, only_data: bool){
+    if !only_data{
+        data.add_service_uuid(service.id.to_uuid());
+    }
+    if !service.data.is_empty(){
+        data.service_data(service.id.to_uuid(), &service.data);
+    } 
+}
