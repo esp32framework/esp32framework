@@ -15,7 +15,6 @@ pub struct BleServer<'a> {
 }
 
 impl <'a>BleServer<'a> {
-
     pub fn new(name: String, ble_device: &mut BLEDevice, services: Vec<Service> ) -> Self {
         let mut server = BleServer{
             advertising_name: name,
@@ -35,7 +34,7 @@ impl <'a>BleServer<'a> {
     where
         C: FnMut(&ConnectionInformation) + Send + Sync + 'static,
     {
-        let closure: Box<dyn FnMut(&mut BLEServer, &ConnectionInformation) + Send + Sync> = Box::new(move |server, info| {
+        let closure: Box<dyn FnMut(&mut BLEServer, &ConnectionInformation) + Send + Sync> = Box::new(move |_, info| {           
             handler(info);
         });
 

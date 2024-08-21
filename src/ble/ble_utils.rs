@@ -1,5 +1,7 @@
 use esp32_nimble::{utilities::BleUuid, BLEError, NimbleProperties};
 use uuid::Uuid;
+use crate::utils::timer_driver::TimerDriverError;
+
 use super::{StandarCharacteristicId, StandarServiceId};
 use std::hash::Hash;
 
@@ -13,6 +15,8 @@ pub enum BleError{
     ServiceTooBig,
     ServiceUnknown,
     StartingFailure,
+    StoppingFailure,
+    TimerDriverError(TimerDriverError),
     Code(u32, String),
     ServiceNotFound,
     PropertiesError,

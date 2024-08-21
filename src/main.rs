@@ -1,3 +1,4 @@
+/// BLE MAIN CON FRAMEWORK 
 use esp32_nimble::{uuid128, BLEAdvertisementData, BLEDevice, NimbleProperties};
 use esp32framework::{ble::*, Microcontroller};
 use std::{format, time::Duration};
@@ -24,11 +25,10 @@ fn main() {
   ble_server.connection_handler(move |arg0: &ConnectionInformation| handler(arg0));
   ble_server.start().unwrap();
 
-  loop {
-    micro.sleep(1000);
-  }
+  micro.wait_for_updates(None);
 }
 
+// BLE MAIN
 
 // fn main() {
 //   esp_idf_svc::sys::link_patches();
@@ -117,9 +117,8 @@ fn main() {
 
 //SINGLE SERVICE EXAMPLE
 /*
-*/
-// use esp32framework::{ble::*, Microcontroller};
-// use std::{format, time::Duration};
+use esp32framework::{ble::*, Microcontroller};
+use std::{format, time::Duration};
 
 
 // fn main() {
@@ -145,57 +144,56 @@ fn main() {
 //     }
 // }
 
+*/
 // 00000001   04 01 00
 
-
-// //EJEMPLO BLE CONECTIONLESS SIN FRAMEWORK
-// fn main() {
-//     esp_idf_svc::sys::link_patches();
-//     esp_idf_svc::log::EspLogger::initialize_default();
-//     let ble_device = BLEDevice::take();
-//     let ble_advertising1 = ble_device.get_advertising();
-    
-//     let mut advertisement1 = BLEAdvertisementData::new();
-//     advertisement1.name("01234567890123456789");
-    
-//     let service_uuid1 = esp32_nimble::utilities::BleUuid::from_uuid32(4);
-//     advertisement1.add_service_uuid(service_uuid1);
-//     advertisement1.service_data(service_uuid1, &[0x5;1]);
-    
-//     // Configure el servicio y las características que se publicitarán en la publicidad connectionless
-    
-//     // Configura los datos de publicidad
-    
-//     ble_advertising1.lock().advertisement_type(esp32_nimble::enums::ConnMode::Non).set_data(
-//         &mut advertisement1
-//     ).unwrap();
-//     // Empieza la publicidad
-//     ble_advertising1.lock().start().unwrap();
-
-//     esp_idf_svc::hal::delay::FreeRtos::delay_ms(1000);
-
-//     let service_uuid1 = esp32_nimble::utilities::BleUuid::from_uuid32(5);
-//     advertisement1.add_service_uuid(service_uuid1);
-//     advertisement1.service_data(service_uuid1, &[]);
-//     ble_advertising1.lock().advertisement_type(esp32_nimble::enums::ConnMode::Non).set_data(
-//         &mut advertisement1
-//     ).unwrap();
-
-//     loop{
-//         esp_idf_svc::hal::delay::FreeRtos::delay_ms(1000);
-//     }
-//     // Se mantiene el dispositivo publicitando indefinidamente
-//     let a = vec![(esp32_nimble::utilities::BleUuid::from_uuid16(2), &[2 as u8;1]),(esp32_nimble::utilities::BleUuid::from_uuid16(1), &[1 as u8;1])];
+/*
+//EJEMPLO BLE CONECTIONLESS SIN FRAMEWORK
+fn main() {
+    esp_idf_svc::sys::link_patches();
+    esp_idf_svc::log::EspLogger::initialize_default();
+    let ble_device = BLEDevice::take();
+    let ble_advertising1 = ble_device.get_advertising();
+    let ble_advertising2 = ble_device.get_advertising();
  
-//     for service in a.iter().cycle(){
-//         advertisement1.service_data(service.0, service.1);
-//         ble_advertising1.lock().advertisement_type(esp32_nimble::enums::ConnMode::Non).set_data(
-//             &mut advertisement1
-//         ).unwrap();
-//         esp_idf_svc::hal::delay::FreeRtos::delay_ms(1000);
-//     }
-// }
+    let mut advertisement1 = BLEAdvertisementData::new();
+    advertisement1.name("01234567890123456789");
+ 
+    let service_uuid1 = esp32_nimble::utilities::BleUuid::from_uuid32(4);
+    advertisement1.add_service_uuid(service_uuid1);
+    advertisement1.service_data(service_uuid1, &[0x5;1]);
+ 
+    // Configure el servicio y las características que se publicitarán en la publicidad connectionless
+ 
+    // Configura los datos de publicidad
+ 
+    ble_advertising1.lock().advertisement_type(esp32_nimble::enums::ConnMode::Non).set_data(
+        &mut advertisement1
+    ).unwrap();
+    // Empieza la publicidad
+    ble_advertising1.lock().start().unwrap();
+    esp_idf_svc::hal::delay::FreeRtos::delay_ms(1000);
+    let service_uuid1 = esp32_nimble::utilities::BleUuid::from_uuid32(5);
+    advertisement1.add_service_uuid(service_uuid1);
+    advertisement1.service_data(service_uuid1, &[]);
+    ble_advertising1.lock().advertisement_type(esp32_nimble::enums::ConnMode::Non).set_data(
+        &mut advertisement1
+    ).unwrap();
 
+    loop{
+        esp_idf_svc::hal::delay::FreeRtos::delay_ms(1000);
+    };
+    // Se mantiene el dispositivo publicitando indefinidamente
+    let a = vec![(esp32_nimble::utilities::BleUuid::from_uuid16(2), &[2 as u8;1]),(esp32_nimble::utilities::BleUuid::from_uuid16(1), &[1 as u8;1])];
+    for service in a.iter().cycle(){
+        advertisement1.service_data(service.0, service.1);
+        ble_advertising1.lock().advertisement_type(esp32_nimble::enums::ConnMode::Non).set_data(
+            &mut advertisement1
+        ).unwrap();
+        esp_idf_svc::hal::delay::FreeRtos::delay_ms(1000);
+    }
+}
+ */
 
 
 // use esp_idf_svc::hal::delay::BLOCK;
@@ -230,3 +228,52 @@ fn main() {
 //         FreeRtos::delay_ms(1000);
 //     }
 // }
+
+/*
+use esp32framework::{
+    ble::{
+        BleBeacon,
+        Service,
+        ServiceId
+    },
+    Microcontroller
+};
+
+fn main(){
+    let mut micro = Microcontroller::new();
+    let mut beacon = micro.ble_beacon("Mateo lindo".to_string());
+    let mut services1 = vec![];
+    let mut services2 = vec![];
+    for i in 1..3{
+        services1.push(Service::new(&ServiceId::FromUuid16(i as u16), vec![i;2]).unwrap());
+        services2.push(Service::new(&ServiceId::FromUuid16((i*4) as u16), vec![i*4;2]).unwrap());
+    }
+    
+    beacon.set_services(&services1).unwrap();
+    beacon.advertise_all_service_data().unwrap();
+    beacon.start().unwrap();
+    println!("1,2");
+    micro.wait_for_updates(Some(10000));
+    
+    beacon.set_services(&services2).unwrap();
+    println!("1,2,4,8");
+    micro.wait_for_updates(Some(10000));
+    
+    beacon.remove_services(&vec![ServiceId::FromUuid16(1), ServiceId::FromUuid16(2)]).unwrap();
+    println!("4,8");
+    micro.wait_for_updates(Some(10000));
+    
+    beacon.set_service(&Service::new(&ServiceId::FromUuid16(4), vec![10;2]).unwrap()).unwrap();
+    println!("4 modified");
+    micro.wait_for_updates(Some(10000));
+    
+    println!("4 fixed");
+    beacon.advertise_service_data(&ServiceId::FromUuid16(4)).unwrap();
+    micro.wait_for_updates(Some(10000));
+    
+    println!("stop");
+    beacon.stop().unwrap();
+    micro.wait_for_updates(None);
+}
+
+*/
