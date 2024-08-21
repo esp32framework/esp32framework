@@ -15,6 +15,7 @@ pub type SharableAdcDriver<'a> = Rc<AdcDriver<'a, ADC1>>;
 pub type SharableI2CDriver<'a> = Rc<RefCell<Option<i2c::I2C0>>>;
 
 use crate::ble::BleBeacon;
+use crate::ble::Service;
 use crate::gpio::AnalogIn;
 use crate::gpio::{AnalogInPwm,
     DigitalIn,
@@ -196,10 +197,10 @@ impl <'a>Microcontroller<'a>{
         UART::new(tx_peripheral, rx_peripheral, uart_peripheral, baudrate, parity, stopbit).unwrap()
     }
 
-    pub fn ble_beacon(&mut self, advertising_name: String)-> BleBeacon<'a>{
+    pub fn ble_beacon(&mut self, advertising_name: String, services: &Vec<Service>)-> BleBeacon<'a>{
         self.peripherals.get_ble_device();
         let ble_device = BLEDevice::take();
-        BleBeacon::new(ble_device, self.get_timer_driver(), advertising_name).unwrap()
+        BleBeacon::new(ble_device, self.get_timer_driver(), advertising_name, services).unwrap()
     }
 
     pub fn update(&mut self) {

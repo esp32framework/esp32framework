@@ -13,17 +13,19 @@ pub struct BleBeacon<'a>{
 }
 
 impl <'a>BleBeacon<'a>{
-    pub fn new(ble_device: &'a mut BLEDevice, timer_driver: TimerDriver<'a>, advertising_name: String) -> Result<Self, BleError>{
+    pub fn new(ble_device: &'a mut BLEDevice, timer_driver: TimerDriver<'a>, advertising_name: String, services: &Vec<Service>) -> Result<Self, BleError>{
         let mut advertisement = BLEAdvertisementData::new();
         advertisement.name(&advertising_name);
-        Ok(BleBeacon{
+        let mut beacon = BleBeacon{
             advertising_name, 
             ble_device, 
             services: SharableRef::new_sharable(HashMap::new()),
             advertisement: Rc::new(RefCell::from(advertisement)),
             timer_driver,
             time_per_service: Duration::from_secs(1),
-        })
+        };
+        beacon.set_services(services)?;
+        Ok(beacon)
     }
 
     /// Sets the name of the beacon
