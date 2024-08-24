@@ -1,9 +1,6 @@
 use esp_idf_svc::hal::{delay::BLOCK, uart::{config, UartDriver, UART0, UART1}, units::Hertz};
-use crate::microcontroller_src::peripherals::Peripheral;
+use crate::{microcontroller_src::peripherals::Peripheral, utils::auxiliary::micro_to_ticks};
 use esp_idf_svc::hal::gpio::{Gpio0, Gpio1};
-
-use super::micro_to_ticks;
-
 
 const DEFAULT_BAUDRATE: u32 = 115_200;
 

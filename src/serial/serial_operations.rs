@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use esp_idf_svc::{hal::delay::FreeRtos, sys::configTICK_RATE_HZ};
+use esp_idf_svc::hal::delay::FreeRtos;
 
 pub enum SerialError {
     ErrorInReadValue,
@@ -128,7 +128,4 @@ pub fn write_with_frecuency(data_reader: &mut impl WRITER, ms_between_writes: u3
     }
 }
 
-/// Converts microseconds to system ticks based on the configured tick rate.
-pub fn micro_to_ticks(time_us: u32) -> u32 {
-    ((configTICK_RATE_HZ as u64) * (time_us as u64) / (1_000_000 as u64)) as u32
-}
+

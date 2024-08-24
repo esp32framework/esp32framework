@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 use esp_idf_svc::hal::adc::ADC1;
@@ -15,6 +16,7 @@ pub type SharableAdcDriver<'a> = Rc<AdcDriver<'a, ADC1>>;
 pub type SharableI2CDriver<'a> = Rc<RefCell<Option<i2c::I2C0>>>;
 
 use crate::ble::BleBeacon;
+use crate::ble::BleServer;
 use crate::ble::Service;
 use crate::gpio::AnalogIn;
 use crate::gpio::{AnalogInPwm,
@@ -198,9 +200,16 @@ impl <'a>Microcontroller<'a>{
     }
 
     pub fn ble_beacon(&mut self, advertising_name: String, services: &Vec<Service>)-> BleBeacon<'a>{
-        self.peripherals.get_ble_device();
+        self.peripherals.get_ble_device(); // TODO ver safety
         let ble_device = BLEDevice::take();
         BleBeacon::new(ble_device, self.get_timer_driver(), advertising_name, services).unwrap()
+    }
+    
+    // TODO &VEc<Services>
+    pub fn ble_server(&mut self, advertising_name: String, services: Vec<Service>)-> BleServer<'a>{
+        self.peripherals.get_ble_device();
+        let ble_device = BLEDevice::take();
+        BleServer::new(advertising_name, ble_device, services, self.notification.notifier() )
     }
 
     pub fn update(&mut self) {

@@ -2,10 +2,14 @@ use std::num::NonZeroU32;
 use std::{collections::HashMap, sync::Arc};
 use std::sync::Mutex as Mutex2;
 
+use esp32_nimble::BLEAddress;
 use esp32_nimble::{utilities::mutex::Mutex, uuid128, BLEAdvertisementData, BLEAdvertising, BLEConnDesc, BLEDevice, BLEError, BLEServer, NimbleProperties};
 use esp_idf_svc::hal::task;
+use esp_idf_svc::hal::task::queue::Queue;
 use esp_idf_svc::hal::task::notification::Notifier;
 
+
+use crate::utils::auxiliary::ISRQueue;
 use crate::utils::esp32_framework_error::Esp32FrameworkError;
 use crate::InterruptDriver;
 
@@ -14,27 +18,37 @@ use super::{BleError, BleId, Characteristic, Service};
 pub struct BleServer<'a> {
     advertising_name: String,
     ble_server: &'a mut BLEServer,
-    services: Vec<Service>, 
+    services: Vec<Service>,  // TODO: Change it to Vec<&Service>
     advertisement: &'a Mutex<BLEAdvertising>,
-    user_on_connection: ConnectionCallback<'a>
+    user_on_connection: Option<ConnectionCallback<'a>>
 }
 
 struct ConnectionCallback<'a>{
-    callback: Option<Box<dyn FnMut(&mut BleServer<'a>, ConnectionInformation) + 'a>>,
-    con_info: Arc<Mutex2<Vec<ConnectionInformation>>>,
+    callback: Box<dyn FnMut(&mut BleServer<'a>, &ConnectionInformation) + 'a>,
+    info_queue: ISRQueue<ConnectionInformation>,
     notifier: Arc<Notifier>
 }
 
 impl<'a> ConnectionCallback<'a>{
     fn new(notifier: Arc<Notifier>) -> Self{
-        Self { callback: None, con_info: Arc::new(Mutex2::from(Vec::new())), notifier}
+        Self { callback: Box::new(|_,_| {}), info_queue: ISRQueue::new(50), notifier}
+    }
+
+    fn set_callback<C: FnMut(&mut BleServer<'a>, &ConnectionInformation) + 'a>(&mut self, callback: C){
+        self.callback = Box::new(callback);
+    }
+
+    fn handle_connection_changes(&mut self, server: &mut BleServer<'a>){
+        while let Ok(item)  = self.info_queue.try_recv() {
+            (self.callback)(server, &item)
+        }
     }
 }
 
-#[derive(Debug, Clone)]
-struct ConnectionInformation{
-    address: String,
-    id_address: String,
+#[derive(Debug, Clone, Copy)]
+pub struct ConnectionInformation{
+    address: BLEAddress,
+    id_address: BLEAddress,
     conn_handle: u16,
     interval: u16,
     timeout: u16,
@@ -48,10 +62,10 @@ struct ConnectionInformation{
 }
 
 impl ConnectionInformation{
-    pub fn from_BLEConnDesc(desc: &BLEConnDesc) -> Self{
+    fn from_BLEConnDesc(desc: &BLEConnDesc, is_connected: bool) -> Self{
         ConnectionInformation{
-            address: desc.address().to_string(),
-            id_address: desc.id_address().to_string(),
+            address: desc.address(),
+            id_address:desc.id_address(),
             conn_handle: desc.conn_handle(),
             interval: desc.interval(),
             timeout: desc.timeout(),
@@ -73,7 +87,7 @@ impl <'a>BleServer<'a> {
             ble_server: ble_device.get_server(),
             services: services.clone(),
             advertisement: ble_device.get_advertising(),
-            user_on_connection: ConnectionCallback::new(notifier),
+            user_on_connection: Some(ConnectionCallback::new(notifier)),
             
         };
             
@@ -84,59 +98,16 @@ impl <'a>BleServer<'a> {
         server
     }
 
-/*
-/// Modify to handle operations like:
-///     Enable/disable services (max clients or specific client)
-///     Notify new user with some data
-
-  pub fn connection_handler_with_information<C>(&mut self, mut handler: C) -> &mut Self
-    where
-        C: FnMut(&ConnectionInformation) + Send + Sync + 'static,
+    pub fn connection_handler<C: FnMut(&mut Self, &ConnectionInformation) + 'a>(&mut self, handler: C) -> &mut Self
     {
-        self.ble_server.on_connect(move |_, info| {
-            handler(info);
-        });
-        self
-    }
-
-    
-    connection_handler_and_enable_services(&mut self, mut handler: C, services: Vec<Service>) {
-        self.ble_server.on_connect(move |server, info| {
-            handler(info);
-            server.set_service(Service)
-            for service in services{
-                let server_service = server.create_service(service.id.to_uuid());
-        
-                for characteristic in &service.characteristics{
-                    match NimbleProperties::from_bits(characteristic.properties.to_le()) {
-                    Some(properties) => {
-                        let mut charac = server_service.lock().create_characteristic(
-                            characteristic.id.to_uuid(),
-                            properties,
-                        );
-                        charac.lock().set_value(&characteristic.data);
-                    },
-                    None => {},
-                }
-                }
-            }
-        });
-        self
-    }
-
-// connection_handler_and_disable_services
-
-// connection_handler_and_notify
-*/
-
-    pub fn connection_handler<C: FnMut(&mut Self, &ConnectionInformation) + Send + Sync + 'a>(&mut self, mut handler: C) -> &mut Self
-    {
-        let notifier_ref = self.user_on_connection.notifier.clone();
-        let con_info_ref = self.user_on_connection.con_info.clone();
+        let user_on_connection = self.user_on_connection.as_mut().unwrap();
+        let notifier_ref = user_on_connection.notifier.clone();
+        let mut con_info_ref = user_on_connection.info_queue.clone();
+        user_on_connection.set_callback(handler);
         
         self.ble_server.on_connect(move |_, info| {
-            con_info_ref.lock().unwrap().push(ConnectionInformation::from_BLEConnDesc(info));
             unsafe{ notifier_ref.notify_and_yield(NonZeroU32::new(1).unwrap()); }
+            _ = con_info_ref.send_timeout(ConnectionInformation::from_BLEConnDesc(info, true), 1_000_000); //
         });
         self
     }
@@ -158,7 +129,7 @@ impl <'a>BleServer<'a> {
             handler(desc);
         });
 
-        self.ble_server.on_disconnect(closure);
+        //self.ble_server.on_disconnect(closure);
         self
     }
 
@@ -184,7 +155,7 @@ impl <'a>BleServer<'a> {
         Ok(())
     }
 
-    /// Set a characteristic to the server. Returns an error if the service does not exist or the properties are invalid
+    /// Set a characteristic to the server. Returns an error if the service does not exist or the properties are invalid.
     pub fn set_characteristic(&mut self, service_id: BleId, characteristic: &Characteristic) -> Result<(), BleError> {
         let server_service = task::block_on(async {
             self.ble_server.get_service(service_id.to_uuid()).await
@@ -222,18 +193,9 @@ impl <'a>BleServer<'a> {
 
 impl<'a> InterruptDriver for BleServer<'a>{
     fn update_interrupt(&mut self)-> Result<(), Esp32FrameworkError> {
-        let mut all_info = Vec::new();
-        while let Some(info) = self.user_on_connection.con_info.lock().unwrap().pop(){
-            all_info.push(info);
-        }
-
-        let mut callback = self.user_on_connection.callback.take();
-        if let Some(ref mut call) = callback{
-            for info in all_info{
-                call(self, info);
-            }
-            self.user_on_connection.callback = callback;
-        }
-        todo!()
+        let mut user_on_connection = self.user_on_connection.take().unwrap();
+        user_on_connection.handle_connection_changes(self);
+        self.user_on_connection = Some(user_on_connection);
+        Ok(())
     }
 }
