@@ -144,9 +144,17 @@ impl <'a>BleServer<'a> {
         self
     }
 
-    // TODO: CHANGE THIS!
-    pub fn set_connection_settings(){
-        todo!()
+    /// The conn_handle is obtained with the ConnectionInformation inside the closure of 
+    /// connection_handler
+    /// * `min_interval`: The minimum connection interval, time between BLE events. This value 
+    /// must range between 7.5ms and 4000ms in 1.25ms units, this interval will be used while transferring data
+    /// in max speed.
+    /// * `max_interval`: The maximum connection interval, time between BLE events. This value 
+    /// must range between 7.5ms and 4000ms in 1.25ms units, this interval will be used to save energy.
+    /// * `latency`: The number of packets that can be skipped (packets will be skipped only if there is no data to answer).
+    /// * `timeout`: The maximum time to wait after the last packet arrived to consider connection lost. 
+    pub fn set_connection_settings(&mut self, info: &ConnectionInformation, min_interval: u16, max_interval: u16, latency: u16, timeout: u16) -> Result<(), BleError>{
+        self.ble_server.update_conn_params(info.conn_handle, min_interval, max_interval, latency, timeout).map_err(|e| BleError::from(e))
     }
 
     /// Set or overwrite a service to the server

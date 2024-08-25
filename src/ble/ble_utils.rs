@@ -21,7 +21,10 @@ pub enum BleError{
     ServiceNotFound,
     PropertiesError,
     AdvertisementError,
-    StartingAdvertisementError
+    StartingAdvertisementError,
+    IncorrectHandle,
+    ConnectionError,
+    InvalidParameters,
 }
 
 impl From<BLEError> for BleError {
