@@ -24,11 +24,21 @@ pub enum BleError{
     StartingAdvertisementError
 }
 
-impl From<BLEError> for BleError{
+impl From<BLEError> for BleError {
     fn from(value: BLEError) -> Self {
         match value.code() {
             esp_idf_svc::sys::BLE_HS_EMSGSIZE => BleError::ServiceDoesNotFit,
             _ => BleError::Code(value.code(), value.to_string()),
+        }
+    }
+}
+
+impl BleError {
+        
+    fn from_code(code: u32) -> Option<BleError> {
+        match BLEError::convert(code) {
+            Ok(_) => None,
+            Err(err) => Some(BleError::from(err)),
         }
     }
 }

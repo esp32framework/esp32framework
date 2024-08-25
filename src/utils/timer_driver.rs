@@ -32,7 +32,7 @@ struct _TimerDriver<'a> {
     interrupts: HashMap<u8, TimeInterrupt>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum TimerDriverError {
     ErrorReadingTimer,
     ErrorReadingAlarm,

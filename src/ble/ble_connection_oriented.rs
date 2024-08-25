@@ -20,7 +20,8 @@ pub struct BleServer<'a> {
     ble_server: &'a mut BLEServer,
     services: Vec<Service>,  // TODO: Change it to Vec<&Service>
     advertisement: &'a Mutex<BLEAdvertising>,
-    user_on_connection: Option<ConnectionCallback<'a>>
+    user_on_connection: Option<ConnectionCallback<'a>>,
+    user_on_disconnection: Option<ConnectionCallback<'a>>
 }
 
 struct ConnectionCallback<'a>{
@@ -31,7 +32,7 @@ struct ConnectionCallback<'a>{
 
 impl<'a> ConnectionCallback<'a>{
     fn new(notifier: Arc<Notifier>) -> Self{
-        Self { callback: Box::new(|_,_| {}), info_queue: ISRQueue::new(50), notifier}
+        Self { callback: Box::new(|_,_| {}), info_queue: ISRQueue::new(1000), notifier}
     }
 
     fn set_callback<C: FnMut(&mut BleServer<'a>, &ConnectionInformation) + 'a>(&mut self, callback: C){
@@ -40,29 +41,43 @@ impl<'a> ConnectionCallback<'a>{
 
     fn handle_connection_changes(&mut self, server: &mut BleServer<'a>){
         while let Ok(item)  = self.info_queue.try_recv() {
-            (self.callback)(server, &item)
+            (self.callback)(server, &item);
         }
     }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct ConnectionInformation{
-    address: BLEAddress,
-    id_address: BLEAddress,
-    conn_handle: u16,
-    interval: u16,
-    timeout: u16,
-    latency: u16,
-    mtu: u16,
-    bonded: bool,
-    encrypted: bool,
-    authenticated: bool,
-    sec_key_size: u32,
-    rssi: Result<i8, BLEError>
+    pub address: BLEAddress,
+    pub id_address: BLEAddress,
+    pub conn_handle: u16,
+    pub interval: u16,
+    pub timeout: u16,
+    pub latency: u16,
+    pub mtu: u16,
+    pub bonded: bool,
+    pub encrypted: bool,
+    pub authenticated: bool,
+    pub sec_key_size: u32,
+    pub rssi: Result<i8, u32>,
+    pub disconnection_result: Option<u32>,
 }
 
 impl ConnectionInformation{
-    fn from_BLEConnDesc(desc: &BLEConnDesc, is_connected: bool) -> Self{
+    fn from_BLEConnDesc(desc: &BLEConnDesc, is_connected: bool, desc_res: Result<(), BLEError>) -> Self{
+        let mut res = None;
+        if !is_connected{
+            res = match desc_res {
+                Ok(_) => None,
+                Err(err) => Some(err.code()),
+            };
+        } 
+
+        let rssi = match desc.get_rssi() {
+            Ok(rssi) => Ok(rssi),
+            Err(err) => Err(err.code()),
+        };
+        
         ConnectionInformation{
             address: desc.address(),
             id_address:desc.id_address(),
@@ -75,20 +90,22 @@ impl ConnectionInformation{
             encrypted: desc.encrypted(),
             authenticated: desc.authenticated(),
             sec_key_size: desc.sec_key_size(),
-            rssi: desc.get_rssi(),
+            rssi,
+            disconnection_result: res,
         }
     }
+
 }
 
 impl <'a>BleServer<'a> {
-    pub fn new(name: String, ble_device: &mut BLEDevice, services: Vec<Service>, notifier: Arc<Notifier>) -> Self {
+    pub fn new(name: String, ble_device: &mut BLEDevice, services: Vec<Service>, connection_notifier: Arc<Notifier>, disconnection_notifier: Arc<Notifier>) -> Self {
         let mut server = BleServer{
             advertising_name: name,
             ble_server: ble_device.get_server(),
             services: services.clone(),
             advertisement: ble_device.get_advertising(),
-            user_on_connection: Some(ConnectionCallback::new(notifier)),
-            
+            user_on_connection: Some(ConnectionCallback::new(connection_notifier)),
+            user_on_disconnection: Some(ConnectionCallback::new(disconnection_notifier)),
         };
             
         for service in  &services {
@@ -107,33 +124,27 @@ impl <'a>BleServer<'a> {
         
         self.ble_server.on_connect(move |_, info| {
             unsafe{ notifier_ref.notify_and_yield(NonZeroU32::new(1).unwrap()); }
-            _ = con_info_ref.send_timeout(ConnectionInformation::from_BLEConnDesc(info, true), 1_000_000); //
+            _ = con_info_ref.send_timeout(ConnectionInformation::from_BLEConnDesc(info, true, Ok(())), 1_000_000); //
         });
         self
     }
 
-    /// Ver que error pueden salir al desconectarse para ver si se pueden mapear a los nuestros
-    /// En caso de poder hacerlo agregar el Result al closure del usuario
-    ///    let handler = |desc: &BLEConnDesc| {
-    ///     println!("Desconexión detectada con descriptor: {:?}", desc);
-    /// };
 
-    /// // Llama a `disconnect_handler` pasando el `handler` del usuario.
-    /// my_struct.disconnect_handler(handler);
-    pub fn disconnect_handler<H>(&mut self, mut handler: H) -> &mut Self
-    where
-        H: FnMut(&ConnectionInformation) + Send + Sync + 'static,
+    pub fn disconnect_handler<C: FnMut(&mut Self, &ConnectionInformation) + 'a>(&mut self, handler: C) -> &mut Self
     {
-        // Convertir el handler del usuario en un callback con la firma requerida.
-        let closure: Box<dyn FnMut(&ConnectionInformation, Result<(), BLEError>) + Send + Sync> = Box::new(move |desc, _result| {
-            handler(desc);
+        let user_on_disconnection = self.user_on_disconnection.as_mut().unwrap();
+        let notifier_ref = user_on_disconnection.notifier.clone();
+        let mut con_info_ref = user_on_disconnection.info_queue.clone();
+        user_on_disconnection.set_callback(handler);
+        
+        self.ble_server.on_disconnect(move |info, res| {
+            unsafe{ notifier_ref.notify_and_yield(NonZeroU32::new(1).unwrap()); }
+            _ = con_info_ref.send_timeout(ConnectionInformation::from_BLEConnDesc(info, false,res), 1_000_000);
         });
-
-        //self.ble_server.on_disconnect(closure);
         self
     }
 
-    // CHANGE THIS!
+    // TODO: CHANGE THIS!
     pub fn set_connection_settings(){
         todo!()
     }
@@ -191,11 +202,15 @@ impl <'a>BleServer<'a> {
     }
 }
 
+// TODO: refactor this!
 impl<'a> InterruptDriver for BleServer<'a>{
     fn update_interrupt(&mut self)-> Result<(), Esp32FrameworkError> {
         let mut user_on_connection = self.user_on_connection.take().unwrap();
+        let mut user_on_disconnection = self.user_on_disconnection.take().unwrap();
         user_on_connection.handle_connection_changes(self);
+        user_on_disconnection.handle_connection_changes(self);
         self.user_on_connection = Some(user_on_connection);
+        self.user_on_disconnection = Some(user_on_disconnection);
         Ok(())
     }
 }

@@ -209,7 +209,7 @@ impl <'a>Microcontroller<'a>{
     pub fn ble_server(&mut self, advertising_name: String, services: Vec<Service>)-> BleServer<'a>{
         self.peripherals.get_ble_device();
         let ble_device = BLEDevice::take();
-        BleServer::new(advertising_name, ble_device, services, self.notification.notifier() )
+        BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() )
     }
 
     pub fn update(&mut self) {
