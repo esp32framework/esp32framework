@@ -1,4 +1,4 @@
-use esp32_nimble::{utilities::BleUuid, BLEError, NimbleProperties};
+use esp32_nimble::{enums::{ConnMode, DiscMode}, utilities::BleUuid, BLEError, NimbleProperties};
 use uuid::Uuid;
 use crate::utils::timer_driver::TimerDriverError;
 
@@ -42,6 +42,44 @@ impl BleError {
         match BLEError::convert(code) {
             Ok(_) => None,
             Err(err) => Some(BleError::from(err)),
+        }
+    }
+}
+
+/// * `Non-Discoverable Mode`: The device does not advertise itself. Other devices will connect only if they know the specific address.
+/// * `Limited Discoverable Mode`: The device does the advertisement during a limited amount of time
+/// * `General Discoverable Mode`: The advertisment is done continuously, so any other device can see it in any moment.
+pub enum DiscoverableMode {
+    NonDiscoverable,
+    LimitedDiscoverable, // TODO: ADD support
+    GeneralDiscoverable
+}
+
+impl DiscoverableMode {
+    pub fn get_code(&self) -> DiscMode {
+        match self {
+            DiscoverableMode::NonDiscoverable => DiscMode::Non,
+            DiscoverableMode::LimitedDiscoverable => DiscMode::Ltd ,
+            DiscoverableMode::GeneralDiscoverable => DiscMode::Gen,
+        }
+    }
+}
+
+/// * `NonConnectable`: The device does not allow connections.
+/// * `DirectedConnectable`: The divice only allows connections from a specific divice.
+/// * `UndirectedConnectable`: The divice allows connections from any device.
+pub enum ConnectionMode {
+    NonConnectable,
+    DirectedConnectable, //TODO: ADD support
+    UndirectedConnectable,
+}
+
+impl ConnectionMode {
+    pub fn get_code(&self) -> ConnMode {
+        match self {
+            ConnectionMode::NonConnectable => ConnMode::Non,
+            ConnectionMode::DirectedConnectable => ConnMode::Dir,
+            ConnectionMode::UndirectedConnectable => ConnMode::Und,
         }
     }
 }

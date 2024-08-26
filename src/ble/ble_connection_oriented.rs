@@ -13,7 +13,7 @@ use crate::utils::auxiliary::ISRQueue;
 use crate::utils::esp32_framework_error::Esp32FrameworkError;
 use crate::InterruptDriver;
 
-use super::{BleError, BleId, Characteristic, Service};
+use super::{BleError, BleId, Characteristic, ConnectionMode, DiscoverableMode, Service};
 
 pub struct BleServer<'a> {
     advertising_name: String,
@@ -155,6 +155,44 @@ impl <'a>BleServer<'a> {
     /// * `timeout`: The maximum time to wait after the last packet arrived to consider connection lost. 
     pub fn set_connection_settings(&mut self, info: &ConnectionInformation, min_interval: u16, max_interval: u16, latency: u16, timeout: u16) -> Result<(), BleError>{
         self.ble_server.update_conn_params(info.conn_handle, min_interval, max_interval, latency, timeout).map_err(|e| BleError::from(e))
+    }
+
+    /// Set the advertising time parameters:
+    /// * `min_interval`: The minimum advertising interval, time between advertisememts. This value 
+    /// must range between 20ms and 10240ms in 0.625ms units.
+    /// * `max_interval`: The maximum advertising intervaltime between advertisememts. TThis value 
+    /// must range between 20ms and 10240ms in 0.625ms units.
+    pub fn set_advertising_interval(&mut self, min_interval: u16, max_interval: u16) -> &mut Self{
+        self.advertisement.lock().min_interval(min_interval).max_interval(max_interval);
+        self
+    }
+
+    /// Sets a high duty cycle has intervals between advertising packets are 
+    /// typically in the range of 20 ms to 100 ms.
+    /// Valid only if advertisement_type is directed-connectable.
+    pub fn set_high_advertising_duty_cycle(&mut self) -> &mut Self{
+        self.advertisement.lock().high_duty_cycle(true);
+        self
+    }
+
+    /// Sets a low duty cycle has ntervals between advertising packets are 
+    /// typically in the range of 1,000 ms to 10,240 ms.
+    /// Valid only if advertisement_type is directed-connectable.
+    pub fn set_low_advertising_duty_cycle(&mut self) -> &mut Self {
+        self.advertisement.lock().high_duty_cycle(false);
+        self
+    }
+
+    /// Sets the discover mode. The possible modes are:
+    pub fn set_discoverable_mode(&mut self, disc_mode: DiscoverableMode) -> &mut Self {
+        self.advertisement.lock().disc_mode(disc_mode.get_code());
+        self
+    }
+
+    ///Sets the connection mode of the advertisment.
+    pub fn set_connection_mode(&mut self, conn_mode: ConnectionMode) -> &mut Self {
+        self.advertisement.lock().advertisement_type(conn_mode.get_code());
+        self
     }
 
     /// Set or overwrite a service to the server
