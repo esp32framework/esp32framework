@@ -219,15 +219,27 @@ impl <'a>BleServer<'a> {
         Ok(())
     }
 
-    /// Set a characteristic to the server. Returns an error if the service does not exist or the properties are invalid.
+    /// Set a new characteristic or update the value in an existent characteristic to the server. 
+    /// Returns an error if the service does not exist or the properties are invalid.
     pub fn set_characteristic(&mut self, service_id: BleId, characteristic: &Characteristic) -> Result<(), BleError> {
         let server_service = task::block_on(async {
             self.ble_server.get_service(service_id.to_uuid()).await
         });
+
         if let Some(service) = server_service {    
             match NimbleProperties::from_bits(characteristic.properties.to_le()) {
-                Some(properties) => {
-                    let mut charac = service.lock().create_characteristic(
+                Some(properties) => {  
+                    let mut locked_service = service.lock();
+                    let server_characteristic = task::block_on(async {
+                        locked_service.get_characteristic(characteristic.id.to_uuid()).await
+                    });
+
+                    if let Some(server_characteristic) = server_characteristic { 
+                        server_characteristic.lock().set_value(&characteristic.data);
+                        return Ok(());
+                    }
+
+                    let charac = locked_service.create_characteristic(
                         characteristic.id.to_uuid(),
                         properties,
                     );

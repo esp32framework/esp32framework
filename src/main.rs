@@ -4,16 +4,17 @@ use esp32framework::{
     
 };
 use esp_idf_svc::hal::delay::FreeRtos;
-/*
+
 fn main(){
     let mut micro = Microcontroller::new();
 
-    let mut i = 0;
     let mut service_1 = Service::new(&BleId::FromUuid32(21), vec![0x65, 0x45]).unwrap();
-    let service_2 = Service::new(&BleId::FromUuid32(32), vec![]).unwrap();
-    let mut server = micro.ble_server("DIEGO".to_string(), vec![service_1, service_2]);
-    // server.set_service(&service_1.clone()).unwrap();
-    // server.set_service(&service_2.clone()).unwrap();
+    let mut characteristic = Characteristic::new(BleId::ByName("caract_1".to_string()),vec![0x1;5]);
+    characteristic.readeable(true);
+    service_1.add_characteristic(characteristic);
+    
+    let mut server = micro.ble_server("DIEGO".to_string(), vec![service_1]);
+
     
     server.connection_handler(move |server, info| {
         println!("Se conecto {:?} !!!!!!!!", info.address);
@@ -27,23 +28,23 @@ fn main(){
         // i += 1;
     });
 
-    // TESTING!
     server.disconnect_handler(move |_, info| {
         println!("Se desconecto {:?}!!!!!!!!", info.address);
     });
 
 
     server.start().unwrap();
-    server.set_characteristic(BleId::FromUuid32(21), &Characteristic::new(BleId::ByName("caract_2".to_string()),vec![0x1;5])).unwrap();
-
-    loop{
-        server.update_interrupt().unwrap();
-        micro.sleep(100);
+    let mut counter = 0;
+    loop  {
+      server.update_interrupt().unwrap();
+      micro.sleep(1000);
+      server.set_characteristic(BleId::FromUuid32(21), &Characteristic::new(BleId::ByName("caract_1".to_string()),vec![counter;2])).unwrap();
+      counter += 1;
     }
 } 
-*/
 
 
+/*
 fn main() {
   esp_idf_svc::sys::link_patches();
   esp_idf_svc::log::EspLogger::initialize_default();
@@ -139,3 +140,4 @@ ble_advertising.lock().set_data(
   }
 
 }
+*/
