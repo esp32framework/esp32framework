@@ -18,7 +18,7 @@ use super::{BleError, BleId, Characteristic, ConnectionMode, DiscoverableMode, S
 pub struct BleServer<'a> {
     advertising_name: String,
     ble_server: &'a mut BLEServer,
-    services: Vec<Service>,  // TODO: Change it to Vec<&Service>
+    services: Vec<Service>,                     // TODO: Change it to Vec<&Service>
     advertisement: &'a Mutex<BLEAdvertising>,
     user_on_connection: Option<ConnectionCallback<'a>>,
     user_on_disconnection: Option<ConnectionCallback<'a>>
@@ -162,7 +162,7 @@ impl <'a>BleServer<'a> {
     /// must range between 20ms and 10240ms in 0.625ms units.
     /// * `max_interval`: The maximum advertising intervaltime between advertisememts. TThis value 
     /// must range between 20ms and 10240ms in 0.625ms units.
-    pub fn set_advertising_interval(&mut self, min_interval: u16, max_interval: u16) -> &mut Self{
+    fn set_advertising_interval(&mut self, min_interval: u16, max_interval: u16) -> &mut Self {
         self.advertisement.lock().min_interval(min_interval).max_interval(max_interval);
         self
     }
@@ -185,6 +185,13 @@ impl <'a>BleServer<'a> {
 
     /// Sets the discover mode. The possible modes are:
     pub fn set_discoverable_mode(&mut self, disc_mode: DiscoverableMode) -> &mut Self {
+        match disc_mode {
+            DiscoverableMode::NonDiscoverable => self.advertisement.lock().disc_mode(disc_mode.get_code()),
+            DiscoverableMode::LimitedDiscoverable(min_interval, max_interval) => self.advertisement.lock().disc_mode(disc_mode.get_code())
+                .min_interval(min_interval)
+                .max_interval(max_interval),
+            DiscoverableMode::GeneralDiscoverable(min_interval, max_interval) => self.advertisement.lock().disc_mode(disc_mode.get_code()).min_interval(min_interval).max_interval(max_interval),
+        };
         self.advertisement.lock().disc_mode(disc_mode.get_code());
         self
     }

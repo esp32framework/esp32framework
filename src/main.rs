@@ -1,9 +1,10 @@
-use esp32_nimble::{uuid128, BLEAdvertisementData, BLEDevice, NimbleProperties};
+use esp32_nimble::{enums::{ConnMode, DiscMode}, uuid128, BLEAdvertisementData, BLEDevice, NimbleProperties};
 use esp32framework::{
     ble::{BleId, BleServer, Characteristic, Service}, InterruptDriver, Microcontroller
     
 };
-
+use esp_idf_svc::hal::delay::FreeRtos;
+/*
 fn main(){
     let mut micro = Microcontroller::new();
 
@@ -40,43 +41,44 @@ fn main(){
         micro.sleep(100);
     }
 } 
+*/
 
 
-// fn main() {
-//   esp_idf_svc::sys::link_patches();
-//   esp_idf_svc::log::EspLogger::initialize_default();
+fn main() {
+  esp_idf_svc::sys::link_patches();
+  esp_idf_svc::log::EspLogger::initialize_default();
 
-//   let ble_device = BLEDevice::take();
-//   let ble_advertising = ble_device.get_advertising();
+  let ble_device = BLEDevice::take();
+  let ble_advertising = ble_device.get_advertising();
 
-//   let server = ble_device.get_server();
-//   server.on_connect(|server, desc| {
-//     ::log::info!("Client connected: {:?}", desc);
+  let server = ble_device.get_server();
+  server.on_connect(|server, desc| {
+    ::log::info!("Client connected: {:?}", desc);
     
-//     server
-//       .update_conn_params(desc.conn_handle(), 24, 48, 0, 60)
-//       .unwrap();
+    server
+      .update_conn_params(desc.conn_handle(), 24, 48, 0, 60)
+      .unwrap();
 
-//     // if server.connected_count() < (esp_idf_svc::sys::CONFIG_BT_NIMBLE_MAX_CONNECTIONS as _) {
-//     //   ::log::info!("Multi-connect support: start advertising");
-//     //   ble_advertising.lock().start().unwrap();
-//     // }
+    if server.connected_count() < (esp_idf_svc::sys::CONFIG_BT_NIMBLE_MAX_CONNECTIONS as _) {
+      ::log::info!("Multi-connect support: start advertising");
+      ble_advertising.lock().start().unwrap();
+    }
+  });
+
+//   server.on_disconnect(|_desc, reason| {
+//     ::log::info!("Client disconnected ({:?})", reason);
 //   });
 
-// //   server.on_disconnect(|_desc, reason| {
-// //     ::log::info!("Client disconnected ({:?})", reason);
-// //   });
+  let service = server.create_service(uuid128!("fafafafa-fafa-fafa-fafa-fafafafafafa"));
 
-//   let service = server.create_service(uuid128!("fafafafa-fafa-fafa-fafa-fafafafafafa"));
-
-//   // A static characteristic.
-//   let static_characteristic = service.lock().create_characteristic(
-//     uuid128!("d4e0e0d0-1a2b-11e9-ab14-d663bd873d93"),
-//     NimbleProperties::READ,
-//   );
-//   static_characteristic
-//     .lock()
-//     .set_value("Hello, world!".as_bytes());
+  // A static characteristic.
+  let static_characteristic = service.lock().create_characteristic(
+    uuid128!("d4e0e0d0-1a2b-11e9-ab14-d663bd873d93"),
+    NimbleProperties::READ,
+  );
+  static_characteristic
+    .lock()
+    .set_value("Hello, world!".as_bytes());
 
 //   // A characteristic that notifies every second.
 //   let notifying_characteristic = service.lock().create_characteristic(
@@ -85,7 +87,7 @@ fn main(){
 //   );
 //   notifying_characteristic.lock().set_value(b"Initial value.");
 
-//   // A writable characteristic.
+  // A writable characteristic.
 //   let writable_characteristic = service.lock().create_characteristic(
 //     uuid128!("3c9a3f00-8ed3-4bdf-8a39-a01bebede295"),
 //     NimbleProperties::READ | NimbleProperties::WRITE,
@@ -103,28 +105,37 @@ fn main(){
 //       );
 //     });
 
-//   ble_advertising.lock().set_data(
-//     BLEAdvertisementData::new()
-//       .name("ESP32-GATT-Server")
-//       .add_service_uuid(uuid128!("fafafafa-fafa-fafa-fafa-fafafafafafa")),
-//   ).unwrap();
 
-//   ble_advertising.lock().start();
-//   ble_advertising.lock().stop();
-//   let service = server.create_service(uuid128!("fafafafa-fafa-fafa-fafa-fafafafafaff"));
-//   ble_advertising.lock().start();
+let mut min_interval = 160;
+let mut max_interval = 240;
+ble_advertising.lock().disc_mode(esp32_nimble::enums::DiscMode::Non);
+//ble_advertising.lock().advertisement_type(esp32_nimble::enums::ConnMode::Und);
+//ble_advertising.lock().min_interval(min_interval);
+//ble_advertising.lock().max_interval(max_interval);
+ble_advertising.lock().scan_response(false);
 
-//   server.ble_gatts_show_local();
+esp32_nimble::ble::add_device_to_white_list();
 
-//   let mut counter = 0;
-//   loop {
-//     esp_idf_svc::hal::delay::FreeRtos::delay_ms(1000);
-//     notifying_characteristic
-//       .lock()
-//       .set_value(format!("Counter: {counter}").as_bytes())
-//       .notify();
+ble_advertising.lock().set_data(
+  BLEAdvertisementData::new()
+    .name("ESP32-GATT-Server")
+    .add_service_uuid(uuid128!("fafafafa-fafa-fafa-fafa-fafafafafafa")),
+).unwrap();
 
-//     counter += 1;
-//   }
+  // let service = server.create_service(uuid128!("fafafafa-fafa-fafa-fafa-fafafafafaff"));
+  ble_advertising.lock().start();
 
-// }
+  server.ble_gatts_show_local();
+
+  let mut counter = 0;
+  loop {
+    esp_idf_svc::hal::delay::FreeRtos::delay_ms(1000);
+    // notifying_characteristic
+    //   .lock()
+    //   .set_value(format!("Counter: {counter}").as_bytes())
+    //   .notify();
+
+    counter += 1;
+  }
+
+}
