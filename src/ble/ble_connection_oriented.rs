@@ -98,7 +98,7 @@ impl ConnectionInformation{
 }
 
 impl <'a>BleServer<'a> {
-    pub fn new(name: String, ble_device: &mut BLEDevice, services: Vec<Service>, connection_notifier: Arc<Notifier>, disconnection_notifier: Arc<Notifier>) -> Self {
+    pub fn new(name: String, ble_device: &mut BLEDevice, services: &Vec<Service>, connection_notifier: Arc<Notifier>, disconnection_notifier: Arc<Notifier>) -> Self {
         let mut server = BleServer{
             advertising_name: name,
             ble_server: ble_device.get_server(),
@@ -108,7 +108,7 @@ impl <'a>BleServer<'a> {
             user_on_disconnection: Some(ConnectionCallback::new(disconnection_notifier)),
         };
             
-        for service in  &services {
+        for service in services {
             server.set_service(service);
         }
 
@@ -212,7 +212,7 @@ impl <'a>BleServer<'a> {
         Ok(())
     }
 
-    pub fn set_services(&mut self, services: Vec<Service>) -> Result<(),BleError> {
+    pub fn set_services(&mut self, services: &Vec<Service>) -> Result<(),BleError> {
         for service in services {
             self.set_service(&service)?;
         }

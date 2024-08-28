@@ -88,7 +88,7 @@ pub struct DateTime {
     pub date: u8,
     pub month: u8,
     pub year: u8
-} 
+}
 
 /// Simple abstraction of the DS3231 that facilitates its handling
 pub struct DS3231<'a> {
@@ -123,6 +123,21 @@ impl <'a>DS3231<'a> {
         self.set(date_time.date, DateTimeComponent::Date)?;
         self.set(date_time.month, DateTimeComponent::Month)?;
         self.set(date_time.year, DateTimeComponent::Year)
+    }
+
+
+    /// Returns a date_time with the current date and time. 
+    pub fn get_date_time(&mut self)-> DateTime {
+        let date_time = self.read_and_parse();
+        DateTime {
+            second: date_time["secs"].parse().unwrap(),
+            minute: date_time["min"].parse().unwrap(),
+            hour: date_time["hrs"].parse().unwrap(),
+            week_day: self.read(DateTimeComponent::WeekDay).unwrap(),
+            date: date_time["day_number"].parse().unwrap(),
+            month: date_time["month"].parse().unwrap(),
+            year: date_time["year"].parse().unwrap(),
+        }
     }
 
     /// Allows to set just a component (seconds, minutes, hours, etc) of the time to the DS3231.
@@ -310,6 +325,7 @@ impl <'a>DS3231<'a> {
         temp_integer + temp_fractional
     }
 }
+
 
 impl<'a> READER for DS3231<'a> {
     fn read_and_parse(& mut self) -> HashMap<String, String> {

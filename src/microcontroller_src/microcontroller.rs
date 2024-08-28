@@ -206,7 +206,7 @@ impl <'a>Microcontroller<'a>{
     }
     
     // TODO &VEc<Services>
-    pub fn ble_server(&mut self, advertising_name: String, services: Vec<Service>)-> BleServer<'a>{
+    pub fn ble_server(&mut self, advertising_name: String, services: &Vec<Service>)-> BleServer<'a>{
         self.peripherals.get_ble_device();
         let ble_device = BLEDevice::take();
         BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() )

@@ -10,7 +10,6 @@ fn main(){
     }
     let mut beacon = micro.ble_beacon("My Beacon".to_string(), &services1);
     
-    beacon.set_services(&services1).unwrap();
     beacon.advertise_all_service_data().unwrap();
     beacon.start().unwrap();
     

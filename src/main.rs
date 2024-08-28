@@ -1,145 +1,92 @@
-use esp32_nimble::{enums::{ConnMode, DiscMode}, uuid128, BLEAdvertisementData, BLEDevice, NimbleProperties};
-use esp32framework::{
-    ble::{BleId, BleServer, Characteristic, Service}, InterruptDriver, Microcontroller
-    
-};
-use esp_idf_svc::hal::delay::FreeRtos;
+// Leer del reloj temp y tiempo, cada x tiempo mandar la temp
+// Mandar info por ble
+// prender led cuando se manda
+
+use esp32framework::{ble::{BleBeacon, BleId, Service, StandarCharacteristicId, StandarServiceId}, gpio::DigitalOut, sensors::{DateTime, DS3231}, Microcontroller};
+
+const SDA: usize = 5;
+const SCL: usize = 6;
+const LED: usize = 15;
+
+fn setup_ds3231<'a>(micro: &mut Microcontroller<'a>)-> DS3231<'a>{
+  let i2c = micro.set_pins_for_i2c_master(SDA,SCL);
+  let mut ds3231 = DS3231::new(i2c);
+  let date_time = DateTime {
+	  second: 5,
+	  minute: 10,
+	  hour: 20,
+	  week_day: 5,
+	  date: 29,
+	  month: 8,
+	  year: 24,
+  };
+
+  ds3231.set_time(date_time).unwrap();
+  ds3231
+}
+
+fn setup_ble_beacon<'a>(micro: & mut Microcontroller<'a>)-> (BleBeacon<'a>, Service) {
+  let service_id = BleId::StandardService(StandarServiceId::EnvironmentalSensing);
+  let mut service = vec![Service::new(&service_id, vec![]).unwrap()];
+  let mut beacon = micro.ble_beacon("ESP32-beacon".to_string(), &service);
+  beacon.advertise_service_data(&service_id).unwrap();
+  beacon.start().unwrap();
+  (beacon, service.pop().unwrap())
+}
+
+fn setup_led<'a>(micro: & mut Microcontroller<'a>)-> DigitalOut<'a>{
+  let mut led = micro.set_pin_as_digital_out(LED);
+  led.set_low().unwrap();
+  led
+}
 
 fn main(){
-    let mut micro = Microcontroller::new();
+  let mut micro = Microcontroller::new();
+  let mut ds3231 = setup_ds3231(&mut micro);
+  let (mut beacon, mut service) = setup_ble_beacon(&mut micro);
+  let mut led = setup_led(&mut micro);
 
-    let mut service_1 = Service::new(&BleId::FromUuid32(21), vec![0x65, 0x45]).unwrap();
-    let mut characteristic = Characteristic::new(BleId::ByName("caract_1".to_string()),vec![0x1;5]);
-    characteristic.readeable(true);
-    characteristic.notifiable(true);
-    service_1.add_characteristic(characteristic.clone());
-    
-    let mut server = micro.ble_server("DIEGO".to_string(), vec![service_1.clone()]);
-
-    
-    server.connection_handler(move |server, info| {
-        println!("Se conecto {:?} !!!!!!!!", info.address);
-        // if i == 0{
-        //     server.set_characteristic(BleId::FromUuid32(21), &Characteristic::new(BleId::ByName("caract".to_string()),vec![0x0;5])).unwrap();
-            
-        // }else if i == 1{
-        //     server.set_characteristic(BleId::FromUuid32(32), &Characteristic::new(BleId::ByName("caract_2".to_string()),vec![0x1;5])).unwrap();
-        // }
-
-        // i += 1;
-    });
-
-    server.disconnect_handler(move |_, info| {
-        println!("Se desconecto {:?}!!!!!!!!", info.address);
-    });
-
-
-    server.start().unwrap();
-    let mut counter = 0;
-    loop  {
-      server.update_interrupt().unwrap();
-      micro.sleep(1000);
-      characteristic.update_data(vec![counter; 2]);
-      server.notify_value(BleId::FromUuid32(21), &characteristic).unwrap();
-      counter += 1;
-    }
-} 
-
-
-/*
-fn main() {
-  esp_idf_svc::sys::link_patches();
-  esp_idf_svc::log::EspLogger::initialize_default();
-
-  let ble_device = BLEDevice::take();
-  let ble_advertising = ble_device.get_advertising();
-
-  let server = ble_device.get_server();
-  server.on_connect(|server, desc| {
-    ::log::info!("Client connected: {:?}", desc);
-    
-    server
-      .update_conn_params(desc.conn_handle(), 24, 48, 0, 60)
-      .unwrap();
-
-    if server.connected_count() < (esp_idf_svc::sys::CONFIG_BT_NIMBLE_MAX_CONNECTIONS as _) {
-      ::log::info!("Multi-connect support: start advertising");
-      ble_advertising.lock().start().unwrap();
-    }
-  });
-
-//   server.on_disconnect(|_desc, reason| {
-//     ::log::info!("Client disconnected ({:?})", reason);
-//   });
-
-  let service = server.create_service(uuid128!("fafafafa-fafa-fafa-fafa-fafafafafafa"));
-
-  // A static characteristic.
-  let static_characteristic = service.lock().create_characteristic(
-    uuid128!("d4e0e0d0-1a2b-11e9-ab14-d663bd873d93"),
-    NimbleProperties::READ,
-  );
-  static_characteristic
-    .lock()
-    .set_value("Hello, world!".as_bytes());
-
-//   // A characteristic that notifies every second.
-//   let notifying_characteristic = service.lock().create_characteristic(
-//     uuid128!("a3c87500-8ed3-4bdf-8a39-a01bebede295"),
-//     NimbleProperties::READ | NimbleProperties::NOTIFY,
-//   );
-//   notifying_characteristic.lock().set_value(b"Initial value.");
-
-  // A writable characteristic.
-//   let writable_characteristic = service.lock().create_characteristic(
-//     uuid128!("3c9a3f00-8ed3-4bdf-8a39-a01bebede295"),
-//     NimbleProperties::READ | NimbleProperties::WRITE,
-//   );
-//   writable_characteristic
-//     .lock()
-//     .on_read(move |_, _| {
-//       ::log::info!("Read from writable characteristic.");
-//     })
-//     .on_write(|args| {
-//       ::log::info!(
-//         "Wrote to writable characteristic: {:?} -> {:?}",
-//         args.current_data(),
-//         args.recv_data()
-//       );
-//     });
-
-
-let mut min_interval = 160;
-let mut max_interval = 240;
-ble_advertising.lock().disc_mode(esp32_nimble::enums::DiscMode::Non);
-//ble_advertising.lock().advertisement_type(esp32_nimble::enums::ConnMode::Und);
-//ble_advertising.lock().min_interval(min_interval);
-//ble_advertising.lock().max_interval(max_interval);
-ble_advertising.lock().scan_response(false);
-
-esp32_nimble::ble::add_device_to_white_list();
-
-ble_advertising.lock().set_data(
-  BLEAdvertisementData::new()
-    .name("ESP32-GATT-Server")
-    .add_service_uuid(uuid128!("fafafafa-fafa-fafa-fafa-fafafafafafa")),
-).unwrap();
-
-  // let service = server.create_service(uuid128!("fafafafa-fafa-fafa-fafa-fafafafafaff"));
-  ble_advertising.lock().start();
-
-  server.ble_gatts_show_local();
-
-  let mut counter = 0;
+  let mut sent: bool = false;
   loop {
-    esp_idf_svc::hal::delay::FreeRtos::delay_ms(1000);
-    // notifying_characteristic
-    //   .lock()
-    //   .set_value(format!("Counter: {counter}").as_bytes())
-    //   .notify();
+    let date_time = ds3231.get_date_time();
+    if date_time.second % 10 == 0 {
+      if !sent{
+        let temp = ds3231.get_temperature();
+		println!("Temperature: {:?}", temp);
 
-    counter += 1;
+        service.data = parse_temp(temp); // parsear la temp
+        beacon.set_service(&service).unwrap();
+        led.blink(2, 500_000).unwrap();
+        sent = true;
+      }
+    }else{
+        sent = false;
+    }
+    micro.wait_for_updates(Some(300));
   }
+}
+
+fn parse_temp(temp: f32) -> Vec<u8> {
+  let int_part = temp as u8;
+  let decimal_part = ((temp - int_part as f32) * 100 as f32) as u8;
+  vec![decimal_part, int_part]
 
 }
-*/
+
+/*
+fn parse_temp(temp: f32) -> Vec<u8> {
+  let bits = temp.to_bits();
+  let bytes = bits.to_le_bytes();
+  bytes.to_vec()
+}
+
+fn main() {
+    let temp = 32.123456;
+    let parsed = parse_temp(temp);
+    println!("{:?}", parsed);
+
+    let a = f32::from_le_bytes(parsed.try_into().unwrap());
+    println!("{:?}", a);
+}
+
+ */

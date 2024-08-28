@@ -136,7 +136,10 @@ impl BleId {
         match self {
             BleId::StandardService(service) => {BleUuid::from_uuid16(*service as u16)},
             BleId::StandarCharacteristic(characteristic) => {BleUuid::from_uuid16(*characteristic as u16)},
-            BleId::ByName(name) => {BleUuid::from_uuid128(Uuid::new_v3(&Uuid::NAMESPACE_OID, name.as_bytes()).into_bytes())},
+            BleId::ByName(name) => {
+                let arr: [u8;4] = Uuid::new_v3(&Uuid::NAMESPACE_OID, name.as_bytes()).into_bytes()[0..4].try_into().unwrap();
+                BleUuid::from_uuid32(u32::from_be_bytes(arr))
+            },
             BleId::FromUuid16(uuid) => BleUuid::from_uuid16(*uuid),
             BleId::FromUuid32(uuid) => BleUuid::from_uuid32(*uuid),
             BleId::FromUuid128(uuid) => BleUuid::from_uuid128(*uuid),
