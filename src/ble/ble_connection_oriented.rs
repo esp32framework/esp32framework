@@ -2,7 +2,7 @@ use std::num::NonZeroU32;
 use std::{collections::HashMap, sync::Arc};
 use std::sync::Mutex as Mutex2;
 
-use esp32_nimble::BLEAddress;
+use esp32_nimble::{BLEAddress, BLEService};
 use esp32_nimble::{utilities::mutex::Mutex, uuid128, BLEAdvertisementData, BLEAdvertising, BLEConnDesc, BLEDevice, BLEError, BLEServer, NimbleProperties};
 use esp_idf_svc::hal::task;
 use esp_idf_svc::hal::task::queue::Queue;
@@ -18,7 +18,7 @@ use super::{BleError, BleId, Characteristic, ConnectionMode, DiscoverableMode, S
 pub struct BleServer<'a> {
     advertising_name: String,
     ble_server: &'a mut BLEServer,
-    services: Vec<Service>,                     // TODO: Change it to Vec<&Service>
+    services: Vec<Service>,               
     advertisement: &'a Mutex<BLEAdvertising>,
     user_on_connection: Option<ConnectionCallback<'a>>,
     user_on_disconnection: Option<ConnectionCallback<'a>>
@@ -226,30 +226,63 @@ impl <'a>BleServer<'a> {
             self.ble_server.get_service(service_id.to_uuid()).await
         });
 
-        if let Some(service) = server_service {    
-            match NimbleProperties::from_bits(characteristic.properties.to_le()) {
-                Some(properties) => {  
-                    let mut locked_service = service.lock();
-                    let server_characteristic = task::block_on(async {
-                        locked_service.get_characteristic(characteristic.id.to_uuid()).await
-                    });
+        // Check if there is a service with 'service_id' as its id.
+        if let Some(service) = server_service {
 
-                    if let Some(server_characteristic) = server_characteristic { 
-                        server_characteristic.lock().set_value(&characteristic.data);
-                        return Ok(());
+            match self.try_to_update_characteristic(service, characteristic, false) {
+                Ok(_) => return Ok(()),
+                Err(_) => {
+                    // Create a new characteristic
+                    match NimbleProperties::from_bits(characteristic.properties.to_le()) {
+                        Some(properties) => {
+
+                            let charac = service.lock().create_characteristic(
+                                characteristic.id.to_uuid(),
+                                properties,
+                            );
+                            charac.lock().set_value(&characteristic.data);
+                            return Ok(());
+                        },
+                        None => {return Err(BleError::PropertiesError)},
                     }
-
-                    let charac = locked_service.create_characteristic(
-                        characteristic.id.to_uuid(),
-                        properties,
-                    );
-                    charac.lock().set_value(&characteristic.data);
-                    return Ok(());
-                },
-                None => {return Err(BleError::PropertiesError)},
+                }
             }
         }
         Err(BleError::ServiceNotFound)
+    }
+
+    /// Checks if there is a BLECharacteristic on the BLEService with the corresponding id. If it exists, it updates its value. Apart from that,
+    /// depending on thee notify boolean parameter, it may notify the connected device of the changed value.
+    fn try_to_update_characteristic(&self, service: &Arc<Mutex<BLEService>>, characteristic: &Characteristic, notify: bool) -> Result<(), BleError> {
+        // Check if there is a characteristic with characteristic.id in this service
+        let locked_service = service.lock();
+        let server_characteristic = task::block_on(async {
+            locked_service.get_characteristic(characteristic.id.to_uuid()).await
+        });
+
+        if let Some(server_characteristic) = server_characteristic { 
+            let mut res_characteristic = server_characteristic.lock();
+            res_characteristic.set_value(&characteristic.data);
+            if notify {
+                res_characteristic.notify();
+            }
+            return Ok(());
+        }
+        
+        Err(BleError::CharacteristicNotFound)
+    }
+    
+    pub fn notify_value(&mut self, service_id: BleId, characteristic: &Characteristic) -> Result<(), BleError> {
+        let server_service = task::block_on(async {
+            self.ble_server.get_service(service_id.to_uuid()).await
+        });
+
+        if let Some(service) = server_service {
+            self.try_to_update_characteristic(service, characteristic, true)?;
+            return Ok(());
+        }
+        Err(BleError::ServiceNotFound)
+        
     }
 
     pub fn start(&mut self) -> Result<(), BleError>{

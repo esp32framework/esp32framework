@@ -19,6 +19,7 @@ pub enum BleError{
     TimerDriverError(TimerDriverError),
     Code(u32, String),
     ServiceNotFound,
+    CharacteristicNotFound,
     PropertiesError,
     AdvertisementError,
     StartingAdvertisementError,

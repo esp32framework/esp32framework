@@ -11,9 +11,10 @@ fn main(){
     let mut service_1 = Service::new(&BleId::FromUuid32(21), vec![0x65, 0x45]).unwrap();
     let mut characteristic = Characteristic::new(BleId::ByName("caract_1".to_string()),vec![0x1;5]);
     characteristic.readeable(true);
-    service_1.add_characteristic(characteristic);
+    characteristic.notifiable(true);
+    service_1.add_characteristic(characteristic.clone());
     
-    let mut server = micro.ble_server("DIEGO".to_string(), vec![service_1]);
+    let mut server = micro.ble_server("DIEGO".to_string(), vec![service_1.clone()]);
 
     
     server.connection_handler(move |server, info| {
@@ -38,7 +39,8 @@ fn main(){
     loop  {
       server.update_interrupt().unwrap();
       micro.sleep(1000);
-      server.set_characteristic(BleId::FromUuid32(21), &Characteristic::new(BleId::ByName("caract_1".to_string()),vec![counter;2])).unwrap();
+      characteristic.update_data(vec![counter; 2]);
+      server.notify_value(BleId::FromUuid32(21), &characteristic).unwrap();
       counter += 1;
     }
 } 
