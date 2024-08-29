@@ -116,13 +116,14 @@ impl <'a>_DigitalOut<'a> {
         if amount_of_blinks == 0 {
             return Ok(())
         }
-
+        
         let interrupt_update_code_ref = self.interrupt_update_code.clone();
         let callback = move || {
             interrupt_update_code_ref.store(InterruptUpdate::Blink.get_code(), Ordering::SeqCst);
         };
 
-        self.timer_driver.interrupt_after_n_times(time_between_states_micro, Some(amount_of_blinks), true, callback);
+        self.timer_driver.interrupt_after_n_times(time_between_states_micro, Some(amount_of_blinks - 1), true, callback);
+        self.toggle()?;
         self.timer_driver.enable().map_err(DigitalOutError::TimerDriverError)
     }
 
