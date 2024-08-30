@@ -212,6 +212,8 @@ impl <'a>Microcontroller<'a>{
         BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() )
     }
 
+    
+
     pub fn update(&mut self) {
         //timer_drivers must be updated before other drivers since this may efect the other drivers updates
         for timer_driver in &mut self.timer_drivers{
@@ -250,7 +252,7 @@ impl <'a>Microcontroller<'a>{
         }   
     }
 
-    pub fn sleep(&mut self, miliseconds:u32){
+    pub fn sleep(&self, miliseconds:u32){
         FreeRtos::delay_ms(miliseconds)
     }
 }

@@ -26,12 +26,16 @@ pub enum BleError{
     IncorrectHandle,
     ConnectionError,
     InvalidParameters,
+    DeviceNotFound,
+    AlreadyConnected
 }
 
 impl From<BLEError> for BleError {
     fn from(value: BLEError) -> Self {
         match value.code() {
             esp_idf_svc::sys::BLE_HS_EMSGSIZE => BleError::ServiceDoesNotFit,
+            esp_idf_svc::sys::BLE_HS_EDONE => BleError::AlreadyConnected,
+            esp_idf_svc::sys::BLE_HS_ENOTCONN  => BleError::DeviceNotFound,
             _ => BleError::Code(value.code(), value.to_string()),
         }
     }
