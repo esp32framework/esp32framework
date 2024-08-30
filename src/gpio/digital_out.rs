@@ -111,18 +111,28 @@ impl <'a>_DigitalOut<'a> {
     
     /// Makes the pin blink for a certain amount of times defined by *amount_of_blinks*,
     /// the time states can be adjusted using *time_between_states_micro* (micro sec)
+    /// 
+    /// # Arguments
+    /// 
+    /// * `amount_of_blinks` - Amount of times the pin will blink
+    /// * `time_between_states_micro` - Time between each state change in micro seconds
+    /// 
+    /// # Example
+    /// 
+    ///  
     pub fn blink(&mut self, amount_of_blinks: u32, time_between_states_micro: u64) -> Result<(), DigitalOutError> {
         let amount_of_blinks = amount_of_blinks * 2;
         if amount_of_blinks == 0 {
             return Ok(())
         }
-
+        
         let interrupt_update_code_ref = self.interrupt_update_code.clone();
         let callback = move || {
             interrupt_update_code_ref.store(InterruptUpdate::Blink.get_code(), Ordering::SeqCst);
         };
 
-        self.timer_driver.interrupt_after_n_times(time_between_states_micro, Some(amount_of_blinks), true, callback);
+        self.timer_driver.interrupt_after_n_times(time_between_states_micro, Some(amount_of_blinks - 1), true, callback);
+        self.toggle()?;
         self.timer_driver.enable().map_err(DigitalOutError::TimerDriverError)
     }
 
