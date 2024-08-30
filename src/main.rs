@@ -9,7 +9,7 @@
 // * DS3231 *
 // - SDA: 5
 // - SCL: 6
-// - VCC: 3.3V
+// - VCC: 3.3V 
 
 use esp32framework::{ble::{BleBeacon, BleId, Service, StandarServiceId}, gpio::DigitalOut, sensors::{DateTime, DS3231}, Microcontroller};
 
@@ -58,7 +58,7 @@ fn main(){
 	let mut sent: bool = false;
 	loop {
 		let date_time = ds3231.get_date_time();
-		if date_time.second % 10 == 0 {
+		if date_time.second % 5 == 0 {
 			if !sent {
 			  let temp = ds3231.get_temperature();
 				println!("Temperature: {:?}", temp);
@@ -77,5 +77,5 @@ fn main(){
 fn parse_temperature(temp: f32) -> Vec<u8> {
 	let int_part = temp as u8;
 	let decimal_part = (temp.fract() * 100.0) as u8;
-	vec![int_part, decimal_part]
+	vec![decimal_part, int_part	]
 }

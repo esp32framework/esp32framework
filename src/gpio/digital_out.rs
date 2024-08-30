@@ -111,6 +111,15 @@ impl <'a>_DigitalOut<'a> {
     
     /// Makes the pin blink for a certain amount of times defined by *amount_of_blinks*,
     /// the time states can be adjusted using *time_between_states_micro* (micro sec)
+    /// 
+    /// # Arguments
+    /// 
+    /// * `amount_of_blinks` - Amount of times the pin will blink
+    /// * `time_between_states_micro` - Time between each state change in micro seconds
+    /// 
+    /// # Example
+    /// 
+    ///  
     pub fn blink(&mut self, amount_of_blinks: u32, time_between_states_micro: u64) -> Result<(), DigitalOutError> {
         let amount_of_blinks = amount_of_blinks * 2;
         if amount_of_blinks == 0 {
