@@ -1,81 +1,69 @@
-// Leer del reloj temp y tiempo, cada x tiempo mandar la temp
-// Mandar info por ble
-// prender led cuando se manda
-
-// Conexiones
-// * Led *
-// - Pin rojo conectado a una resistencia y la otra punta de esa resistencia conectada al pin 15
-// - Pin largo a GND 
-// * DS3231 *
-// - SDA: 5
-// - SCL: 6
-// - VCC: 3.3V 
-
-use esp32framework::{ble::{BleBeacon, BleId, Service, StandarServiceId}, gpio::DigitalOut, sensors::{DateTime, DS3231}, Microcontroller};
-
-const LED: usize = 15;
-const SDA: usize = 5;
-const SCL: usize = 6;
-
-fn setup_ds3231<'a>(micro: &mut Microcontroller<'a>)-> DS3231<'a> {
-	let i2c = micro.set_pins_for_i2c_master(SDA,SCL);
-	let mut ds3231 = DS3231::new(i2c);
-	let date_time = DateTime {
-		second: 5,
-		minute: 10,
-		hour: 20,
-		week_day: 5,
-		date: 29,
-		month: 8,
-		year: 24,
-	};
-
-	ds3231.set_time(date_time).unwrap();
-	ds3231
-}
-
-fn setup_ble_beacon<'a>(micro: & mut Microcontroller<'a>)-> (BleBeacon<'a>, Service) {
-	let service_id = BleId::StandardService(StandarServiceId::EnvironmentalSensing);
-	let mut service = vec![Service::new(&service_id, vec![]).unwrap()];
-	let mut beacon = micro.ble_beacon("ESP32-beacon".to_string(), &service);
-	beacon.advertise_service_data(&service_id).unwrap();
-	beacon.start().unwrap();
-	(beacon, service.pop().unwrap())
-}
-
-fn setup_led<'a>(micro: & mut Microcontroller<'a>)-> DigitalOut<'a> {
-	let mut led = micro.set_pin_as_digital_out(LED);
-	led.set_low().unwrap();
-	led
-}
-
-fn main(){
-	let mut micro = Microcontroller::new();
-	let mut ds3231 = setup_ds3231(&mut micro);
-	let (mut beacon, mut service) = setup_ble_beacon(&mut micro);
-	let mut led = setup_led(&mut micro);
-
-	let mut sent: bool = false;
+use esp32_nimble::{
+	enums::*, utilities::BleUuid, BLEAdvertisementData, BLEDevice, NimbleProperties,
+  };
+  
+  fn main() {
+	esp_idf_svc::sys::link_patches();
+	esp_idf_svc::log::EspLogger::initialize_default();
+  
+	let device = BLEDevice::take();
+	let ble_advertising = device.get_advertising();
+  
+	// device
+	//   .security()
+	//   .set_auth(AuthReq::all())
+	//   .set_passkey(123456)
+	//   .set_io_cap(SecurityIOCap::DisplayOnly)
+	//   .resolve_rpa();
+  
+	let server = device.get_server();
+	server.on_connect(|server, desc| {
+	  ::log::info!("Client connected: {:?}", desc);
+  
+	  if server.connected_count() < (esp_idf_svc::sys::CONFIG_BT_NIMBLE_MAX_CONNECTIONS as _) {
+		::log::info!("Multi-connect support: start advertising");
+		ble_advertising.lock().start().unwrap();
+	  }
+	});
+	server.on_disconnect(|_desc, reason| {
+	  ::log::info!("Client disconnected ({:?})", reason);
+	  if let Err(e) = reason {
+		  println!("El error fue {:?}", e.to_string());
+	  }
+	});
+	server.on_authentication_complete(|desc, result| {
+	  ::log::info!("AuthenticationComplete({:?}): {:?}", result, desc);
+	});
+  
+	let service = server.create_service(BleUuid::Uuid16(0xABCD));
+  
+	let non_secure_characteristic = service
+	  .lock()
+	  .create_characteristic(BleUuid::Uuid16(0x1234), NimbleProperties::READ);
+	non_secure_characteristic
+	  .lock()
+	  .set_value("non_secure_characteristic".as_bytes());
+  
+	let secure_characteristic = service.lock().create_characteristic(
+	  BleUuid::Uuid16(0x1235),
+	  NimbleProperties::READ | NimbleProperties::READ_ENC | NimbleProperties::READ_AUTHEN,
+	);
+	secure_characteristic
+	  .lock()
+	  .set_value("secure_characteristic".as_bytes());
+  
+	// With esp32-c3, advertising stops when a device is bonded.
+	// (https://github.com/taks/esp32-nimble/issues/70)
+	ble_advertising.lock().set_data(
+	  BLEAdvertisementData::new()
+		.name("ESP32-GATT-Server")
+		.add_service_uuid(BleUuid::Uuid16(0xABCD)),
+	).unwrap();
+	ble_advertising.lock().start().unwrap();
+  
+	::log::info!("bonded_addresses: {:?}", device.bonded_addresses());
+  
 	loop {
-		let date_time = ds3231.get_date_time();
-		if date_time.second % 5 == 0 {
-			if !sent {
-			  let temp = ds3231.get_temperature();
-				println!("Temperature: {:?}", temp);
-				service.data = parse_temperature(temp);
-				beacon.set_service(&service).unwrap();
-				led.blink(2, 500_000).unwrap();
-				sent = true;
-			}
-		} else {
-			sent = false;
-		}
-		micro.wait_for_updates(Some(300));
+	  esp_idf_svc::hal::delay::FreeRtos::delay_ms(1000);
 	}
-}
-
-fn parse_temperature(temp: f32) -> Vec<u8> {
-	let int_part = temp as u8;
-	let decimal_part = (temp.fract() * 100.0) as u8;
-	vec![decimal_part, int_part	]
-}
+  }

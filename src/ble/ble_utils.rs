@@ -1,4 +1,4 @@
-use esp32_nimble::{enums::{ConnMode, DiscMode}, utilities::BleUuid, BLEError, NimbleProperties};
+use esp32_nimble::{enums::{AuthReq, ConnMode, DiscMode}, utilities::BleUuid, BLEError, NimbleProperties};
 use uuid::Uuid;
 use crate::utils::timer_driver::TimerDriverError;
 
@@ -235,4 +235,38 @@ impl Characteristic {
         self
     }
 
-} 
+}
+
+/// The 3 different options are:
+/// * `AllowBonding`: When the bonding is allowed, devices remember the 
+/// pairing information. This allows to make future conexions to be faster
+/// and more secure. Useful for devices that get connected with frequency.
+/// * `MitM`: Authentication requires a verification that makes it hard for a 
+/// third party to intercept the communication.
+/// * `SecureConnection`: Uses a more secure version of BLE pairing. This is part 
+/// of standard Bluetooth 4.2 and newer versions.
+enum AuthMode { // TODO: Make the it possible to use more than one at the same time
+    AllowBonding,
+    MitM,
+    SecureConnection,
+}
+
+impl AuthMode {
+    fn get_code(&self) -> AuthReq {
+        match self {
+            AuthMode::AllowBonding => AuthReq::Bond,
+            AuthMode::MitM => AuthReq::Mitm,
+            AuthMode::SecureConnection => AuthReq::Sc,
+        }
+    }
+}
+
+enum IOCapabilities {
+    
+}
+
+struct Security {
+    passkey: u32, // TODO: I think the passkey can only be 6 digits long. If so, add a step that checks this
+    auth_mode: AuthMode,
+    io_capabilities: IOCapabilities,
+}
