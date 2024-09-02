@@ -1,4 +1,4 @@
-use esp32_nimble::{enums::{AuthReq, ConnMode, DiscMode}, utilities::BleUuid, BLEError, NimbleProperties};
+use esp32_nimble::{enums::{AuthReq, ConnMode, DiscMode, SecurityIOCap}, utilities::BleUuid, BLEError, NimbleProperties};
 use uuid::Uuid;
 use crate::utils::timer_driver::TimerDriverError;
 
@@ -169,7 +169,7 @@ pub struct Characteristic{
 
 impl Characteristic {
     pub fn new(id: BleId, data: Vec<u8>) -> Self {
-        Characteristic{id,properties: 0, data}
+        Characteristic{id, properties: 0, data}
     }
 
     fn toggle(&mut self, value: bool, flag: NimbleProperties) -> &mut Self {
@@ -194,7 +194,7 @@ impl Characteristic {
     }
 
     pub fn readeable_enc(&mut self, value: bool) -> &mut Self {
-        self.toggle(value, NimbleProperties::NOTIFY)
+        self.toggle(value, NimbleProperties::READ_ENC)
     }
 
     pub fn readeable_authen(&mut self, value: bool) -> &mut Self {
@@ -237,36 +237,79 @@ impl Characteristic {
 
 }
 
-/// The 3 different options are:
-/// * `AllowBonding`: When the bonding is allowed, devices remember the 
-/// pairing information. This allows to make future conexions to be faster
-/// and more secure. Useful for devices that get connected with frequency.
-/// * `MitM`: Authentication requires a verification that makes it hard for a 
-/// third party to intercept the communication.
-/// * `SecureConnection`: Uses a more secure version of BLE pairing. This is part 
-/// of standard Bluetooth 4.2 and newer versions.
-enum AuthMode { // TODO: Make the it possible to use more than one at the same time
-    AllowBonding,
-    MitM,
-    SecureConnection,
+/// This field specifies the device's input and output capabilities, 
+/// which help determine the level of security and the key
+/// generation method for pairing:
+/// * `DisplayOnly`: It is capable of displaying information on a 
+/// screen but cannot receive inputs.
+/// * `DisplayYesNo`: It can display information and/or yes/no questions, 
+/// allowing for limited interaction.
+/// * `KeyboardOnly`: It can receive input through a keyboard 
+/// (e.g., entering a PIN during pairing).
+/// * `NoInputNoOutput`: It has no means to display information or 
+/// receive input from, for example, keyboards or buttons.
+/// * `KeyboardDisplay`: It can receive input through a keyboard and it 
+/// is capable of displaying information.
+pub enum IOCapabilities {
+    DisplayOnly,
+    DisplayYesNo,
+    KeyboardOnly,
+    NoInputNoOutput,
+    KeyboardDisplay,
 }
 
-impl AuthMode {
-    fn get_code(&self) -> AuthReq {
+impl IOCapabilities {
+    pub fn get_code(&self) -> SecurityIOCap {
         match self {
-            AuthMode::AllowBonding => AuthReq::Bond,
-            AuthMode::MitM => AuthReq::Mitm,
-            AuthMode::SecureConnection => AuthReq::Sc,
+            IOCapabilities::DisplayOnly => SecurityIOCap::DisplayOnly,
+            IOCapabilities::DisplayYesNo => SecurityIOCap::DisplayYesNo,
+            IOCapabilities::KeyboardOnly => SecurityIOCap::KeyboardOnly,
+            IOCapabilities::NoInputNoOutput => SecurityIOCap::NoInputNoOutput,
+            IOCapabilities::KeyboardDisplay => SecurityIOCap::KeyboardDisplay,
         }
     }
 }
 
-enum IOCapabilities {
-    
+pub struct Security {
+    pub passkey: u32, // TODO: I think the passkey can only be 6 digits long. If so, add a step that checks this
+    pub auth_mode: u8,
+    pub io_capabilities: IOCapabilities,
 }
 
-struct Security {
-    passkey: u32, // TODO: I think the passkey can only be 6 digits long. If so, add a step that checks this
-    auth_mode: AuthMode,
-    io_capabilities: IOCapabilities,
+impl Security {
+    pub fn new(passkey: u32, io_capabilities: IOCapabilities) -> Self {
+        Security { passkey, auth_mode: 0, io_capabilities }
+    }
+
+    fn toggle(&mut self, value: bool, flag: AuthReq) -> &mut Self {
+        if value {
+            self.auth_mode |= flag.bits();
+        }else {
+            self.auth_mode &= !flag.bits();
+        }
+        self
+    }
+
+    /// Sets the Allow Bonding authorization requirement. When the bonding is allowed, devices remember the 
+    /// pairing information. This allows to make future conexions to be faster
+    /// and more secure. Useful for devices that get connected with frequency.
+    pub fn allow_bonding(&mut self, value: bool) -> &mut Self {
+        self.toggle(value, AuthReq::Bond);
+        self
+    }
+
+    /// Sets the Man in the Middle authorization requirement. Authentication requires a verification
+    /// that makes it hard for a third party to intercept the communication.
+    pub fn man_in_the_middle(&mut self, value: bool) -> &mut Self {
+        self.toggle(value, AuthReq::Mitm);
+        self
+    }
+
+    /// Sets the Secure Connection authorization requirement. 
+    /// This is a more secure version of BLE pairing by using the 
+    /// elliptic curve Diffie-Hellman algorithm. This is part of standard Bluetooth 4.2 and newer versions. 
+    pub fn secure_connection(&mut self, value: bool) -> &mut Self {
+        self.toggle(value, AuthReq::Sc);
+        self
+    }
 }

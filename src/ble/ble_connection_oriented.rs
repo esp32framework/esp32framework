@@ -1,11 +1,10 @@
 use std::num::NonZeroU32;
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 use std::sync::Mutex as Mutex2;
 
 use esp32_nimble::{BLEAddress, BLEService};
-use esp32_nimble::{utilities::mutex::Mutex, uuid128, BLEAdvertisementData, BLEAdvertising, BLEConnDesc, BLEDevice, BLEError, BLEServer, NimbleProperties};
+use esp32_nimble::{utilities::mutex::Mutex, BLEAdvertisementData, BLEAdvertising, BLEConnDesc, BLEDevice, BLEError, BLEServer, NimbleProperties};
 use esp_idf_svc::hal::task;
-use esp_idf_svc::hal::task::queue::Queue;
 use esp_idf_svc::hal::task::notification::Notifier;
 
 
@@ -201,7 +200,7 @@ impl <'a>BleServer<'a> {
         self.advertisement.lock().advertisement_type(conn_mode.get_code());
         self
     }
-
+    
     /// Set or overwrite a service to the server
     pub fn set_service(&mut self, service: &Service) -> Result<(),BleError> {
         self.ble_server.create_service(service.id.to_uuid());
