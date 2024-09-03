@@ -15,7 +15,7 @@ use std::cell::RefCell;
 pub type SharableAdcDriver<'a> = Rc<AdcDriver<'a, ADC1>>;
 pub type SharableI2CDriver<'a> = Rc<RefCell<Option<i2c::I2C0>>>;
 
-use crate::ble::{BleBeacon,BleServer,Service,Security};
+use crate::ble::{BleBeacon,_BleServer,Service,Security};
 use crate::gpio::AnalogIn;
 use crate::gpio::{AnalogInPwm,
     DigitalIn,
@@ -204,10 +204,10 @@ impl <'a>Microcontroller<'a>{
     }
     
     // TODO &VEc<Services>
-    pub fn ble_server(&mut self, advertising_name: String, services: &Vec<Service>)-> BleServer<'a>{
+    pub fn ble_server(&mut self, advertising_name: String, services: &Vec<Service>)-> _BleServer<'a>{
         self.peripherals.get_ble_device();
         let ble_device = BLEDevice::take();
-        BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() )
+        _BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() )
     }
 
     fn config_bluetooth_security(&mut self, ble_device: &mut BLEDevice, security_config: Security){
@@ -219,11 +219,11 @@ impl <'a>Microcontroller<'a>{
     }
 
     // TODO &VEc<Services>
-    pub fn ble_secure_server(&mut self, advertising_name: String, services: &Vec<Service>, security_config: Security)-> BleServer<'a>{
+    pub fn ble_secure_server(&mut self, advertising_name: String, services: &Vec<Service>, security_config: Security)-> _BleServer<'a>{
         self.peripherals.get_ble_device();
         let ble_device = BLEDevice::take();
         self.config_bluetooth_security(ble_device,security_config);
-        BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() )
+        _BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() )
 
     }
 
