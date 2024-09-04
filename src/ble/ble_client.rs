@@ -4,7 +4,7 @@ use esp32_nimble::{utilities::BleUuid, BLEClient, BLEDevice, BLEScan};
 use esp_idf_svc::hal::{ task::block_on};
 const BLOCK: i32 = i32::MAX;
 
-use super::{BleError, BleId};
+use super::{BleAdvertisedDevice, BleError, BleId};
 
 pub struct BleClient{
     ble_client: BLEClient,
@@ -22,29 +22,45 @@ impl BleClient{
         
     }
 
-    pub fn connect_to_any_with_service(&mut self, service: BleId, timeout: Option<Duration>)->Result<(), BleError>{
-        block_on(self.connect_to_any_with_service_async(service, timeout))
-    }
-
-    pub async fn connect_to_any_with_service_async(&mut self, service: BleId, timeout: Option<Duration>)->Result<(), BleError>{
+    pub async fn connect_to_device_async<C: Fn(&BleAdvertisedDevice) -> bool + Send + Sync>(&mut self, timeout: Option<Duration>, condition: C)->Result<(), BleError>{
         self._start_scan();
         let timeout = match timeout{
             Some(timeout) => timeout.subsec_millis() as i32,
             None => BLOCK as i32,
         };
         
-        let service = service.to_uuid();
         let device = self.ble_scan.find_device(timeout, |adv| {
-            println!("Encontre a uno con el service: {:?}", adv.get_service_uuids());
-            adv.get_service_uuids().find(|adv_service| **adv_service == service).is_some()
+            let adv = BleAdvertisedDevice::from(adv);
+            condition(&adv)
         }).await.map_err(BleError::from)?;
         
         match device{
             Some(device) => self.ble_client.connect(device.addr()).await
-                .map_err(BleError::from) , // no lo encuentra, ya esta conectado
+            .map_err(BleError::from) , // no lo encuentra, ya esta conectado
             None => Err(BleError::DeviceNotFound)
         }
     }
+    
+    pub async fn connect_to_device_with_service_async(&mut self, timeout: Option<Duration>, service: &BleId)->Result<(), BleError>{
+        self.connect_to_device_async(timeout, |adv| adv.is_advertising_service(service)).await
+    }
+
+    pub async fn connect_to_device_of_name_async(&mut self, timeout: Option<Duration>, name: String)->Result<(), BleError>{
+        self.connect_to_device_async(timeout, |adv| adv.name() == name).await
+    }
+
+    pub fn connect_to_device<C: Fn(&BleAdvertisedDevice) -> bool + Send + Sync>(&mut self, timeout: Option<Duration>, condition: C)->Result<(), BleError>{
+        block_on(self.connect_to_device_async(timeout, condition))
+    }
+
+    pub async fn connect_to_device_with_service(&mut self, timeout: Option<Duration>, service: &BleId)->Result<(), BleError>{
+        block_on(self.connect_to_device_with_service_async(timeout, service))
+    }
+
+    pub fn connect_to_device_of_name<C: Fn(&BleAdvertisedDevice) -> bool + Send + Sync>(&mut self, timeout: Option<Duration>, name: String)->Result<(), BleError>{
+        block_on(self.connect_to_device_of_name_async(timeout, name))
+    }
+
     // closure que devuelva true si se quiere conectar a uno en particular
     fn connect_to_any(&self ){
         todo!()
