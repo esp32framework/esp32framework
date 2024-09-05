@@ -1,12 +1,10 @@
+//! Example using pin GPIO3 as analog PWM out in order to control the intensity
+//! of the colours Red of a RGB led. The intensity should "bounce" when it reaches
+//! the maximum and minimum level.
+
 use std::sync::Arc;
-use std::thread;
-use std::time::Duration;
-use esp_idf_svc::hal::gpio::*;
-use esp_idf_svc::hal::delay::FreeRtos;
-use esp_idf_svc::hal::ledc::*;
-use esp_idf_svc::hal::peripherals::Peripherals;
-use esp_idf_svc::hal::prelude::*;
-use std::cmp;
+use std::{thread,cmp,time::Duration};
+use esp_idf_svc::hal::{ledc::*,peripherals::Peripherals,prelude::*};
 
 fn duty_from_high_ratio(max_duty: u32, high_ratio: f32) -> u32{
     ((max_duty as f32) * high_ratio) as u32
@@ -30,9 +28,6 @@ fn get_next_red_level(led: &LedcDriver , increasing: &mut bool, change_ratio: f3
     current_duty_level - duty_step
 }   
 
-/// Example using pin GPIO3 as analog PWM out in order to control the intensity
-/// of the colours Red of a RGB led. The intensity should "bounce" when it reaches
-/// the maximum and minimum level.
 fn main() {
     esp_idf_svc::sys::link_patches();
     let peripherals = Peripherals::take().unwrap();

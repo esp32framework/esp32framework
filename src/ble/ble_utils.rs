@@ -1,4 +1,4 @@
-use esp32_nimble::{enums::{AdvFlag, AdvType, ConnMode, DiscMode}, utilities::BleUuid, BLEAddress, BLEAdvertisedDevice, BLEError, NimbleProperties};
+use esp32_nimble::{enums::{AuthReq, AdvFlag, AdvType, ConnMode, DiscMode, SecurityIOCap}, utilities::BleUuid, BLEAddress, BLEAdvertisedDevice, BLEError, NimbleProperties};
 use uuid::Uuid;
 use crate::utils::timer_driver::TimerDriverError;
 
@@ -237,6 +237,11 @@ impl From<&BLEAdvertisedDevice> for BleAdvertisedDevice{
     }
 }
 
+
+/// Abstracion of the BLE characteristic. Contains:
+/// * `id`: The id lets clients identified each service characteristic.
+/// * `properties`: Properties especify how the clients will be able to interact with the characteristic.
+/// * `data`: The value that the clients will be able to see or write (depending on the properties).
 #[derive(Clone)]
 pub struct Characteristic{
     pub id: BleId,
@@ -245,8 +250,12 @@ pub struct Characteristic{
 }
 
 impl Characteristic {
+
+    /// Creates a Characteristic with its id and data.
+    /// 
+    /// It has no properties, this needs to be set separately.
     pub fn new(id: BleId, data: Vec<u8>) -> Self {
-        Characteristic{id,properties: 0, data}
+        Characteristic{id, properties: 0, data}
     }
 
     fn toggle(&mut self, value: bool, flag: NimbleProperties) -> &mut Self {
@@ -258,58 +267,186 @@ impl Characteristic {
         self
     }
 
+    /// Adds or removes the writable characteristic to the properties.
+    /// 
+    /// It allows the characteristics data to be written by the client.
     pub fn writable(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::WRITE)
     }
 
+    /// Adds or removes the readeable characteristic to the properties.
+    /// 
+    /// It allows the characteristics data to be read by the client.
     pub fn readeable(&mut self, value: bool) -> &mut Self{
         self.toggle(value, NimbleProperties::READ)
     }
     
+    /// Adds or removes the notifiable characteristic to the properties.
+    /// 
+    /// It allows the characteristics data to be published to the client, without waiting for an acknowledgement.
     pub fn notifiable(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::NOTIFY)
     }
 
+    /// Adds or removes the readeable_enc characteristic to the properties.
+    /// 
+    /// It allows the characteristics data to be read by the client, only when the communication is encrypted.
     pub fn readeable_enc(&mut self, value: bool) -> &mut Self {
-        self.toggle(value, NimbleProperties::NOTIFY)
+        self.toggle(value, NimbleProperties::READ_ENC)
     }
 
+    /// Adds or removes the readeable_authen characteristic to the properties.
+    /// 
+    /// It allows the characteristics data to be read by the client, only when the communication is authenticated.
     pub fn readeable_authen(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::READ_AUTHEN)
     }
 
+    /// Adds or removes the readeable_author characteristic to the properties.
+    /// 
+    /// It allows the characteristics data to be read by the client, only when authorized by the server.
     pub fn readeable_author(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::READ_AUTHOR)
    
     }
 
+    /// Adds or removes the writeable_no_rsp characteristic to the properties.
+    /// 
+    /// It allows the characteristics data to be written by the client, without waiting for a response.
     pub fn writeable_no_rsp(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::WRITE_NO_RSP)
     }
 
+    /// Adds or removes the writeable_enc characteristic to the properties.
+    /// 
+    /// It allows the characteristics data to be written by the client, only when the communication is encrypted.
     pub fn writeable_enc(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::WRITE_ENC)
     }
 
+    /// Adds or removes the writeable_authen characteristic to the properties.
+    /// 
+    /// It allows the characteristics data to be written by the client, only when the communication is authenticated.
     pub fn writeable_authen(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::WRITE_AUTHEN)
     }
 
+    /// Adds or removes the writeable_author characteristic to the properties.
+    /// 
+    /// It allows the characteristics data to be written by the client, only when authorized by the server.
     pub fn writeable_author(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::WRITE_AUTHOR)
     }
 
+    /// Adds or removes the broadcastable characteristic to the properties.
+    /// 
+    /// It allows the characteristics data to be broadcasted by the server.
     pub fn broadcastable(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::BROADCAST)
     }
 
+    /// Adds or removes the indicatable characteristic to the properties.
+    /// 
+    /// It allows the characteristics data to be published to the client and waits for an acknowledgement.
     pub fn indicatable(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::INDICATE)
     }
     
+    /// Sets a new data to the characteristic.
+    /// 
+    /// When updating the data, the server needs to be notified about the characteristic data change. If not,
+    /// server will never use the new values and clients will never get the last information. 
     pub fn update_data(&mut self, data: Vec<u8>) -> &mut Self{
         self.data = data;
         self
     }
 
-} 
+}
+
+/// Enums the device's input and output capabilities, 
+/// which help determine the level of security and the key
+/// generation method for pairing:
+/// * `DisplayOnly`: It is capable of displaying information on a 
+/// screen but cannot receive inputs.
+/// * `DisplayYesNo`: It can display information and/or yes/no questions, 
+/// allowing for limited interaction.
+/// * `KeyboardOnly`: It can receive input through a keyboard 
+/// (e.g., entering a PIN during pairing).
+/// * `NoInputNoOutput`: It has no means to display information or 
+/// receive input from, for example, keyboards or buttons.
+/// * `KeyboardDisplay`: It can receive input through a keyboard and it 
+/// is capable of displaying information.
+pub enum IOCapabilities {
+    DisplayOnly,
+    DisplayYesNo,
+    KeyboardOnly,
+    NoInputNoOutput,
+    KeyboardDisplay,
+}
+
+impl IOCapabilities {
+    pub fn get_code(&self) -> SecurityIOCap {
+        match self {
+            IOCapabilities::DisplayOnly => SecurityIOCap::DisplayOnly,
+            IOCapabilities::DisplayYesNo => SecurityIOCap::DisplayYesNo,
+            IOCapabilities::KeyboardOnly => SecurityIOCap::KeyboardOnly,
+            IOCapabilities::NoInputNoOutput => SecurityIOCap::NoInputNoOutput,
+            IOCapabilities::KeyboardDisplay => SecurityIOCap::KeyboardDisplay,
+        }
+    }
+}
+/// Contains the necessary to have a secure BLE server.
+/// This includes a passkey, the I/O capabilities and the
+/// authorization requirements.
+pub struct Security {
+    pub passkey: u32, // TODO: I think the passkey can only be 6 digits long. If so, add a step that checks this
+    pub auth_mode: u8,
+    pub io_capabilities: IOCapabilities,
+}
+
+impl Security {
+
+    /// Creates a Security with its passkey and I/O capabilities. 
+    /// 
+    /// It has no authentication requirements, this need to be set separately
+    pub fn new(passkey: u32, io_capabilities: IOCapabilities) -> Self {
+        Security { passkey, auth_mode: 0, io_capabilities }
+    }
+
+    fn toggle(&mut self, value: bool, flag: AuthReq) -> &mut Self {
+        if value {
+            self.auth_mode |= flag.bits();
+        }else {
+            self.auth_mode &= !flag.bits();
+        }
+        self
+    }
+
+    /// Sets the Allow Bonding authorization requirement.
+    /// 
+    /// When the bonding is allowed, devices remember the 
+    /// pairing information. This allows to make future conexions to be faster
+    /// and more secure. Useful for devices that get connected with frequency.
+    pub fn allow_bonding(&mut self, value: bool) -> &mut Self {
+        self.toggle(value, AuthReq::Bond);
+        self
+    }
+
+    /// Sets the Man in the Middle authorization requirement.
+    /// 
+    /// Authentication requires a verification
+    /// that makes it hard for a third party to intercept the communication.
+    pub fn man_in_the_middle(&mut self, value: bool) -> &mut Self {
+        self.toggle(value, AuthReq::Mitm);
+        self
+    }
+
+    /// Sets the Secure Connection authorization requirement. 
+    /// 
+    /// This is a more secure version of BLE pairing by using the 
+    /// elliptic curve Diffie-Hellman algorithm. This is part of standard Bluetooth 4.2 and newer versions. 
+    pub fn secure_connection(&mut self, value: bool) -> &mut Self {
+        self.toggle(value, AuthReq::Sc);
+        self
+    }
+}

@@ -1,27 +1,41 @@
+use std::cell::RefCell;
 use std::num::NonZeroU32;
-use std::{collections::HashMap, sync::Arc};
-use std::sync::Mutex as Mutex2;
-
+use std::rc::Rc;
+use std::sync::Arc;
 use esp32_nimble::{BLEAddress, BLEService};
-use esp32_nimble::{utilities::mutex::Mutex, uuid128, BLEAdvertisementData, BLEAdvertising, BLEConnDesc, BLEDevice, BLEError, BLEServer, NimbleProperties};
+use esp32_nimble::{utilities::mutex::Mutex, BLEAdvertisementData, BLEAdvertising, BLEConnDesc, BLEDevice, BLEError, BLEServer, NimbleProperties};
 use esp_idf_svc::hal::task;
-use esp_idf_svc::hal::task::queue::Queue;
 use esp_idf_svc::hal::task::notification::Notifier;
 
 
 use crate::utils::auxiliary::ISRQueue;
+use crate::utils::auxiliary::SharableRef;
+use crate::utils::auxiliary::SharableRefExt;
 use crate::utils::esp32_framework_error::Esp32FrameworkError;
 use crate::InterruptDriver;
+use sharable_reference_macro::sharable_reference_wrapper;
 
 use super::{BleError, BleId, Characteristic, ConnectionMode, DiscoverableMode, Service};
 
-pub struct BleServer<'a> {
+/// Abstraction to create a BLE server, the side that has the information to be used in a connection
+/// oriented relationship. Contains:
+/// * `advertising_name`: Clients scanning will see the advertising name before connection.
+/// * `services`: The servere will hace information for the clients to see. All this information will be encapsulated on different services.
+/// * `user_on_connection`: Callback that will be executed for each client connected.
+/// * `user_on_disconnection`: Callback that will be executed for each client disconnected.
+pub struct _BleServer<'a> {
     advertising_name: String,
     ble_server: &'a mut BLEServer,
     services: Vec<Service>,               
     advertisement: &'a Mutex<BLEAdvertising>,
     user_on_connection: Option<ConnectionCallback<'a>>,
     user_on_disconnection: Option<ConnectionCallback<'a>>
+}
+
+#[derive(Clone)]
+pub struct BleServer<'a>{
+    inner: SharableRef<_BleServer<'a>>
+
 }
 
 struct ConnectionCallback<'a>{
@@ -46,6 +60,8 @@ impl<'a> ConnectionCallback<'a>{
     }
 }
 
+/// Contains information about the new client connected that can be user on
+/// connection or disconnection callbacks
 #[derive(Debug, Clone, Copy)]
 pub struct ConnectionInformation{
     pub address: BLEAddress,
@@ -97,9 +113,10 @@ impl ConnectionInformation{
 
 }
 
-impl <'a>BleServer<'a> {
+#[sharable_reference_wrapper]
+impl <'a>_BleServer<'a> {
     pub fn new(name: String, ble_device: &mut BLEDevice, services: &Vec<Service>, connection_notifier: Arc<Notifier>, disconnection_notifier: Arc<Notifier>) -> Self {
-        let mut server = BleServer{
+        let mut server = _BleServer{
             advertising_name: name,
             ble_server: ble_device.get_server(),
             services: services.clone(),
@@ -115,7 +132,7 @@ impl <'a>BleServer<'a> {
         server
     }
 
-    pub fn connection_handler<C: FnMut(&mut Self, &ConnectionInformation) + 'a>(&mut self, handler: C) -> &mut Self
+    pub fn connection_handler<C: FnMut(&mut BleServer, &ConnectionInformation) + 'a>(&mut self, handler: C) -> &mut Self
     {
         let user_on_connection = self.user_on_connection.as_mut().unwrap();
         let notifier_ref = user_on_connection.notifier.clone();
@@ -130,7 +147,7 @@ impl <'a>BleServer<'a> {
     }
 
 
-    pub fn disconnect_handler<C: FnMut(&mut Self, &ConnectionInformation) + 'a>(&mut self, handler: C) -> &mut Self
+    pub fn disconnect_handler<C: FnMut(&mut BleServer, &ConnectionInformation) + 'a>(&mut self, handler: C) -> &mut Self
     {
         let user_on_disconnection = self.user_on_disconnection.as_mut().unwrap();
         let notifier_ref = user_on_disconnection.notifier.clone();
@@ -201,7 +218,7 @@ impl <'a>BleServer<'a> {
         self.advertisement.lock().advertisement_type(conn_mode.get_code());
         self
     }
-
+    
     /// Set or overwrite a service to the server
     pub fn set_service(&mut self, service: &Service) -> Result<(),BleError> {
         self.ble_server.create_service(service.id.to_uuid());
@@ -303,12 +320,29 @@ impl <'a>BleServer<'a> {
 // TODO: refactor this!
 impl<'a> InterruptDriver for BleServer<'a>{
     fn update_interrupt(&mut self)-> Result<(), Esp32FrameworkError> {
-        let mut user_on_connection = self.user_on_connection.take().unwrap();
-        let mut user_on_disconnection = self.user_on_disconnection.take().unwrap();
+        let (mut user_on_connection, mut user_on_disconnection) = self.take_connection_callbacks();
         user_on_connection.handle_connection_changes(self);
         user_on_disconnection.handle_connection_changes(self);
-        self.user_on_connection = Some(user_on_connection);
-        self.user_on_disconnection = Some(user_on_disconnection);
+        self.set_connection_callbacks(user_on_connection, user_on_disconnection);
         Ok(())
+    }
+}
+
+impl<'a> BleServer<'a>{
+    pub fn new(name: String, ble_device: &mut BLEDevice, services: &Vec<Service>, connection_notifier: Arc<Notifier>, disconnection_notifier: Arc<Notifier>) -> Self {
+        Self { inner: SharableRef::new_sharable(
+            _BleServer::new(name, ble_device, services, connection_notifier, disconnection_notifier)
+        ) }
+    }
+
+    fn take_connection_callbacks(&mut self)->(ConnectionCallback<'a>, ConnectionCallback<'a>){
+        let user_on_connection = self.inner.deref_mut().user_on_connection.take().unwrap();
+        let user_on_disconnection = self.inner.deref_mut().user_on_disconnection.take().unwrap();
+        (user_on_connection, user_on_disconnection)
+    }
+
+    fn set_connection_callbacks(&mut self, user_on_connection: ConnectionCallback<'a>, user_on_disconnection: ConnectionCallback<'a>){
+        self.inner.deref_mut().user_on_connection = Some(user_on_connection);
+        self.inner.deref_mut().user_on_disconnection = Some(user_on_disconnection);
     }
 }

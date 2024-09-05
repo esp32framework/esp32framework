@@ -1,12 +1,11 @@
-/*
-This main intends to test the percentage of error of our implementation for
-reading the PWM signals.
-The same intensity level of PWM signals will be written on a pin A, that pin
-will be physically connected with pin B, and we will be reading the values received
-on pin B with different input frequencies.
-All these data will be collected and then be analyzed with the intention of getting
-a percentage of the error.
-*/
+//! This main intends to test the percentage of error of our implementation for
+//! reading the PWM signals.
+//! The same intensity level of PWM signals will be written on a pin A, that pin
+//! will be physically connected with pin B, and we will be reading the values received
+//! on pin B with different input frequencies.
+//! All these data will be collected and then be analyzed with the intention of getting
+//! a percentage of the error.
+//!
 
 use rand::prelude::*;
 use esp32framework::{gpio::{AnalogInPwm, AnalogOut}, Microcontroller};

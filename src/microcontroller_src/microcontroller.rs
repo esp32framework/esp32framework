@@ -1,7 +1,7 @@
 use std::rc::Rc;
-use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
+use esp32_nimble::enums::AuthReq;
 use esp_idf_svc::hal::adc::ADC1;
 use esp_idf_svc::hal::adc::*;
 // use esp_idf_svc::hal::adc::config::{Config, Resolution};
@@ -15,9 +15,7 @@ use std::cell::RefCell;
 pub type SharableAdcDriver<'a> = Rc<AdcDriver<'a, ADC1>>;
 pub type SharableI2CDriver<'a> = Rc<RefCell<Option<i2c::I2C0>>>;
 
-use crate::ble::BleBeacon;
-use crate::ble::BleServer;
-use crate::ble::Service;
+use crate::ble::{BleBeacon,BleServer,Service,Security};
 use crate::gpio::AnalogIn;
 use crate::gpio::{AnalogInPwm,
     DigitalIn,
@@ -212,7 +210,23 @@ impl <'a>Microcontroller<'a>{
         BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() )
     }
 
-    
+    fn config_bluetooth_security(&mut self, ble_device: &mut BLEDevice, security_config: Security){
+        ble_device.security()
+        .set_auth(AuthReq::from_bits(security_config.auth_mode.to_le()).unwrap())
+        .set_passkey(security_config.passkey)
+        .set_io_cap(security_config.io_capabilities.get_code())
+        .resolve_rpa();
+    }
+
+    // TODO &VEc<Services>
+    pub fn ble_secure_server(&mut self, advertising_name: String, services: &Vec<Service>, security_config: Security)-> BleServer<'a>{
+        self.peripherals.get_ble_device();
+        let ble_device = BLEDevice::take();
+        self.config_bluetooth_security(ble_device,security_config);
+        let ble_server = BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() );
+        self.interrupt_drivers.push(Box::new(ble_server.clone()));
+        ble_server
+    }
 
     pub fn update(&mut self) {
         //timer_drivers must be updated before other drivers since this may efect the other drivers updates
