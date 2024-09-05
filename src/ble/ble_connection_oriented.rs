@@ -11,6 +11,8 @@ use esp_idf_svc::hal::task::notification::Notifier;
 
 
 use crate::utils::auxiliary::ISRQueue;
+use crate::utils::auxiliary::SharableRef;
+use crate::utils::auxiliary::SharableRefExt;
 use crate::utils::esp32_framework_error::Esp32FrameworkError;
 use crate::InterruptDriver;
 use sharable_reference_macro::sharable_reference_wrapper;
@@ -26,8 +28,9 @@ pub struct _BleServer<'a> {
     user_on_disconnection: Option<ConnectionCallback<'a>>
 }
 
+#[derive(Clone)]
 pub struct BleServer<'a>{
-    inner: Rc<RefCell<_BleServer<'a>>>
+    inner: SharableRef<_BleServer<'a>>
 
 }
 
@@ -320,14 +323,20 @@ impl<'a> InterruptDriver for BleServer<'a>{
 }
 
 impl<'a> BleServer<'a>{
+    pub fn new(name: String, ble_device: &mut BLEDevice, services: &Vec<Service>, connection_notifier: Arc<Notifier>, disconnection_notifier: Arc<Notifier>) -> Self {
+        Self { inner: SharableRef::new_sharable(
+            _BleServer::new(name, ble_device, services, connection_notifier, disconnection_notifier)
+        ) }
+    }
+
     fn take_connection_callbacks(&mut self)->(ConnectionCallback<'a>, ConnectionCallback<'a>){
-        let user_on_connection = self.inner.borrow_mut().user_on_connection.take().unwrap();
-        let user_on_disconnection = self.inner.borrow_mut().user_on_disconnection.take().unwrap();
+        let user_on_connection = self.inner.deref_mut().user_on_connection.take().unwrap();
+        let user_on_disconnection = self.inner.deref_mut().user_on_disconnection.take().unwrap();
         (user_on_connection, user_on_disconnection)
     }
 
     fn set_connection_callbacks(&mut self, user_on_connection: ConnectionCallback<'a>, user_on_disconnection: ConnectionCallback<'a>){
-        self.inner.borrow_mut().user_on_connection = Some(user_on_connection);
-        self.inner.borrow_mut().user_on_disconnection = Some(user_on_disconnection);
+        self.inner.deref_mut().user_on_connection = Some(user_on_connection);
+        self.inner.deref_mut().user_on_disconnection = Some(user_on_disconnection);
     }
 }
