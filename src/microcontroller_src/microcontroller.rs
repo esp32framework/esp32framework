@@ -223,8 +223,9 @@ impl <'a>Microcontroller<'a>{
         self.peripherals.get_ble_device();
         let ble_device = BLEDevice::take();
         self.config_bluetooth_security(ble_device,security_config);
-        BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() )
-
+        let ble_server = BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() );
+        self.interrupt_drivers.push(Box::new(ble_server.clone()));
+        ble_server
     }
 
     pub fn update(&mut self) {
