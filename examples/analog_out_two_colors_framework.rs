@@ -1,7 +1,7 @@
+//! Example using pin GPIO3 and GPIO4 as analog PWM out in order to control the intensity
+//! of the colours Red and Blue of a RGB led.
 use esp32framework::Microcontroller;
 
-/// Example using pin GPIO3 and GPIO4 as analog PWM out in order to control the intensity
-/// of the colours Red and Blue of a RGB led.
 fn main(){
     let mut micro = Microcontroller::new();
     let mut red_analog_out = micro.set_pin_as_default_analog_out(2);

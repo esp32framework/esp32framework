@@ -1,3 +1,7 @@
+//! Example using Bluetooth Low energy, a led and the DS3231 sensor.
+//! Every 5 seconds, the program takes the temperatur from the ds3231 and advertises
+//! it through the BLE beacon. At the same time, a lede on pin 15 blinks twice. 
+
 use esp32framework::{ble::{BleBeacon, BleId, Service, StandarServiceId}, gpio::DigitalOut, sensors::{DateTime, DS3231}, Microcontroller};
 
 const LED: usize = 15;

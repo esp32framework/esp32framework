@@ -14,6 +14,12 @@ use crate::InterruptDriver;
 
 use super::{BleError, BleId, Characteristic, ConnectionMode, DiscoverableMode, Service};
 
+/// Abstraction to create a BLE server, the side that has the information to be used in a connection
+/// oriented relationship. Contains:
+/// * `advertising_name`: Clients scanning will see the advertising name before connection.
+/// * `services`: The servere will hace information for the clients to see. All this information will be encapsulated on different services.
+/// * `user_on_connection`: Callback that will be executed for each client connected.
+/// * `user_on_disconnection`: Callback that will be executed for each client disconnected.
 pub struct BleServer<'a> {
     advertising_name: String,
     ble_server: &'a mut BLEServer,
@@ -45,6 +51,8 @@ impl<'a> ConnectionCallback<'a>{
     }
 }
 
+/// Contains information about the new client connected that can be user on
+/// connection or disconnection callbacks
 #[derive(Debug, Clone, Copy)]
 pub struct ConnectionInformation{
     pub address: BLEAddress,
