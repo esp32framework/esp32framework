@@ -1,7 +1,5 @@
 use std::num::NonZeroU32;
 use std::sync::Arc;
-use std::sync::Mutex as Mutex2;
-
 use esp32_nimble::{BLEAddress, BLEService};
 use esp32_nimble::{utilities::mutex::Mutex, BLEAdvertisementData, BLEAdvertising, BLEConnDesc, BLEDevice, BLEError, BLEServer, NimbleProperties};
 use esp_idf_svc::hal::task;
