@@ -266,7 +266,7 @@ impl <'a>Microcontroller<'a>{
         }   
     }
 
-    pub fn sleep(&mut self, miliseconds:u32){
+    pub fn sleep(&self, miliseconds:u32){
         FreeRtos::delay_ms(miliseconds)
     }
 }

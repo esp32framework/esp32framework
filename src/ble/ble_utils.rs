@@ -1,4 +1,4 @@
-use esp32_nimble::{enums::{AuthReq, ConnMode, DiscMode, SecurityIOCap}, utilities::BleUuid, BLEError, NimbleProperties};
+use esp32_nimble::{enums::{AuthReq, AdvFlag, AdvType, ConnMode, DiscMode, SecurityIOCap}, utilities::BleUuid, BLEAddress, BLEAdvertisedDevice, BLEError, NimbleProperties};
 use uuid::Uuid;
 use crate::utils::timer_driver::TimerDriverError;
 
@@ -26,12 +26,16 @@ pub enum BleError{
     IncorrectHandle,
     ConnectionError,
     InvalidParameters,
+    DeviceNotFound,
+    AlreadyConnected
 }
 
 impl From<BLEError> for BleError {
     fn from(value: BLEError) -> Self {
         match value.code() {
             esp_idf_svc::sys::BLE_HS_EMSGSIZE => BleError::ServiceDoesNotFit,
+            esp_idf_svc::sys::BLE_HS_EDONE => BleError::AlreadyConnected,
+            esp_idf_svc::sys::BLE_HS_ENOTCONN  => BleError::DeviceNotFound,
             _ => BleError::Code(value.code(), value.to_string()),
         }
     }
@@ -131,6 +135,23 @@ impl Hash for BleId {
     }
 }
 
+impl From<BleUuid> for BleId{
+    fn from(value: BleUuid) -> Self {
+        match value{
+            BleUuid::Uuid16(id) => BleId::FromUuid16(id),
+            BleUuid::Uuid32(id) => BleId::FromUuid32(id),
+            BleUuid::Uuid128(id) => BleId::FromUuid128(id),
+        }
+    }
+}
+
+impl From<&BleUuid> for BleId{
+    fn from(value: &BleUuid) -> Self {
+        Self::from(*value)
+    }
+}
+
+
 impl BleId {
     pub fn to_uuid(&self) -> BleUuid {
         match self {
@@ -158,6 +179,64 @@ impl BleId {
         }
     }
 }
+
+pub struct BleAdvertisedDevice {
+    device: BLEAdvertisedDevice    
+}
+
+impl BleAdvertisedDevice{
+    pub fn name(&self)-> String{
+        self.device.name().to_string()
+    }
+
+    /// Get the address of the advertising device.
+    pub fn addr(&self)-> &BLEAddress{
+        self.device.addr()
+    }
+
+    /// Get the advertisement type.
+    pub fn adv_type(&self) -> AdvType {
+        self.device.adv_type()
+    }
+
+    /// Get the advertisement flags.
+    pub fn adv_flags(&self) -> Option<AdvFlag> {
+        self.device.adv_flags()
+    }
+
+    pub fn rssi(&self) -> i32 {
+        self.device.rssi()
+    }
+
+    pub fn get_service_uuids(&self) -> Vec<BleId> {
+        self.device.get_service_uuids().map(|id| BleId::from(id)).collect()
+    }
+
+    pub fn is_advertising_service(&self, id: &BleId) -> bool {
+        self.get_service_uuids().contains(id)
+    }
+
+    pub fn get_service_data_list(&self) -> Vec<(BleId, &[u8])> {
+        self.device.get_service_data_list()
+        .map(|s| (BleId::from(s.uuid()), s.data()))
+        .collect()
+    }
+
+    pub fn get_service_data(&self, id: BleId) -> Option<(BleId, &[u8])> {
+        self.get_service_data_list().into_iter().find(|s| s.0 == id)
+    }
+
+    pub fn get_manufacture_data(&self) -> Option<&[u8]> {
+        self.device.get_manufacture_data()
+    }
+}
+
+impl From<&BLEAdvertisedDevice> for BleAdvertisedDevice{
+    fn from(value: &BLEAdvertisedDevice) -> Self {
+        BleAdvertisedDevice { device: value.clone() }
+    }
+}
+
 
 /// Abstracion of the BLE characteristic. Contains:
 /// * `id`: The id lets clients identified each service characteristic.
