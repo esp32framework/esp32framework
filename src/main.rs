@@ -1,13 +1,16 @@
 use esp32framework::{Microcontroller, ble::{ble_client::BleClient, BleId}};
 use esp32_nimble::BLEDevice;
 fn main(){
-    let micro = Microcontroller::new();
+    let mut micro = Microcontroller::new();
     
     let ble_device = BLEDevice::take();
     let mut client = BleClient::new(ble_device);
-    client.connect_to_any_with_service(BleId::FromUuid16(0x0101), None).unwrap();
-
-    micro.sleep(10000);
+    client.connect_to_device_of_name(None, "Galaxy S10e".to_string()).unwrap();
+    
+    println!("Connected");
+    micro.wait_for_updates(Some(2000));
+    client.prueba();
+    micro.wait_for_updates(None)
 }
 /*
 use bstr::ByteSlice;
