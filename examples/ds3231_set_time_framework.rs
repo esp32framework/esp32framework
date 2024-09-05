@@ -1,3 +1,7 @@
+//! Example using pin GPIO5 (sda) and GPIO6 (scl) with i2c to set 
+//! a date and time in a ds3231 sensor. Then it will ask the sensor
+//! for the time and print it in the screen.
+
 use esp32framework::{sensors::{DateTime, DateTimeComponent, DS3231}, serial::READER, Microcontroller};
 
 fn main() {

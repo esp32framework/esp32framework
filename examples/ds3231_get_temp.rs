@@ -1,7 +1,7 @@
-use esp_idf_svc::hal::delay::{FreeRtos, BLOCK};
-use esp_idf_svc::hal::i2c::*;
-use esp_idf_svc::hal::peripherals::Peripherals;
-use esp_idf_svc::hal::prelude::*;
+//! Example using pin GPIO5 (sda) and GPIO6 (scl) with i2c to communicate
+//! with a ds3231 sensor. Then it will ask the sensor temperature and print it every second.
+
+use esp_idf_svc::hal::{delay::{FreeRtos, BLOCK},i2c::*,peripherals::Peripherals,prelude::*};
 
 const DS3231_ADDR: u8 = 0x68;
 

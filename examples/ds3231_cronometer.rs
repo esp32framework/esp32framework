@@ -1,9 +1,9 @@
-use esp_idf_svc::hal::delay::{FreeRtos, BLOCK};
-use esp_idf_svc::hal::i2c::*;
-use esp_idf_svc::hal::peripherals::Peripherals;
-use esp_idf_svc::hal::prelude::*;
+//! Example using pin GPIO5 (sda) and GPIO6 (scl) with i2c to communicate
+//! with a ds3231 sensor. Then it will ask the sensor for the time and print
+//! the raw and parsed data in the screen twice per second.
 
 use std::str;
+use esp_idf_svc::hal::{i2c::*,delay::{FreeRtos, BLOCK},peripherals::Peripherals,prelude::*};
 
 const ADDRESS: u8 = 0x68;
 

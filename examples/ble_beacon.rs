@@ -1,5 +1,33 @@
+//! Example using ESP32 as a BLE beacon with multiple services and cycling 
+//! its data each 10 seconds.
 
 use esp32_nimble::{utilities::{mutex::Mutex, BleUuid}, BLEAdvertisementData, BLEAdvertising, BLEDevice};
+
+fn set_advertisement_services(ble_advertising: &Mutex<BLEAdvertising>, service_id: &Vec<u16>)-> BLEAdvertisementData{
+    let mut advertisement = BLEAdvertisementData::new();
+    advertisement.name("My beacon");
+ 
+    for i in service_id{
+        let uuid = BleUuid::from_uuid16(*i);
+        advertisement.add_service_uuid(uuid);
+    }
+    ble_advertising.lock().advertisement_type(esp32_nimble::enums::ConnMode::Non).set_data(
+        &mut advertisement
+    ).unwrap();
+    advertisement
+}
+
+fn loop_services(ble_advertising: &Mutex<BLEAdvertising>, advertisement :&mut BLEAdvertisementData, services: &Vec<u16>, data: &Vec<[u8;2]>, i: usize){
+    let mut services = services.iter().zip(data).cycle();
+    for _ in 0..i{
+        let (service, data) = services.next().unwrap();
+        advertisement.service_data(BleUuid::Uuid16(*service), data);
+        ble_advertising.lock().advertisement_type(esp32_nimble::enums::ConnMode::Non).set_data(
+            advertisement
+        ).unwrap();
+        esp_idf_svc::hal::delay::FreeRtos::delay_ms(1000);
+    }
+}
 
 fn main() {
     esp_idf_svc::sys::link_patches();
@@ -32,32 +60,6 @@ fn main() {
     println!("stop");
     ble_advertising.lock().stop().unwrap();
     loop {
-        esp_idf_svc::hal::delay::FreeRtos::delay_ms(1000);
-    }
-}
-
-fn set_advertisement_services(ble_advertising: &Mutex<BLEAdvertising>, service_id: &Vec<u16>)-> BLEAdvertisementData{
-    let mut advertisement = BLEAdvertisementData::new();
-    advertisement.name("My beacon");
- 
-    for i in service_id{
-        let uuid = BleUuid::from_uuid16(*i);
-        advertisement.add_service_uuid(uuid);
-    }
-    ble_advertising.lock().advertisement_type(esp32_nimble::enums::ConnMode::Non).set_data(
-        &mut advertisement
-    ).unwrap();
-    advertisement
-}
-
-fn loop_services(ble_advertising: &Mutex<BLEAdvertising>, advertisement :&mut BLEAdvertisementData, services: &Vec<u16>, data: &Vec<[u8;2]>, i: usize){
-    let mut services = services.iter().zip(data).cycle();
-    for _ in 0..i{
-        let (service, data) = services.next().unwrap();
-        advertisement.service_data(BleUuid::Uuid16(*service), data);
-        ble_advertising.lock().advertisement_type(esp32_nimble::enums::ConnMode::Non).set_data(
-            advertisement
-        ).unwrap();
         esp_idf_svc::hal::delay::FreeRtos::delay_ms(1000);
     }
 }

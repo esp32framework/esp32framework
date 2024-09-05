@@ -40,6 +40,12 @@ fn setup_led<'a>(micro: & mut Microcontroller<'a>)-> DigitalOut<'a> {
 	led
 }
 
+fn parse_temperature(temp: f32) -> Vec<u8> {
+	let int_part = temp as u8;
+	let decimal_part = (temp.fract() * 100.0) as u8;
+	vec![decimal_part, int_part	]
+}
+
 fn main(){
 	let mut micro = Microcontroller::new();
 	let mut ds3231 = setup_ds3231(&mut micro);
@@ -63,10 +69,4 @@ fn main(){
 		}
 		micro.wait_for_updates(Some(300));
 	}
-}
-
-fn parse_temperature(temp: f32) -> Vec<u8> {
-	let int_part = temp as u8;
-	let decimal_part = (temp.fract() * 100.0) as u8;
-	vec![decimal_part, int_part	]
 }

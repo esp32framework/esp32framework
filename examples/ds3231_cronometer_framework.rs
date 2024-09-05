@@ -1,3 +1,7 @@
+//! Example using pin GPIO5 (sda) and GPIO6 (scl) with i2c to communicate
+//! with a ds3231 sensor. Then it will ask the sensor for the time and print
+//! the raw and parsed data in the screen twice per second.
+
 use esp32framework::{Microcontroller, gpio::{AnalogIn, InterruptType}};
 use std::{str, collections::HashMap, sync::atomic::{AtomicBool, Ordering}};
 
