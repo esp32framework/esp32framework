@@ -1,7 +1,7 @@
-use esp32_nimble::{enums::{AuthReq, AdvFlag, AdvType, ConnMode, DiscMode, SecurityIOCap}, utilities::BleUuid, BLEAddress, BLEAdvertisedDevice, BLEError, NimbleProperties};
+use esp32_nimble::{enums::{AdvFlag, AdvType, AuthReq, ConnMode, DiscMode, SecurityIOCap}, utilities::BleUuid, BLEAddress, BLEAdvertisedDevice, BLEError, BLERemoteCharacteristic, NimbleProperties};
 use uuid::Uuid;
 use crate::utils::timer_driver::TimerDriverError;
-
+use esp_idf_svc::hal::task::block_on;
 use super::{StandarCharacteristicId, StandarServiceId};
 use std::hash::Hash;
 
@@ -27,7 +27,10 @@ pub enum BleError{
     ConnectionError,
     InvalidParameters,
     DeviceNotFound,
-    AlreadyConnected
+    AlreadyConnected,
+    CharacteristicIsNotReadable,
+    CharacteristicIsNotWritable,
+    CharacteristicIsNotNotifiable
 }
 
 impl From<BLEError> for BleError {
@@ -361,6 +364,73 @@ impl Characteristic {
         self
     }
 
+}
+
+pub struct RemoteCharacteristic<'a>{
+    characteristic: &'a mut BLERemoteCharacteristic
+}
+
+impl<'a> RemoteCharacteristic<'a>{
+    // flags?
+    // descriptors, que son
+    // read, write, notify
+
+    pub fn id(&self)-> BleId{
+        BleId::from(self.characteristic.uuid())
+    }
+
+    pub fn is_readable(&self)-> bool{
+        self.characteristic.can_read()
+        
+    }
+
+    pub fn is_writable(&self)->bool{
+        self.characteristic.can_write()
+    }
+
+    pub fn is_notifiable(&self)->bool{
+        self.characteristic.can_notify()
+    }
+
+    pub fn is_broadcastable(&self)->bool{
+        self.characteristic.can_broadcast()
+    }
+    
+    pub fn is_writable_no_resp(&self)->bool{
+        self.characteristic.can_write_no_response()
+    }
+
+    pub async fn read_async(&mut self) -> Result<Vec<u8> ,BleError>{
+        if !self.is_readable(){
+            return Err(BleError::CharacteristicIsNotReadable)
+        }
+        self.characteristic.read_value().await.map_err(BleError::from)
+    }
+    
+    pub fn read(&mut self) -> Result<Vec<u8> ,BleError>{
+        block_on(self.read_async())
+    }
+
+    pub async fn write_async(&mut self, data: &[u8]) -> Result<() ,BleError>{
+        if !self.is_writable() && !self.is_writable_no_resp(){
+            return Err(BleError::CharacteristicIsNotWritable)
+        }
+        self.characteristic.write_value(data, !self.is_writable_no_resp()).await.map_err(BleError::from)
+    }
+
+    pub fn write(&mut self, data: &[u8]) -> Result<(), BleError> {
+        block_on(self.write_async(data))
+    }
+    
+    pub fn on_notify<C: FnMut(&[u8]) + Send + Sync + 'static>(&mut self, callback: C){
+        self.characteristic.on_notify(callback);
+    }
+}
+
+impl<'a> From<&'a mut BLERemoteCharacteristic> for RemoteCharacteristic<'a>{
+    fn from(value: &'a mut BLERemoteCharacteristic) -> Self {
+        RemoteCharacteristic{characteristic: value}
+    }
 }
 
 /// Enums the device's input and output capabilities, 

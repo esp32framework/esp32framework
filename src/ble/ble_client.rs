@@ -1,8 +1,10 @@
 use std::{ time::Duration};
 
-use esp32_nimble::{utilities::BleUuid, BLEClient, BLEDevice, BLEScan};
-use esp_idf_svc::hal::{ task::block_on};
+use esp32_nimble::{utilities::BleUuid, BLEClient, BLEDevice, BLERemoteCharacteristic, BLEScan};
+use esp_idf_svc::hal::{ delay::FreeRtos, task::block_on};
 const BLOCK: i32 = i32::MAX;
+
+use crate::ble::RemoteCharacteristic;
 
 use super::{BleAdvertisedDevice, BleError, BleId};
 
@@ -18,27 +20,48 @@ impl BleClient{
     }
 
     pub fn prueba(&mut self){
-        block_on(
+        
+        let services = block_on(
             self.prueba_async()
-        )
+        );
+
+        println!("Services {:?}", services);
     }
 
     async fn prueba_async(&mut self){
+        let service = self.ble_client.get_service(BleUuid::Uuid32(0x12345678)).await.unwrap();
+        loop{
+            let mut characteristics: Vec<&mut BLERemoteCharacteristic> = service.get_characteristics().await.unwrap().collect();
+            for c in &mut characteristics{
+                println!("char: {}", c.uuid());
+                if c.can_read(){
+                    println!("Read_value {:?}", c.read_value().await);
+                }
+
+                println!("\n\n")
+            }
+            println!(")===================================(");
+            FreeRtos::delay_ms(1000)
+        }
+        /*
         let services = self.ble_client.get_services().await.unwrap();
         for s in services{
             println!("service: {}", s.to_string());
             for c in s.get_characteristics().await.unwrap(){
                 println!("char: {}", c.uuid());
-                if c.uuid().to_string() == "01010101-0000-1000-8000-00805f9b34fb"{
+                if c.can_read(){
+                    println!("Readable: {}", c.can_read());
                     println!("Read_value {:?}", c.read_value().await);
 
                 }
+                FreeRtos::delay_ms(1000)
                 //if c.can_read() && !c.can_write(){
                 //    println!("Read_value {:?}", c.read_value().await);
                 //}
 
             }
         }
+        */
     }
 
     pub async fn connect_to_device_async<C: Fn(&BleAdvertisedDevice) -> bool + Send + Sync>(&mut self, timeout: Option<Duration>, condition: C)->Result<(), BleError>{
@@ -96,20 +119,32 @@ impl BleClient{
             .interval(self.time_between_scans.max(1))
             .window(self.time_between_scans.max(2) -1);
     }
+
+    pub fn get_characteristic(&mut self, service_id: BleId, characteristic_id: BleId)-> Result<RemoteCharacteristic, BleError>{
+        block_on(self.get_characteristic_async(service_id, characteristic_id))
+    }
     
-    fn get_characteristic(service_id: BleUuid){
 
+    pub async fn get_characteristic_async(&mut self, service_id: BleId, characteristic_id: BleId)-> Result<RemoteCharacteristic, BleError>{
+        let remote_service = self.ble_client.get_service(service_id.to_uuid()).await.unwrap();
+        let remote_characteristic = remote_service.get_characteristic(characteristic_id.to_uuid()).await.unwrap();
+        Ok(RemoteCharacteristic::from(remote_characteristic))
     }
 
-    fn get_all_characteristics(service_id: BleUuid){
+    async fn get_all_characteristics(&mut self, service_id: BleId) -> Result<(), BleError>{
+        let remote_service = self.ble_client.get_service(service_id.to_uuid()).await.map_err(BleError::from)?;
+        let characteristics = remote_service.get_characteristics().await.unwrap();
+        for c in characteristics{
 
+            todo!()
+        }
+        todo!()
     }
 
-    fn get_service(){
-
-    }
-
-    fn get_all_services(){
+    pub async fn get_all_services(&mut self)-> Result<Vec<BleId>, BleError>{
+        let remote_services = self.ble_client.get_services().await.map_err(BleError::from)?;
+        let services = remote_services.map(|remote_service| BleId::from(remote_service.uuid())).collect();
+        Ok(services)
         
     }
 
