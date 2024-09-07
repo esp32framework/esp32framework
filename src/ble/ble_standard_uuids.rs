@@ -1,3 +1,5 @@
+/// Enums the UUIDs of standard Bluetooth Low Energy (BLE) services.
+/// Each variant corresponds to a specific service defined by the Bluetooth Special Interest Group (SIG).
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum StandarServiceId {
     GAP = 0x1800,

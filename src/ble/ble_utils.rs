@@ -8,7 +8,7 @@ use std::hash::Hash;
 const MAX_ADV_PAYLOAD_SIZE: usize = 31;
 const PAYLOAD_FIELD_IDENTIFIER_SIZE: usize = 2;
 
-
+/// Enums the different errors possible when working with BLE  
 #[derive(Debug)]
 pub enum BleError{
     ServiceDoesNotFit,
@@ -31,6 +31,16 @@ pub enum BleError{
 }
 
 impl From<BLEError> for BleError {
+
+    /// Creates a BleError from a BLEError
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: The BLEError to transform
+    /// 
+    /// # Returns
+    /// 
+    /// The new BleError
     fn from(value: BLEError) -> Self {
         match value.code() {
             esp_idf_svc::sys::BLE_HS_EMSGSIZE => BleError::ServiceDoesNotFit,
@@ -42,7 +52,16 @@ impl From<BLEError> for BleError {
 }
 
 impl BleError {
-        
+    
+    /// Creates a BleError from an u32
+    /// 
+    /// # Arguments
+    /// 
+    /// - `code`: An u32 representing the error code
+    /// 
+    /// # Returns
+    /// 
+    /// An option containing the corresponding BleError, or a None if conversion fails
     fn from_code(code: u32) -> Option<BleError> {
         match BLEError::convert(code) {
             Ok(_) => None,
@@ -51,6 +70,7 @@ impl BleError {
     }
 }
 
+/// Enums the posible discoverable modes:
 /// * `Non-Discoverable Mode`: The device does not advertise itself. Other devices will connect only if they know the specific address.
 /// * `Limited Discoverable Mode`: The device does the advertisement during a limited amount of time.
 /// * `General Discoverable Mode`: The advertisment is done continuously, so any other device can see it in any moment.
@@ -66,6 +86,12 @@ pub enum DiscoverableMode {
 }
 
 impl DiscoverableMode {
+
+    /// Gets the DiscMode from a DiscoverableMode
+    /// 
+    /// # Returns
+    /// 
+    /// The corresponding DiscMode
     pub fn get_code(&self) -> DiscMode {
         match self {
             DiscoverableMode::NonDiscoverable => DiscMode::Non,
@@ -75,6 +101,7 @@ impl DiscoverableMode {
     }
 }
 
+/// Enums the posible connection modes: 
 /// * `NonConnectable`: The device does not allow connections.
 /// * `DirectedConnectable`: The device only allows connections from a specific device.
 /// * `UndirectedConnectable`: The divice allows connections from any device.
@@ -85,6 +112,12 @@ pub enum ConnectionMode {
 }
 
 impl ConnectionMode {
+
+    /// Gets the ConnMode from a ConnectionMode
+    /// 
+    /// # Returns
+    /// 
+    /// The corresponding ConnMode
     pub fn get_code(&self) -> ConnMode {
         match self {
             ConnectionMode::NonConnectable => ConnMode::Non,
@@ -94,6 +127,16 @@ impl ConnectionMode {
     }
 }
 
+/// A struct representing a Bluetooth Low Energy (BLE) service.
+/// A BLE service is a container that holds related characteristics. This struct includes:
+///
+/// - `id`: The unique identifier (`BleId`) of the service, typically a UUID corresponding to a standard
+///   or custom BLE service.
+/// - `data`: A vector of bytes (`Vec<u8>`) that may store additional service-specific data.
+/// - `characteristics`: A vector of `Characteristic` objects that define the various features
+///   offered by the service. Each characteristic may have its own unique properties and data.
+///
+/// This struct is used to define and manage the services offered by a BLE device.
 #[derive(Clone)]
 pub struct Service {
     pub id: BleId,
@@ -102,6 +145,22 @@ pub struct Service {
 }
 
 impl Service {
+
+    /// Creates a new Service
+    /// 
+    /// # Arguments
+    /// 
+    /// - `id`: The BleId to identify the service
+    /// - `data`: A vector of bytes that represent the data of the service
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` containing the new `Service` instance, or a `BleError` if the
+    /// initialization fails.
+    /// 
+    /// # Errors
+    /// 
+    /// - `BleError::ServiceTooBig`: If the len of data and the len of the id exceed the maximum size 
     pub fn new(id: &BleId, data: Vec<u8>) -> Result<Service, BleError> {
         let header_bytes = if data.is_empty() {PAYLOAD_FIELD_IDENTIFIER_SIZE} else {PAYLOAD_FIELD_IDENTIFIER_SIZE * 2};
         if data.len() + header_bytes + id.byte_size() > MAX_ADV_PAYLOAD_SIZE {
@@ -111,13 +170,28 @@ impl Service {
         }
     }
 
+    /// Adds a new characteristic to thee service
+    /// 
+    /// # Arguments
+    /// 
+    /// - `characteristic`: The Characterisitc struct representing the BLE charactersitic to add
+    /// 
+    /// # Returns
+    /// 
+    /// The Service itself
     pub fn add_characteristic(&mut self, characteristic: Characteristic) -> &mut Self {
         self.characteristics.push(characteristic);
         self
     }
 }
 
-/// in case of repeated name service (using ByName), the first one will be overwritten
+/// Enums the possible types of Ids:
+/// - `StandardService`: The UUIDs of standard Bluetooth Low Energy (BLE) services.
+/// - `StandarCharacteristic`: The UUIDs of standard Bluetooth Low Energy (BLE) characteristics.
+/// - `ByName`: A string that can be made into a BLE id.
+/// - `FromUuid16`: A way to get a BLE id from an u16.
+/// - `FromUuid32`: A way to get a BLE id from an u32.
+/// - `FromUuid128`: A way to get a BLE id from an [u8;16].
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum BleId {
     StandardService(StandarServiceId),
@@ -153,6 +227,12 @@ impl From<&BleUuid> for BleId{
 
 
 impl BleId {
+
+    /// Creates a BleUuid from a BleId
+    /// 
+    /// # Returns
+    /// 
+    /// The corresponfing BleUuid
     pub fn to_uuid(&self) -> BleUuid {
         match self {
             BleId::StandardService(service) => {BleUuid::from_uuid16(*service as u16)},
@@ -168,7 +248,12 @@ impl BleId {
         
     }
 
-    fn byte_size(&self) -> usize{
+    /// Gets the byte size
+    /// 
+    /// # Returns
+    /// 
+    /// The usize representing the byte size
+    fn byte_size(&self) -> usize {
         match self {
             BleId::StandardService(service) => service.byte_size(),
             BleId::StandarCharacteristic(characteristic) => characteristic.byte_size(),
@@ -185,25 +270,43 @@ pub struct BleAdvertisedDevice {
 }
 
 impl BleAdvertisedDevice{
+
+    /// Gets the name of the device
+    /// 
+    /// # Returns
+    /// 
+    /// A String representing the name
     pub fn name(&self)-> String{
         self.device.name().to_string()
     }
 
     /// Get the address of the advertising device.
+    /// 
+    /// # Returns
+    /// 
+    /// A BLEAddress
     pub fn addr(&self)-> &BLEAddress{
         self.device.addr()
     }
 
     /// Get the advertisement type.
+    /// 
+    /// # Returns
+    /// 
+    /// A AdvType
     pub fn adv_type(&self) -> AdvType {
         self.device.adv_type()
     }
 
     /// Get the advertisement flags.
+    /// 
+    /// # Returns
+    /// 
+    /// An `Option` with the AdvFlag if there is one, otherwise `None`
     pub fn adv_flags(&self) -> Option<AdvFlag> {
         self.device.adv_flags()
     }
-
+    
     pub fn rssi(&self) -> i32 {
         self.device.rssi()
     }
