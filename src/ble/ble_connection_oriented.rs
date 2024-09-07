@@ -17,7 +17,7 @@ use sharable_reference_macro::sharable_reference_wrapper;
 
 use super::{BleError, BleId, Characteristic, ConnectionMode, DiscoverableMode, Service};
 
-
+// TODO: How do we document this?
 pub struct _BleServer<'a> {
     advertising_name: String,
     ble_server: &'a mut BLEServer,
