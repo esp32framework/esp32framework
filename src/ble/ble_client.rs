@@ -120,25 +120,28 @@ impl BleClient{
             .window(self.time_between_scans.max(2) -1);
     }
 
-    pub fn get_characteristic(&mut self, service_id: BleId, characteristic_id: BleId)-> Result<RemoteCharacteristic, BleError>{
+    pub fn get_characteristic(&mut self, service_id: &BleId, characteristic_id: &BleId)-> Result<RemoteCharacteristic, BleError>{
         block_on(self.get_characteristic_async(service_id, characteristic_id))
     }
     
-
-    pub async fn get_characteristic_async(&mut self, service_id: BleId, characteristic_id: BleId)-> Result<RemoteCharacteristic, BleError>{
+    
+    pub async fn get_characteristic_async(&mut self, service_id: &BleId, characteristic_id: &BleId)-> Result<RemoteCharacteristic, BleError>{
         let remote_service = self.ble_client.get_service(service_id.to_uuid()).await.unwrap();
         let remote_characteristic = remote_service.get_characteristic(characteristic_id.to_uuid()).await.unwrap();
         Ok(RemoteCharacteristic::from(remote_characteristic))
     }
+    
+    pub async fn get_all_characteristics_async(&mut self, service_id: &BleId) -> Result<Vec<RemoteCharacteristic>, BleError>{
+        let remote_service = self.ble_client.get_service(service_id.to_uuid()).await.unwrap();
+        let remote_characteristics = remote_service.get_characteristics().await.unwrap().map(|remote_characteristic|
+            RemoteCharacteristic::from(remote_characteristic)
+        ).collect();
+        Ok(remote_characteristics)
+    }
+    
+    pub fn get_all_characteristics(&mut self, service_id: &BleId) -> Result<Vec<RemoteCharacteristic>, BleError>{
+        block_on(self.get_all_characteristics_async(service_id))
 
-    async fn get_all_characteristics(&mut self, service_id: BleId) -> Result<(), BleError>{
-        let remote_service = self.ble_client.get_service(service_id.to_uuid()).await.map_err(BleError::from)?;
-        let characteristics = remote_service.get_characteristics().await.unwrap();
-        for c in characteristics{
-
-            todo!()
-        }
-        todo!()
     }
 
     pub async fn get_all_services(&mut self)-> Result<Vec<BleId>, BleError>{

@@ -381,7 +381,6 @@ impl<'a> RemoteCharacteristic<'a>{
 
     pub fn is_readable(&self)-> bool{
         self.characteristic.can_read()
-        
     }
 
     pub fn is_writable(&self)->bool{
@@ -417,13 +416,17 @@ impl<'a> RemoteCharacteristic<'a>{
         }
         self.characteristic.write_value(data, !self.is_writable_no_resp()).await.map_err(BleError::from)
     }
-
+    
     pub fn write(&mut self, data: &[u8]) -> Result<(), BleError> {
         block_on(self.write_async(data))
     }
     
-    pub fn on_notify<C: FnMut(&[u8]) + Send + Sync + 'static>(&mut self, callback: C){
+    pub fn on_notify<C: FnMut(&[u8]) + Send + Sync + 'static>(&mut self, callback: C)->Result<(), BleError>{
+        if !self.is_notifiable(){
+            return Err(BleError::CharacteristicIsNotNotifiable)
+        }
         self.characteristic.on_notify(callback);
+        Ok(())
     }
 }
 
