@@ -11,6 +11,7 @@ use crate::microcontroller_src::peripherals::Peripheral;
 
 const MAX_DIGITAL_VAL: u16 = 4095;
 
+/// Enums the different errors possible when working with the analog in
 #[derive(Debug)]
 pub enum AnalogInError{
     MissingAdcDriver,
@@ -19,10 +20,14 @@ pub enum AnalogInError{
 }
 
 /// Driver for receiving analog inputs from a particular pin
+/// - `adc_channel_driver`: Instance of AnalogChannels
 pub struct AnalogIn<'a>{ 
     adc_channel_driver: AnalogChannels<'a>
 }
 
+/// Enums the possible channels from the ADC. In the ESP32-C6 the
+/// ADC has 7 channels, each on a different GPIO going from
+/// GPIO-0 to GPIO-6 inclusive
 enum AnalogChannels<'a>{
     Channel0(AdcChannelDriver<'a, Gpio0, Rc<AdcDriver<'a, ADC1>>>),
     Channel1(AdcChannelDriver<'a, Gpio1, Rc<AdcDriver<'a, ADC1>>>),
@@ -35,6 +40,21 @@ enum AnalogChannels<'a>{
 
 impl <'a> AnalogIn<'a> {
     /// Create a new _AnalogIn for a specific pin.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `pin`: A Peripheral of type Pin
+    /// - `adc_driver`: An instance of a SharableAdcDriver
+    /// - `attenuation`: An adc_atten_t representing the desired attenuation
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` containing the new `AnalogIn` instance, or an `AnalogInError` if the
+    /// initialization fails.
+    /// 
+    /// # Errors
+    /// 
+    /// - `AnalogInError::InvalidPin`: If the pin Peripheral is not valid
     pub fn new(pin: Peripheral, adc_driver: SharableAdcDriver<'a>, attenuation: adc_atten_t) -> Result<Self, AnalogInError> {
         Ok(AnalogIn {
             adc_channel_driver: AnalogIn::new_channel(pin,adc_driver,attenuation)?
@@ -42,6 +62,21 @@ impl <'a> AnalogIn<'a> {
     }
 
     /// Creates a new analog channel driver for a given pin
+    /// 
+    /// # Arguments
+    /// 
+    /// - `pin`: A Peripheral of type Pin
+    /// - `sharable_adc_driver`: An instance of a SharableAdcDriver
+    /// - `attenuation`: An adc_atten_t representing the desired attenuation
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` containing the new `AnalogChannels` instance, or an `AnalogInError` if the
+    /// initialization fails.
+    /// 
+    /// # Errors
+    /// 
+    /// - `AnalogInError::InvalidPin`: If the pin Peripheral is not valid
     fn new_channel(pin: Peripheral, sharable_adc_driver: SharableAdcDriver<'a>, attenuation: adc_atten_t) -> Result<AnalogChannels<'a>, AnalogInError> {
         let mut config = AdcChannelConfig::new();
         config.attenuation = attenuation;
@@ -65,8 +100,17 @@ impl <'a> AnalogIn<'a> {
     
     /// Returns a digital value read from the analog pin. 
     /// The value returned is already attenuated and the range possible depends on the attenuation set.
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` with Ok having an u16 that represents the read value if the read operation completed successfully,
+    /// or an `AnalogInError` if it fails.
+    /// 
+    /// # Errors
+    /// 
+    /// - `AnalogInError::ErrorReading`: If the read operation failed
     pub fn read(&mut self) -> Result<u16, AnalogInError> {
-        let mut read_value = match self.adc_channel_driver{
+        let mut read_value = match self.adc_channel_driver {
             AnalogChannels::Channel0(ref mut channel_driver) => channel_driver.read(),
             AnalogChannels::Channel1(ref mut channel_driver) => channel_driver.read(),
             AnalogChannels::Channel2(ref mut channel_driver) => channel_driver.read(),
@@ -86,6 +130,15 @@ impl <'a> AnalogIn<'a> {
 
     /// Returns the raw value read from an analog pin. 
     /// The value returned is not attenuated, so its ranges is [0, 4095].
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` with Ok having an u16 that represents the read raw value if the read operation completed successfully,
+    /// or an `AnalogInError` if it fails.
+    /// 
+    /// # Errors
+    /// 
+    /// - `AnalogInError::ErrorReading`: If the read operation failed
     pub fn read_raw(&mut self) -> Result<u16, AnalogInError> {
         match self.adc_channel_driver{
             AnalogChannels::Channel0(ref mut channel_driver) => channel_driver.read_raw(),
@@ -98,8 +151,20 @@ impl <'a> AnalogIn<'a> {
         }.map_err(|_| AnalogInError::ErrorReading)
     }
     
-    /// Reads *amount_of_samples* times from the analog pin and returns the average value.
+    /// Reads multiple times from the analog pin and returns the average value.
     /// It is used to get a more stable value from the analog pin.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `Amount of samples`: The number of times to read from the analog pin and calculate the average value.
+    /// 
+    /// # Returns
+    /// 
+    /// A `result` with Ok containing the u16 that represents the average value if the read operation completed successfully, or an AnalogInError if it fails.
+    /// 
+    /// # Errors
+    /// 
+    /// - `AnalogInError::ErrorReading` : If the read operation fails
     pub fn smooth_read(&mut self, amount_of_samples: u16) -> Result<u16, AnalogInError> {
         let mut smooth_val: u16 = 0;
         for _ in 0..amount_of_samples {
