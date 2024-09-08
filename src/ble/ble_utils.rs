@@ -306,29 +306,68 @@ impl BleAdvertisedDevice{
     pub fn adv_flags(&self) -> Option<AdvFlag> {
         self.device.adv_flags()
     }
-    
+
+    /// Get the rssi
+    /// 
+    /// # Returns
+    /// 
+    /// The rssi
     pub fn rssi(&self) -> i32 {
         self.device.rssi()
     }
 
+    /// Get all the service uuids
+    /// 
+    /// # Returns
+    /// 
+    /// A vector of BleId containing every service id
     pub fn get_service_uuids(&self) -> Vec<BleId> {
         self.device.get_service_uuids().map(|id| BleId::from(id)).collect()
     }
 
+    /// Indicates whether a service is being advertised or not
+    /// 
+    /// # Arguments
+    /// 
+    /// - `id`: The BleId of the service in doubt
+    /// 
+    /// # Returns
+    /// 
+    /// True if the service is being advertised, False if not
     pub fn is_advertising_service(&self, id: &BleId) -> bool {
         self.get_service_uuids().contains(id)
     }
 
+    /// Gets the data of every service contained
+    /// 
+    /// # Returns
+    /// 
+    /// A vector of tuple. Each tuple has the BleId of a service and its data which is a slice of bytes
     pub fn get_service_data_list(&self) -> Vec<(BleId, &[u8])> {
         self.device.get_service_data_list()
         .map(|s| (BleId::from(s.uuid()), s.data()))
         .collect()
     }
 
+    /// Get the data of a specific service
+    /// 
+    /// # Arguments
+    /// 
+    /// - `id`: The BleId of the service to be searched
+    /// 
+    /// # Returns
+    /// 
+    /// An `Option` with a tuple containing the BleId of the service and its data in a slice of bytes, `None` if
+    /// the service is not on the device
     pub fn get_service_data(&self, id: BleId) -> Option<(BleId, &[u8])> {
         self.get_service_data_list().into_iter().find(|s| s.0 == id)
     }
 
+    /// Gets the manufacture data of th device
+    /// 
+    /// # Returns
+    /// 
+    /// An `Option` with the data if there is one, `None` if there is not
     pub fn get_manufacture_data(&self) -> Option<&[u8]> {
         self.device.get_manufacture_data()
     }
@@ -342,9 +381,9 @@ impl From<&BLEAdvertisedDevice> for BleAdvertisedDevice{
 
 
 /// Abstracion of the BLE characteristic. Contains:
-/// * `id`: The id lets clients identified each service characteristic.
-/// * `properties`: Properties especify how the clients will be able to interact with the characteristic.
-/// * `data`: The value that the clients will be able to see or write (depending on the properties).
+/// - `id`: The id lets clients identified each service characteristic.
+/// - `properties`: Properties especify how the clients will be able to interact with the characteristic.
+/// - `data`: The value that the clients will be able to see or write (depending on the properties).
 #[derive(Clone)]
 pub struct Characteristic{
     pub id: BleId,
@@ -355,12 +394,30 @@ pub struct Characteristic{
 impl Characteristic {
 
     /// Creates a Characteristic with its id and data.
-    /// 
     /// It has no properties, this needs to be set separately.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `id`: The BleId to identify the characteristic
+    /// - `data`: A vector of bytes representing the desired data
+    /// 
+    /// # Returns
+    /// 
+    /// The new Characteristic
     pub fn new(id: BleId, data: Vec<u8>) -> Self {
         Characteristic{id, properties: 0, data}
     }
 
+    /// Adds or removes a property to the characteristic
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the property is added. When False the property is removed
+    /// - `flag`: The NimbleProperty to add or remove
+    /// 
+    /// # Returns
+    /// 
+    /// The Characteristic itself
     fn toggle(&mut self, value: bool, flag: NimbleProperties) -> &mut Self {
         if value {
             self.properties |= flag.bits();
@@ -373,6 +430,14 @@ impl Characteristic {
     /// Adds or removes the writable characteristic to the properties.
     /// 
     /// It allows the characteristics data to be written by the client.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the property is added. When False the property is removed.
+    /// 
+    /// # Returns
+    /// 
+    /// The Characteristic itself
     pub fn writable(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::WRITE)
     }
@@ -380,6 +445,14 @@ impl Characteristic {
     /// Adds or removes the readeable characteristic to the properties.
     /// 
     /// It allows the characteristics data to be read by the client.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the property is added. When False the property is removed.
+    /// 
+    /// # Returns
+    /// 
+    /// The Characteristic itself
     pub fn readeable(&mut self, value: bool) -> &mut Self{
         self.toggle(value, NimbleProperties::READ)
     }
@@ -387,6 +460,14 @@ impl Characteristic {
     /// Adds or removes the notifiable characteristic to the properties.
     /// 
     /// It allows the characteristics data to be published to the client, without waiting for an acknowledgement.
+    ///  
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the property is added. When False the property is removed.
+    /// 
+    /// # Returns
+    /// 
+    /// The Characteristic itself
     pub fn notifiable(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::NOTIFY)
     }
@@ -394,6 +475,14 @@ impl Characteristic {
     /// Adds or removes the readeable_enc characteristic to the properties.
     /// 
     /// It allows the characteristics data to be read by the client, only when the communication is encrypted.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the property is added. When False the property is removed.
+    /// 
+    /// # Returns
+    /// 
+    /// The Characteristic itself
     pub fn readeable_enc(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::READ_ENC)
     }
@@ -401,6 +490,14 @@ impl Characteristic {
     /// Adds or removes the readeable_authen characteristic to the properties.
     /// 
     /// It allows the characteristics data to be read by the client, only when the communication is authenticated.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the property is added. When False the property is removed.
+    /// 
+    /// # Returns
+    /// 
+    /// The Characteristic itself
     pub fn readeable_authen(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::READ_AUTHEN)
     }
@@ -408,6 +505,14 @@ impl Characteristic {
     /// Adds or removes the readeable_author characteristic to the properties.
     /// 
     /// It allows the characteristics data to be read by the client, only when authorized by the server.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the property is added. When False the property is removed.
+    /// 
+    /// # Returns
+    /// 
+    /// The Characteristic itself
     pub fn readeable_author(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::READ_AUTHOR)
    
@@ -416,6 +521,14 @@ impl Characteristic {
     /// Adds or removes the writeable_no_rsp characteristic to the properties.
     /// 
     /// It allows the characteristics data to be written by the client, without waiting for a response.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the property is added. When False the property is removed.
+    /// 
+    /// # Returns
+    /// 
+    /// The Characteristic itself
     pub fn writeable_no_rsp(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::WRITE_NO_RSP)
     }
@@ -423,6 +536,14 @@ impl Characteristic {
     /// Adds or removes the writeable_enc characteristic to the properties.
     /// 
     /// It allows the characteristics data to be written by the client, only when the communication is encrypted.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the property is added. When False the property is removed.
+    /// 
+    /// # Returns
+    /// 
+    /// The Characteristic itself
     pub fn writeable_enc(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::WRITE_ENC)
     }
@@ -430,6 +551,14 @@ impl Characteristic {
     /// Adds or removes the writeable_authen characteristic to the properties.
     /// 
     /// It allows the characteristics data to be written by the client, only when the communication is authenticated.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the property is added. When False the property is removed.
+    /// 
+    /// # Returns
+    /// 
+    /// The Characteristic itself
     pub fn writeable_authen(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::WRITE_AUTHEN)
     }
@@ -437,6 +566,14 @@ impl Characteristic {
     /// Adds or removes the writeable_author characteristic to the properties.
     /// 
     /// It allows the characteristics data to be written by the client, only when authorized by the server.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the property is added. When False the property is removed.
+    /// 
+    /// # Returns
+    /// 
+    /// The Characteristic itself
     pub fn writeable_author(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::WRITE_AUTHOR)
     }
@@ -444,6 +581,14 @@ impl Characteristic {
     /// Adds or removes the broadcastable characteristic to the properties.
     /// 
     /// It allows the characteristics data to be broadcasted by the server.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the property is added. When False the property is removed.
+    /// 
+    /// # Returns
+    /// 
+    /// The Characteristic itself
     pub fn broadcastable(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::BROADCAST)
     }
@@ -451,6 +596,14 @@ impl Characteristic {
     /// Adds or removes the indicatable characteristic to the properties.
     /// 
     /// It allows the characteristics data to be published to the client and waits for an acknowledgement.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the property is added. When False the property is removed.
+    /// 
+    /// # Returns
+    /// 
+    /// The Characteristic itself
     pub fn indicatable(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::INDICATE)
     }
@@ -458,7 +611,15 @@ impl Characteristic {
     /// Sets a new data to the characteristic.
     /// 
     /// When updating the data, the server needs to be notified about the characteristic data change. If not,
-    /// server will never use the new values and clients will never get the last information. 
+    /// server will never use the new values and clients will never get the last information.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `data`: A vector of bytes representing the updated data
+    /// 
+    /// # Returns
+    /// 
+    /// The Characteristic itself
     pub fn update_data(&mut self, data: Vec<u8>) -> &mut Self{
         self.data = data;
         self
@@ -469,15 +630,15 @@ impl Characteristic {
 /// Enums the device's input and output capabilities, 
 /// which help determine the level of security and the key
 /// generation method for pairing:
-/// * `DisplayOnly`: It is capable of displaying information on a 
+/// - `DisplayOnly`: It is capable of displaying information on a 
 /// screen but cannot receive inputs.
-/// * `DisplayYesNo`: It can display information and/or yes/no questions, 
+/// - `DisplayYesNo`: It can display information and/or yes/no questions, 
 /// allowing for limited interaction.
-/// * `KeyboardOnly`: It can receive input through a keyboard 
+/// - `KeyboardOnly`: It can receive input through a keyboard 
 /// (e.g., entering a PIN during pairing).
-/// * `NoInputNoOutput`: It has no means to display information or 
+/// - `NoInputNoOutput`: It has no means to display information or 
 /// receive input from, for example, keyboards or buttons.
-/// * `KeyboardDisplay`: It can receive input through a keyboard and it 
+/// - `KeyboardDisplay`: It can receive input through a keyboard and it 
 /// is capable of displaying information.
 pub enum IOCapabilities {
     DisplayOnly,
@@ -488,6 +649,12 @@ pub enum IOCapabilities {
 }
 
 impl IOCapabilities {
+
+    /// Gets the corresponding SecurityIOCap
+    /// 
+    /// # Returns
+    /// 
+    /// A SecurityIOCap
     pub fn get_code(&self) -> SecurityIOCap {
         match self {
             IOCapabilities::DisplayOnly => SecurityIOCap::DisplayOnly,
@@ -501,6 +668,9 @@ impl IOCapabilities {
 /// Contains the necessary to have a secure BLE server.
 /// This includes a passkey, the I/O capabilities and the
 /// authorization requirements.
+/// - `passkey`: A 6-digit u32
+/// - `auth_mode`: An u8 representing the combination of authorization modes
+/// - `io_capabilities`: An IOCapabilities instance
 pub struct Security {
     pub passkey: u32, // TODO: I think the passkey can only be 6 digits long. If so, add a step that checks this
     pub auth_mode: u8,
@@ -512,10 +682,29 @@ impl Security {
     /// Creates a Security with its passkey and I/O capabilities. 
     /// 
     /// It has no authentication requirements, this need to be set separately
+    /// 
+    /// # Arguments
+    /// 
+    /// - `passkey`: A 6-digit u32
+    /// - `io_capabilities`: An IOCapabilities instance
+    /// 
+    /// # Returns
+    /// 
+    /// A new Security instance
     pub fn new(passkey: u32, io_capabilities: IOCapabilities) -> Self {
         Security { passkey, auth_mode: 0, io_capabilities }
     }
 
+    /// Adds or removes a authorization requirement to the security instance
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the requirement is added. When False the requirement is removed
+    /// - `flag`: The AuthReq to add or remove
+    /// 
+    /// # Returns
+    /// 
+    /// The Security itself
     fn toggle(&mut self, value: bool, flag: AuthReq) -> &mut Self {
         if value {
             self.auth_mode |= flag.bits();
@@ -530,6 +719,14 @@ impl Security {
     /// When the bonding is allowed, devices remember the 
     /// pairing information. This allows to make future conexions to be faster
     /// and more secure. Useful for devices that get connected with frequency.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the requirement is added. When False the requirement is removed
+    /// 
+    /// # Returns
+    /// 
+    /// The Security itself
     pub fn allow_bonding(&mut self, value: bool) -> &mut Self {
         self.toggle(value, AuthReq::Bond);
         self
@@ -539,6 +736,14 @@ impl Security {
     /// 
     /// Authentication requires a verification
     /// that makes it hard for a third party to intercept the communication.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the requirement is added. When False the requirement is removed
+    /// 
+    /// # Returns
+    /// 
+    /// The Security itself
     pub fn man_in_the_middle(&mut self, value: bool) -> &mut Self {
         self.toggle(value, AuthReq::Mitm);
         self
@@ -547,7 +752,15 @@ impl Security {
     /// Sets the Secure Connection authorization requirement. 
     /// 
     /// This is a more secure version of BLE pairing by using the 
-    /// elliptic curve Diffie-Hellman algorithm. This is part of standard Bluetooth 4.2 and newer versions. 
+    /// elliptic curve Diffie-Hellman algorithm. This is part of standard Bluetooth 4.2 and newer versions.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the requirement is added. When False the requirement is removed
+    /// 
+    /// # Returns
+    /// 
+    /// The Security itself
     pub fn secure_connection(&mut self, value: bool) -> &mut Self {
         self.toggle(value, AuthReq::Sc);
         self
