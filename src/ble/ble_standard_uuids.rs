@@ -73,12 +73,20 @@ pub enum StandarServiceId {
     MeshProxySolicitation = 0x1859,
 }
 
-impl StandarServiceId{
+impl StandarServiceId {
+
+    /// Byte size of the StandarServiceId
+    /// 
+    /// # Returns
+    /// 
+    /// An usize representing the size
     pub fn byte_size(&self)-> usize{
         2
     }
 }
 
+/// Enums the UUIDs of standard Bluetooth Low Energy (BLE) characteristics.
+/// Each variant corresponds to a specific characteristic defined by the Bluetooth Special Interest Group (SIG).
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum StandarCharacteristicId{
     DeviceName = 0x10752,
@@ -535,6 +543,12 @@ pub enum StandarCharacteristicId{
 }
 
 impl StandarCharacteristicId{
+
+    /// Byte size of the StandarCharacteristicId
+    /// 
+    /// # Returns
+    /// 
+    /// An usize representing the size
     pub fn byte_size(&self)-> usize{
         2
     }
