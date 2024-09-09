@@ -1,21 +1,43 @@
 use std::{cell::{Ref, RefCell, RefMut}, ops::Deref, sync::Arc, rc::Rc};
-pub type SharableRef<T> = Rc<RefCell<T>>;
-use esp_idf_svc::{hal::{delay::BLOCK, task::queue::Queue}, sys::{EspError, configTICK_RATE_HZ}};
-use esp_idf_svc::sys::TickType_t;
+use esp_idf_svc::{hal::{delay::BLOCK, task::queue::Queue}, sys::{TickType_t,EspError, configTICK_RATE_HZ}};
 
+pub type SharableRef<T> = Rc<RefCell<T>>;
+
+/// Error types related to ISR queue operations.
 #[derive(Debug)]
 pub enum ISRQueueError {
     Timeout,
     Empty,
 }
 
+/// Trait to handle sherable references.
 pub trait SharableRefExt<T>{
+    /// Creates a new SharableRef.
+    ///
+    /// # Arguments
+    ///
+    /// - `inner`: The value to wrap in a sharable reference.
+    ///
+    /// # Returns
+    /// 
+    /// A new `SharableRef<T>` wrapping the inner value.
     fn new_sharable(inner: T) -> SharableRef<T>;
     
+    /// Returns a shared reference to the inner value.
+    ///
+    /// # Returns
+    ///
+    /// A `Ref<T>` sharing ownership of the inner value.
     fn deref(&self) -> Ref<T>;
         
+    /// Returns a mutable shared reference to the inner value.
+    ///
+    /// # Returns
+    ///
+    /// A `RefMut<T>` sharing mutable ownership of the inner value.
     fn deref_mut(&mut self) -> RefMut<T>;
 }
+
 
 impl<T> SharableRefExt<T> for SharableRef<T>{
     fn new_sharable(inner: T) -> SharableRef<T>{
@@ -29,24 +51,69 @@ impl<T> SharableRefExt<T> for SharableRef<T>{
     }
 }
 
+/// A queue that wraps its contents in an `Arc<Queue<T>>` for shared ownership.
 #[derive(Clone)]
 pub struct ISRQueue<T: Copy>{
     q: Arc<Queue<T>>
 }
 
 impl<T: Copy> ISRQueue<T>{
+    /// Creates a new empty `ISRQueue` with the given initial capacity.
+    ///
+    /// # Arguments
+    ///
+    /// * `size` - The initial capacity of the queue.
+    ///
+    /// # Returns
+    ///
+    /// A new `ISRQueue<T>` instance.
     pub fn new(size: usize)-> Self{
         Self{q: Arc::new(Queue::new(size))}
     }
 
+    /// Sends an item to the queue, blocking until space is available.
+    ///
+    /// # Arguments
+    ///
+    /// * `item` - The item to send to the queue.
     pub fn send(&mut self, item: T){
         self.send_timeout(item, BLOCK).unwrap()
     }
     
+    /// Attempts to send an item to the queue without blocking.
+    ///
+    /// # Arguments
+    ///
+    /// * `item` - The item to attempt sending to the queue.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` with Ok if the read operation completed successfully, or an 
+    /// `ISRQueueError` if it fails.
+    /// 
+    ///  # Errors
+    ///
+    /// - `ISRQueueError::Timeout`: If the operation fails.
     pub fn try_send(&mut self, item: T) -> Result<(), ISRQueueError>{
-        self.send_timeout(item, 0).map_err(|_| ISRQueueError::Empty)
+        self.send_timeout(item, 0)
     }
 
+    /// Attempts to send an item to the queue blocking until space is available or a 
+    /// timeout occurs.
+    ///
+    /// # Arguments
+    ///
+    /// * `item` - The item to attempt sending to the queue.
+    /// * `micro` - The maximum duration to wait in microseconds.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` with Ok if the read operation completed successfully, or an 
+    /// `ISRQueueError` if it fails.
+    /// 
+    ///  # Errors
+    ///
+    /// - `ISRQueueError::Timeout`: If the operation exceeded the specified timeout.
     pub fn send_timeout(&mut self,item: T, micro: u32)-> Result<(), ISRQueueError> {
         match self.q.send_back(item, micro_to_ticks(micro)) {
             Ok(_) => Ok(()), 
@@ -54,14 +121,43 @@ impl<T: Copy> ISRQueue<T>{
         }
     }
 
+    /// Receives an item from the front of the queue, blocking until an item is available.
+    ///
+    /// # Returns
+    ///
+    /// The received item from the queue.
     pub fn receive(&mut self) -> T {
         self.receive_timeout(BLOCK).unwrap()
     }
 
+    
+    /// Attempts to receive an item from the front of the queue without blocking.
+    ///
+    /// # Returns
+    ///
+    /// The item if it was successfully received or an `ISRQueueError` if it fails.
+    /// 
+    /// # Errors
+    /// 
+    /// - `ISRQueueError::Empty`: if there were no items available in the queue.
     pub fn try_recv(&mut self) -> Result<T, ISRQueueError> {
         self.receive_timeout(0).map_err(|_| ISRQueueError::Empty)
     }
 
+    /// Receives an item from the front of the queue, blocking until an item is 
+    /// available or a timeout occurs.
+    ///
+    /// # Arguments
+    ///
+    /// * `micro` - The maximum duration to wait in microseconds.
+    /// 
+    /// # Returns
+    ///
+    /// The item if it was successfully received or an `ISRQueueError` if it fails.
+    /// 
+    /// # Errors
+    /// 
+    /// - `ISRQueueError::Timeout`: if the timeout occurred before an item became available.
     pub fn receive_timeout(&mut self, micro: u32)-> Result<T, ISRQueueError> {
         match self.q.recv_front(micro_to_ticks(micro)){
             Some((item, _)) => Ok(item), 
@@ -71,6 +167,14 @@ impl<T: Copy> ISRQueue<T>{
 }
 
 /// Converts microseconds to system ticks based on the configured tick rate.
+///
+/// # Arguments
+///
+/// * `time_us` - The duration in microseconds.
+///
+/// # Returns
+///
+/// The converted duration in ticks using a u32 value.
 pub fn micro_to_ticks(time_us: u32) -> u32 {
     ((configTICK_RATE_HZ as u64) * (time_us as u64) / (1_000_000 as u64)) as u32
 }
