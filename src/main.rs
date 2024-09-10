@@ -1,6 +1,6 @@
 use std::sync::{atomic::AtomicU8, Arc};
 
-use esp32framework::{ble::{ble_client::BleClient, BleError, BleId}, Microcontroller};
+use esp32framework::{ble::{ble_client::BleClient, BleError, BleId, RemoteCharacteristic}, Microcontroller};
 use esp32_nimble::BLEDevice;
 fn main(){
   let mut micro = Microcontroller::new();
@@ -22,14 +22,24 @@ fn main(){
     });
   }
 
+  let mut timer_driver = micro.get_timer_driver();
+  timer_driver.interrupt_after(2000, || {println!("INTERRUPCION")});
+  timer_driver.enable().unwrap();
+
+  micro.block_on(main_loop( characteristics, multiplier))
+  
+
   //TODO blockon en micro para hacer lo del usuario + los updates
   
   // recibe el future del usuario y por adentro tambien se le pasa el update: 
   
   
+}
+
+async fn main_loop<'a>(mut characteristics: Vec<RemoteCharacteristic<'a>>, multiplier: Arc<AtomicU8>){
   loop{
     for characteristic in characteristics.iter_mut(){
-      let read = match characteristic.read() {
+      let read = match characteristic.read_async().await {
         Ok(read) => get_number_from_bytes(read),
         Err(err) => match err{
           BleError::CharacteristicIsNotReadable => continue,
@@ -38,19 +48,17 @@ fn main(){
       };
       
       let mult = multiplier.load(std::sync::atomic::Ordering::Acquire);
-      let new_value = read * mult as u32;
+      let new_value = read.wrapping_mul(mult as u32);
 
-      println!("Read value: {}, multipling by: {}, result: {}", read, mult, new_value);
+      //println!("Read value: {}, multipling by: {}, result: {}", read, mult, new_value);
     
-      if let Err(err) = characteristic.write(&new_value.to_be_bytes()){
+      if let Err(err) = characteristic.write_async(&new_value.to_be_bytes()).await{
         match err{
           BleError::CharacteristicIsNotWritable => continue,
           _ => Err(err).unwrap()
         }
       }
     }
-    
-		micro.wait_for_updates(Some(2000));
 	}
 }
 

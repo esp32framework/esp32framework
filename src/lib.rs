@@ -1,3 +1,5 @@
+#![feature(future_join)]
+
 mod microcontroller_src;
 pub mod gpio;
 mod utils;

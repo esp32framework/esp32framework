@@ -5,12 +5,12 @@ use std::{
     }
 };
 
-use esp_idf_svc::hal::{task::notification::Notifier, timer};
+use esp_idf_svc::hal::{ timer};
 use crate::{microcontroller_src::interrupt_driver::InterruptDriver, utils::timer_driver::timer::TimerConfig};
 use crate::microcontroller_src::peripherals::Peripheral;
 use sharable_reference_macro::sharable_reference_wrapper;
 
-use super::esp32_framework_error::Esp32FrameworkError;
+use super::{esp32_framework_error::Esp32FrameworkError, notification::Notifier};
 
 const MICRO_IN_SEC: u64 = 1000000;
 
@@ -174,7 +174,7 @@ impl PartialOrd for Alarm{
 
 #[sharable_reference_wrapper("id")]
 impl <'a>_TimerDriver<'a>{
-    fn new(timer: Peripheral, notifier: Arc<Notifier>) -> Result<_TimerDriver<'a>, TimerDriverError> {
+    fn new(timer: Peripheral, notifier: Notifier) -> Result<_TimerDriver<'a>, TimerDriverError> {
         let driver = match timer{
             Peripheral::Timer(timer_num) => 
                 match timer_num{
@@ -195,12 +195,12 @@ impl <'a>_TimerDriver<'a>{
     }
     
     /// Sets the callback for the timer_driver which will modify the interrupt update
-    fn set_interrupt_update_callback(&mut self, notifier: Arc<Notifier>)->Result<(), TimerDriverError>{
+    fn set_interrupt_update_callback(&mut self, notifier: Notifier)->Result<(), TimerDriverError>{
         let interrupt_update_ref = self.interrupt_update.clone();
         unsafe{
             let alarm_callback = move || {
                 interrupt_update_ref.new_update();
-                notifier.notify_and_yield(NonZeroU32::new(1).unwrap());
+                notifier.notify().unwrap()
             };
         
             self.driver.subscribe(alarm_callback).map_err(|_| TimerDriverError::SubscriptionError)
@@ -209,7 +209,7 @@ impl <'a>_TimerDriver<'a>{
 
     /// Sets an interrupt that triggers once after "microseconds". For this to start working enable()
     /// must be called. After the interrupt has been trigger it can be reset by calling enable()
-    pub fn interrupt_after<F: FnMut() + Send + 'static>(&mut self, id: u8, micro_seconds: u64, callback: F){
+    pub fn interrupt_after<F: FnMut() + 'static>(&mut self, id: u8, micro_seconds: u64, callback: F){
         self.interrupt_after_n_times(id, micro_seconds, None, false, callback)
     }
 
@@ -352,7 +352,7 @@ impl <'a> InterruptDriver for _TimerDriver<'a>{
 }
 
 impl <'a>TimerDriver<'a>{
-    pub fn new(timer: Peripheral, notifier: Arc<Notifier>) -> Result<TimerDriver<'a>, TimerDriverError> {
+    pub fn new(timer: Peripheral, notifier: Notifier) -> Result<TimerDriver<'a>, TimerDriverError> {
         Ok(TimerDriver{
             inner: Rc::new(RefCell::new(_TimerDriver::new(timer, notifier)?)),
             id: 0,
