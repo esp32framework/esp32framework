@@ -1,4 +1,4 @@
-use esp32_nimble::{enums::{AdvFlag, AdvType, AuthReq, ConnMode, DiscMode, SecurityIOCap}, utilities::BleUuid, BLEAddress, BLEAdvertisedDevice, BLEError, BLERemoteCharacteristic, NimbleProperties};
+use esp32_nimble::{enums::{AdvFlag, AdvType, AuthReq, ConnMode, DiscMode, SecurityIOCap}, utilities::BleUuid, BLEAddress, BLEAdvertisedDevice, BLEError, BLERemoteCharacteristic, BLERemoteDescriptor, NimbleProperties};
 use uuid::Uuid;
 use crate::utils::timer_driver::TimerDriverError;
 use esp_idf_svc::hal::task::block_on;
@@ -168,7 +168,6 @@ impl BleId {
             BleId::FromUuid32(uuid) => BleUuid::from_uuid32(*uuid),
             BleId::FromUuid128(uuid) => BleUuid::from_uuid128(*uuid),
         }
-        
     }
 
     fn byte_size(&self) -> usize{
@@ -427,6 +426,51 @@ impl<'a> RemoteCharacteristic<'a>{
         }
         self.characteristic.on_notify(callback);
         Ok(())
+    }
+
+    pub fn get_descriptor_value(&mut self, id: &BleId) -> Result<Vec<u8>, BleError>{
+        block_on(self.get_descriptor_value_async(id))
+    }
+
+    pub async fn get_descriptor_value_async(&mut self, id: &BleId) -> Result<Vec<u8>, BleError>{
+        let descriptor = self.get_descriptor(id)?;
+        descriptor.read_value().await.map_err(BleError::from)
+    }
+    
+    pub fn get_descriptor(&mut self, id: &BleId) -> Result<&mut BLERemoteDescriptor, BleError>{
+        block_on(self.get_descriptor_async(id))
+    }
+
+    pub async fn get_descriptor_async(&mut self, id: &BleId) -> Result<&mut BLERemoteDescriptor, BleError>{
+        let descriptor = self.characteristic.get_descriptor(id.to_uuid()).await;
+        if let Err(e) = descriptor {
+            return Err(BleError::from(e))
+        }
+        Ok(descriptor?)
+        // match descriptor {
+        //     Ok(descriptor) => {
+        //         Ok(descriptor)
+        //     }
+        //     Err(e) => {
+        //         Err(BleError::from(e))
+        //     }
+        // }
+    }
+
+    pub fn get_all_descriptors(&mut self) -> Result<Vec<&mut BLERemoteDescriptor>, BleError>{
+        block_on(self.get_all_descriptors_async())
+    }
+
+    pub async fn get_all_descriptors_async(&mut self) -> Result<Vec<&mut BLERemoteDescriptor>, BleError>{
+        let descriptors = self.characteristic.get_descriptors().await;
+        match descriptors {
+            Ok(descriptors_iter) => {
+                Ok(descriptors_iter.collect())
+            }
+            Err(e) => {
+                Err(BleError::from(e))
+            }
+        }
     }
 }
 

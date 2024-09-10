@@ -82,7 +82,7 @@ impl BleClient{
             None => Err(BleError::DeviceNotFound)
         }
     }
-    
+
     pub async fn connect_to_device_with_service_async(&mut self, timeout: Option<Duration>, service: &BleId)->Result<(), BleError>{
         self.connect_to_device_async(timeout, |adv| {
             println!("EL que publicta tiene los servicios: {:?}", adv.get_service_uuids());
@@ -141,15 +141,34 @@ impl BleClient{
     
     pub fn get_all_characteristics(&mut self, service_id: &BleId) -> Result<Vec<RemoteCharacteristic>, BleError>{
         block_on(self.get_all_characteristics_async(service_id))
-
     }
 
-    pub async fn get_all_services(&mut self)-> Result<Vec<BleId>, BleError>{
+    pub fn get_all_services(&mut self)-> Result<Vec<BleId>, BleError>{
+        block_on(self.get_all_services_async())
+    }
+
+    pub async fn get_all_services_async(&mut self)-> Result<Vec<BleId>, BleError>{
         let remote_services = self.ble_client.get_services().await.map_err(BleError::from)?;
         let services = remote_services.map(|remote_service| BleId::from(remote_service.uuid())).collect();
         Ok(services)
-        
     }
+
+    // pub fn get_all_descriptors(&mut self, service_id: &BleId, characteristic_id: &BleId)-> Result<Vec<BleId>, BleError>{
+    //     let mut characteristic = self.get_characteristic(service_id, characteristic_id)?;
+    //     let descriptors_iter = characteristic.get_descriptors()?.into_iter();
+    //     let descriptors = descriptors_iter.map(|descriptor| BleId::from(descriptor.uuid())).collect();
+    //     Ok(descriptors)
+    // }
+
+    // pub fn get_descriptor_value(&mut self, service_id: &BleId, characteristic_id: &BleId, descriptor_id: &BleId)-> Result<Vec<u8>, BleError>{
+    //     block_on(self.get_descriptor_value_async(service_id, characteristic_id, descriptor_id))
+    // }
+
+    // pub async fn get_descriptor_value_async(&mut self, service_id: &BleId, characteristic_id: &BleId, descriptor_id: &BleId)-> Result<Vec<u8>, BleError>{
+    //     let mut characteristic = self.get_characteristic(service_id, characteristic_id)?;
+    //     let descriptor = characteristic.get_descriptor(descriptor_id)?;
+    //     Ok(descriptor.read_value().await.map_err(BleError::from)?)
+    // }
 
     fn update_connection_params(){
         todo!()
