@@ -1,4 +1,4 @@
-use esp32_nimble::{enums::{AuthReq, AdvFlag, AdvType, ConnMode, DiscMode, SecurityIOCap}, utilities::BleUuid, BLEAddress, BLEAdvertisedDevice, BLEError, NimbleProperties};
+use esp32_nimble::{enums::{AdvFlag, AdvType, AuthReq, ConnMode, DiscMode, SecurityIOCap}, utilities::BleUuid, BLEAddress, BLEAdvertisedDevice, BLEError, DescriptorProperties, NimbleProperties};
 use uuid::Uuid;
 use crate::utils::timer_driver::TimerDriverError;
 
@@ -388,7 +388,8 @@ impl From<&BLEAdvertisedDevice> for BleAdvertisedDevice{
 pub struct Characteristic{
     pub id: BleId,
     pub properties: u16,
-    pub data: Vec<u8>
+    pub data: Vec<u8>,
+    pub descriptors: Vec<Descriptor>,
 }
 
 impl Characteristic {
@@ -405,7 +406,12 @@ impl Characteristic {
     /// 
     /// The new Characteristic
     pub fn new(id: BleId, data: Vec<u8>) -> Self {
-        Characteristic{id, properties: 0, data}
+        Characteristic{id, properties: 0, data, descriptors: vec![]}
+    }
+
+    pub fn add_descriptor(&mut self, descriptor: Descriptor) -> &mut Self {
+        self.descriptors.push(descriptor);
+        self
     }
 
     /// Adds or removes a property to the characteristic
@@ -764,5 +770,186 @@ impl Security {
     pub fn secure_connection(&mut self, value: bool) -> &mut Self {
         self.toggle(value, AuthReq::Sc);
         self
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Descriptor {
+    pub id: BleId,
+    pub properties: u8,
+    pub data: Vec<u8>,
+}
+
+impl Descriptor {
+
+    /// Creates a Descriptor with its id and data.
+    /// It has no properties, this needs to be set separately.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `id`: The BleId to identify the Descriptor
+    /// - `data`: A vector of bytes representing the desired data
+    /// 
+    /// # Returns
+    /// 
+    /// The new Descriptor
+    pub fn new(id: BleId, data: Vec<u8>) -> Self {
+        Descriptor{id, properties: 0, data}
+    }
+
+    /// Get the properties of a Descriptor.
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` with the properties if the operation completed successfully, or an `BleError` if it fails.
+    /// 
+    /// # Errors
+    /// 
+    /// - `BleError::PropertiesError`: If a Descriptor has an invalid property or no properties at all.
+    pub fn get_properties(&self) -> Result<DescriptorProperties, BleError> {
+        match DescriptorProperties::from_bits(self.properties.to_le()) {
+            Some(properties) => Ok(properties),
+            None => Err(BleError::PropertiesError),
+        }
+    }
+
+    /// Adds or removes a property to the descriptor
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the property is added. When False the property is removed
+    /// - `flag`: The DescriptorProperties to add or remove
+    /// 
+    /// # Returns
+    /// 
+    /// The Descriptor itself
+    fn toggle(&mut self, value: bool, flag: DescriptorProperties) -> &mut Self {
+        if value {
+            self.properties |= flag.bits();
+        }else {
+            self.properties &= !flag.bits();
+        }
+        self
+    }
+    
+    /// Adds or removes the writable flag to the properties.
+    /// 
+    /// It allows the descriptors data to be written by the client.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the property is added. When False the property is removed.
+    /// 
+    /// # Returns
+    /// 
+    /// The Descriptor itself
+    pub fn writable(&mut self, value: bool) -> &mut Self {
+        self.toggle(value, DescriptorProperties::WRITE)
+    }
+
+    /// Adds or removes the readeable flag to the properties.
+    /// 
+    /// It allows the descriptors data to be read by the client.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the property is added. When False the property is removed.
+    /// 
+    /// # Returns
+    /// 
+    /// The Descriptor itself
+    pub fn readeable(&mut self, value: bool) -> &mut Self{
+        self.toggle(value, DescriptorProperties::READ)
+    }
+
+    /// Adds or removes the readeable_enc flag to the properties.
+    /// 
+    /// It allows the descriptor data to be read by the client, only when the communication is encrypted.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the property is added. When False the property is removed.
+    /// 
+    /// # Returns
+    /// 
+    /// The Descriptor itself
+    pub fn readeable_enc(&mut self, value: bool) -> &mut Self {
+        self.toggle(value, DescriptorProperties::READ_ENC)
+    }
+
+    /// Adds or removes the readeable_authen flag to the properties.
+    /// 
+    /// It allows the descriptor data to be read by the client, only when the communication is authenticated.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the property is added. When False the property is removed.
+    /// 
+    /// # Returns
+    /// 
+    /// The Descriptor itself
+    pub fn readeable_authen(&mut self, value: bool) -> &mut Self {
+        self.toggle(value, DescriptorProperties::READ_AUTHEN)
+    }
+
+    /// Adds or removes the readeable_author flag to the properties.
+    /// 
+    /// It allows the descriptor data to be read by the client, only when authorized by the server.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the property is added. When False the property is removed.
+    /// 
+    /// # Returns
+    /// 
+    /// The Descriptor itself
+    pub fn readeable_author(&mut self, value: bool) -> &mut Self {
+        self.toggle(value, DescriptorProperties::READ_AUTHOR)
+   
+    }
+
+    /// Adds or removes the writeable_enc flag to the properties.
+    /// 
+    /// It allows the descriptor data to be written by the client, only when the communication is encrypted.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the property is added. When False the property is removed.
+    /// 
+    /// # Returns
+    /// 
+    /// The Descriptor itself
+    pub fn writeable_enc(&mut self, value: bool) -> &mut Self {
+        self.toggle(value, DescriptorProperties::WRITE_ENC)
+    }
+
+    /// Adds or removes the writeable_authen flag to the properties.
+    /// 
+    /// It allows the descriptor data to be written by the client, only when the communication is authenticated.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the property is added. When False the property is removed.
+    /// 
+    /// # Returns
+    /// 
+    /// The Descriptor itself
+    pub fn writeable_authen(&mut self, value: bool) -> &mut Self {
+        self.toggle(value, DescriptorProperties::WRITE_AUTHEN)
+    }
+
+    /// Adds or removes the writeable_author flag to the properties.
+    /// 
+    /// It allows the descriptor data to be written by the client, only when authorized by the server.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: A bool. When True the property is added. When False the property is removed.
+    /// 
+    /// # Returns
+    /// 
+    /// The Descriptor itself
+    pub fn writeable_author(&mut self, value: bool) -> &mut Self {
+        self.toggle(value, DescriptorProperties::WRITE_AUTHOR)
     }
 }

@@ -15,7 +15,7 @@ use crate::utils::esp32_framework_error::Esp32FrameworkError;
 use crate::InterruptDriver;
 use sharable_reference_macro::sharable_reference_wrapper;
 
-use super::{BleError, BleId, Characteristic, ConnectionMode, DiscoverableMode, Service};
+use super::{BleError, BleId, Characteristic, ConnectionMode, Descriptor, DiscoverableMode, Service};
 
 // TODO: How do we document this?
 pub struct _BleServer<'a> {
@@ -46,7 +46,8 @@ struct ConnectionCallback<'a>{
     notifier: Arc<Notifier>
 }
 
-impl<'a> ConnectionCallback<'a>{
+impl<'a> ConnectionCallback<'a> {
+
     /// Creates a new ConnectionCallback
     /// 
     /// # Arguments
@@ -405,11 +406,23 @@ impl <'a>_BleServer<'a> {
                     match NimbleProperties::from_bits(characteristic.properties.to_le()) {
                         Some(properties) => {
 
-                            let charac = service.lock().create_characteristic(
+                            let charac = service.lock(). create_characteristic(
                                 characteristic.id.to_uuid(),
                                 properties,
                             );
-                            charac.lock().set_value(&characteristic.data);
+                            let mut unlocked_char = charac.lock();
+                            unlocked_char.set_value(&characteristic.data);
+
+                            for descriptor in &characteristic.descriptors {
+                                match descriptor.get_properties() {
+                                    Ok(properties) => {
+                                        let ble_descriptor = unlocked_char.create_descriptor(descriptor.id.to_uuid(), properties);
+                                        ble_descriptor.lock().set_value(&descriptor.data);
+                                    },
+                                    Err(_) => {return Err(BleError::PropertiesError)},
+                                };
+                            }
+
                             return Ok(());
                         },
                         None => {return Err(BleError::PropertiesError)},
