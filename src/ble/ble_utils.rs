@@ -2,7 +2,7 @@ use esp32_nimble::{enums::{AdvFlag, AdvType, AuthReq, ConnMode, DiscMode, Securi
 use uuid::Uuid;
 use crate::utils::timer_driver::TimerDriverError;
 
-use super::{StandarCharacteristicId, StandarServiceId};
+use super::{StandarCharacteristicId, StandarServiceId, StandarDescriptorId};
 use std::hash::Hash;
 
 const MAX_ADV_PAYLOAD_SIZE: usize = 31;
@@ -196,6 +196,7 @@ impl Service {
 pub enum BleId {
     StandardService(StandarServiceId),
     StandarCharacteristic(StandarCharacteristicId),
+    StandarDescriptor(StandarDescriptorId),
     ByName(String),
     FromUuid16(u16),
     FromUuid32(u32),
@@ -227,7 +228,6 @@ impl From<&BleUuid> for BleId{
 
 
 impl BleId {
-
     /// Creates a BleUuid from a BleId
     /// 
     /// # Returns
@@ -237,6 +237,7 @@ impl BleId {
         match self {
             BleId::StandardService(service) => {BleUuid::from_uuid16(*service as u16)},
             BleId::StandarCharacteristic(characteristic) => {BleUuid::from_uuid16(*characteristic as u16)},
+            BleId::StandarDescriptor(descriptor) => {BleUuid::from_uuid16(*descriptor as u16)},
             BleId::ByName(name) => {
                 let arr: [u8;4] = Uuid::new_v3(&Uuid::NAMESPACE_OID, name.as_bytes()).into_bytes()[0..4].try_into().unwrap();
                 BleUuid::from_uuid32(u32::from_be_bytes(arr))
@@ -257,6 +258,7 @@ impl BleId {
         match self {
             BleId::StandardService(service) => service.byte_size(),
             BleId::StandarCharacteristic(characteristic) => characteristic.byte_size(),
+            BleId::StandarDescriptor(descriptor) => descriptor.byte_size(),
             BleId::ByName(_) => 16,
             BleId::FromUuid16(_) => 2,
             BleId::FromUuid32(_) => 4,
