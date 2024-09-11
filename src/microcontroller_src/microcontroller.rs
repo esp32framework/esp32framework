@@ -18,6 +18,7 @@ use std::cell::RefCell;
 pub type SharableAdcDriver<'a> = Rc<AdcDriver<'a, ADC1>>;
 pub type SharableI2CDriver<'a> = Rc<RefCell<Option<i2c::I2C0>>>;
 
+use crate::ble::ble_client::BleClient;
 use crate::ble::{BleBeacon,BleServer,Service,Security};
 use crate::gpio::AnalogIn;
 use crate::gpio::{AnalogInPwm,
@@ -233,6 +234,12 @@ impl <'a>Microcontroller<'a>{
         let ble_server = BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() );
         self.interrupt_drivers.push(Box::new(ble_server.clone()));
         ble_server
+    }
+
+    pub fn ble_client(&mut self)-> BleClient{
+        self.peripherals.get_ble_device();
+        let ble_device = BLEDevice::take();
+        BleClient::new(ble_device)
     }
 
     pub fn update(&mut self) {
