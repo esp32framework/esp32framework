@@ -19,9 +19,10 @@ impl BleClient{
         BleClient{ble_client: BLEClient::new(), ble_scan: ble_device.get_scan(), time_between_scans: 100}
     }
 
+    /*
     pub fn prueba(&mut self){
         
-        let services = block_on(
+    let services = block_on(
             self.prueba_async()
         );
 
@@ -31,7 +32,7 @@ impl BleClient{
     async fn prueba_async(&mut self){
         let service = self.ble_client.get_service(BleUuid::Uuid32(0x12345678)).await.unwrap();
         loop{
-            let mut characteristics: Vec<&mut BLERemoteCharacteristic> = service.get_characteristics().await.unwrap().collect();
+            let mut characteristics = service.get_characteristics().await.unwrap().collect();
             for c in &mut characteristics{
                 println!("char: {}", c.uuid());
                 if c.can_read(){
@@ -63,6 +64,7 @@ impl BleClient{
         }
         */
     }
+    */
 
     pub async fn connect_to_device_async<C: Fn(&BleAdvertisedDevice) -> bool + Send + Sync>(&mut self, timeout: Option<Duration>, condition: C)->Result<(), BleError>{
         self._start_scan();
@@ -131,7 +133,7 @@ impl BleClient{
         Ok(RemoteCharacteristic::from(remote_characteristic))
     }
     
-    pub async fn get_all_characteristics_async(&mut self, service_id: &BleId) -> Result<Vec<RemoteCharacteristic>, BleError>{
+    pub async fn get_all_characteristics_async<'a>(&mut self, service_id: &BleId) -> Result<Vec<RemoteCharacteristic>, BleError>{
         let remote_service = self.ble_client.get_service(service_id.to_uuid()).await.unwrap();
         let remote_characteristics = remote_service.get_characteristics().await.unwrap().map(|remote_characteristic|
             RemoteCharacteristic::from(remote_characteristic)
@@ -139,15 +141,15 @@ impl BleClient{
         Ok(remote_characteristics)
     }
     
-    pub fn get_all_characteristics(&mut self, service_id: &BleId) -> Result<Vec<RemoteCharacteristic>, BleError>{
+    pub fn get_all_characteristics<'a>(&mut self, service_id: &BleId) -> Result<Vec<RemoteCharacteristic>, BleError>{
         block_on(self.get_all_characteristics_async(service_id))
     }
 
-    pub fn get_all_services(&mut self)-> Result<Vec<BleId>, BleError>{
-        block_on(self.get_all_services_async())
+    pub fn get_all_service_ids(&mut self)-> Result<Vec<BleId>, BleError>{
+        block_on(self.get_all_service_ids_async())
     }
 
-    pub async fn get_all_services_async(&mut self)-> Result<Vec<BleId>, BleError>{
+    pub async fn get_all_service_ids_async(&mut self)-> Result<Vec<BleId>, BleError>{
         let remote_services = self.ble_client.get_services().await.map_err(BleError::from)?;
         let services = remote_services.map(|remote_service| BleId::from(remote_service.uuid())).collect();
         Ok(services)

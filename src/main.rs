@@ -1,87 +1,85 @@
 // use std::sync::{atomic::AtomicU8, Arc};
 
-use esp32framework::{ble::{ble_client::BleClient, BleId}, Microcontroller};
+use std::sync::{atomic::AtomicU8, Arc};
+
+use esp32framework::{ble::{ble_client::BleClient, BleError, BleId}, Microcontroller};
 use esp32_nimble::BLEDevice;
 fn main(){
   let mut micro = Microcontroller::new();
   
   let ble_device = BLEDevice::take();
   let mut client = BleClient::new(ble_device);
-  let service_id = BleId::FromUuid32(0x2AB4);
-  client.connect_to_device_of_name(None, String::from("kk")).unwrap();
+  let service_id = BleId::FromUuid32(0x12345678);
+  client.connect_to_device_with_service(None, &service_id).unwrap();
   
   println!("Connected");
   micro.wait_for_updates(Some(2000));
-
-  let services = client.get_all_services().unwrap();
-  for service in &services{
-    println!("Service: {:?}", service.to_uuid());
+  
+  let characteristic_id: BleId = BleId::FromUuid16(0x0101);
+  let mut characteristic = client.get_characteristic(&service_id, &characteristic_id).unwrap();
+  
+  let descriptors = characteristic.get_all_descriptors().unwrap();
+  for mut desc in descriptors{
+    let value = match desc.read(){
+        Ok(value) => value,
+        Err(err) => match err{
+          BleError::NotReadable => continue,
+          _ => Err(err).unwrap()
+        },
+    };
+    println!("Descriptor: {:?}, value: {:?}", desc.id(), value);
   }
-
-
-  let mut characteristics = client.get_all_characteristics(&service_id).unwrap();
-  for characteristic in &characteristics{
-    println!("Characteristic: {:?}", characteristic.id());
-  } 
-
-  let descriptors = characteristics[0].get_all_descriptors().unwrap();
-  for desc in descriptors.iter(){
-    println!("Descriptor: {:?}", desc.uuid());
-  }
-
-  let descriptor_id = BleId::from(&descriptors[0].uuid());
-  let descriptor_1 = characteristics[0].get_descriptor_value(&descriptor_id);
-  println!("Descriptor value: {:?}", descriptor_1);
-
 }
 
-  // let multiplier = Arc::new(AtomicU8::new(2));
-  // for characteristic in &mut characteristics{
-  //   let cloned_multiplier = multiplier.clone();
-  //   _ = characteristic.on_notify(move |data| {
-  //     cloned_multiplier.store(data[0], std::sync::atomic::Ordering::SeqCst)
-  //   });
-  // }
+  
 
-  //TODO blockon en micro para hacer lo del usuario + los updates
+  /*
+  let mut characteristics = client.get_all_characteristics(&service_id).unwrap();
   
-  // recibe el future del usuario y por adentro tambien se le pasa el update: 
+  let multiplier = Arc::new(AtomicU8::new(2));
+  for characteristic in &mut characteristics{
+    let cloned_multiplier = multiplier.clone();
+    _ = characteristic.on_notify(move |data| {
+      cloned_multiplier.store(data[0], std::sync::atomic::Ordering::SeqCst)
+    });
+  }
   
-  
-//   loop{
-//     for characteristic in characteristics.iter_mut(){
-//       let read = match characteristic.read() {
-//         Ok(read) => get_number_from_bytes(read),
-//         Err(err) => match err{
-//           BleError::CharacteristicIsNotReadable => continue,
-//           _ => Err(err).unwrap()
-//         }
-//       };
+  loop{
+    for characteristic in characteristics.iter_mut(){
+      let read = match characteristic.read() {
+        Ok(read) => get_number_from_bytes(read),
+        Err(err) => match err{
+          BleError::CharacteristicIsNotReadable => continue,
+          _ => Err(err).unwrap()
+        }
+      };
       
-//       let mult = multiplier.load(std::sync::atomic::Ordering::Acquire);
-//       let new_value = read * mult as u32;
-
-//       println!("Read value: {}, multipling by: {}, result: {}", read, mult, new_value);
+      let mult = multiplier.load(std::sync::atomic::Ordering::Acquire);
+      let new_value = read * mult as u32;
+      
+      println!("Read value: {}, multipling by: {}, result: {}", read, mult, new_value);
+      
+      if let Err(err) = characteristic.write(&new_value.to_be_bytes()){
+        match err{
+          BleError::CharacteristicIsNotWritable => continue,
+          _ => Err(err).unwrap()
+        }
+      }
+    }
     
-//       if let Err(err) = characteristic.write(&new_value.to_be_bytes()){
-//         match err{
-//           BleError::CharacteristicIsNotWritable => continue,
-//           _ => Err(err).unwrap()
-//         }
-//       }
-//     }
-    
-// 		micro.wait_for_updates(Some(2000));
-// 	}
-// }
+    micro.wait_for_updates(Some(2000));
+	}
+}
 
-// fn get_number_from_bytes(bytes: Vec<u8>)->u32{
-//   let mut aux = vec![0,0,0,0];
-//   aux.extend(bytes);
-//   let bytes = aux.last_chunk().unwrap();
-//   u32::from_be_bytes(*bytes)
-// }
 
+fn get_number_from_bytes(bytes: Vec<u8>)->u32{
+  let mut aux = vec![0,0,0,0];
+  aux.extend(bytes);
+  let bytes = aux.last_chunk().unwrap();
+  u32::from_be_bytes(*bytes)
+}
+
+*/
 /*
 use bstr::ByteSlice;
 use esp32_nimble::{utilities::BleUuid, uuid128, BLEClient, BLEDevice};

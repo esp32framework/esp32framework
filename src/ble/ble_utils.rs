@@ -7,6 +7,7 @@ use std::hash::Hash;
 
 const MAX_ADV_PAYLOAD_SIZE: usize = 31;
 const PAYLOAD_FIELD_IDENTIFIER_SIZE: usize = 2;
+const ATTRIBUTE_CANNOT_BE_READ: u32 = 258;
 
 
 #[derive(Debug)]
@@ -30,7 +31,8 @@ pub enum BleError{
     AlreadyConnected,
     CharacteristicIsNotReadable,
     CharacteristicIsNotWritable,
-    CharacteristicIsNotNotifiable
+    CharacteristicIsNotNotifiable,
+    NotReadable
 }
 
 impl From<BLEError> for BleError {
@@ -39,13 +41,13 @@ impl From<BLEError> for BleError {
             esp_idf_svc::sys::BLE_HS_EMSGSIZE => BleError::ServiceDoesNotFit,
             esp_idf_svc::sys::BLE_HS_EDONE => BleError::AlreadyConnected,
             esp_idf_svc::sys::BLE_HS_ENOTCONN  => BleError::DeviceNotFound,
+            ATTRIBUTE_CANNOT_BE_READ => BleError::NotReadable,
             _ => BleError::Code(value.code(), value.to_string()),
         }
     }
 }
 
 impl BleError {
-        
     fn from_code(code: u32) -> Option<BleError> {
         match BLEError::convert(code) {
             Ok(_) => None,
@@ -365,11 +367,11 @@ impl Characteristic {
 
 }
 
-pub struct RemoteCharacteristic<'a>{
-    characteristic: &'a mut BLERemoteCharacteristic
+pub struct RemoteCharacteristic{
+    characteristic: BLERemoteCharacteristic
 }
 
-impl<'a> RemoteCharacteristic<'a>{
+impl RemoteCharacteristic{
     // flags?
     // descriptors, que son
     // read, write, notify
@@ -428,55 +430,73 @@ impl<'a> RemoteCharacteristic<'a>{
         Ok(())
     }
 
-    pub fn get_descriptor_value(&mut self, id: &BleId) -> Result<Vec<u8>, BleError>{
-        block_on(self.get_descriptor_value_async(id))
-    }
+    // pub fn get_descriptor(&mut self, id: &BleId) -> Result<Vec<u8>, BleError>{
+    //     block_on(self.get_descriptor_value_async(id))
+    // }
 
-    pub async fn get_descriptor_value_async(&mut self, id: &BleId) -> Result<Vec<u8>, BleError>{
-        let descriptor = self.get_descriptor(id)?;
-        descriptor.read_value().await.map_err(BleError::from)
-    }
+    // pub async fn get_descriptor_value(&mut self, id: &BleId) -> Result<Vec<u8>, BleError>{
+    //     let descriptor = self.get_descriptor(id)?;
+    //     descriptor.read_value().await.map_err(BleError::from)
+    // }
     
-    pub fn get_descriptor(&mut self, id: &BleId) -> Result<&mut BLERemoteDescriptor, BleError>{
+    pub fn get_descriptor(&mut self, id: &BleId) -> Result<RemoteDescriptor, BleError>{
         block_on(self.get_descriptor_async(id))
     }
 
-    pub async fn get_descriptor_async(&mut self, id: &BleId) -> Result<&mut BLERemoteDescriptor, BleError>{
-        let descriptor = self.characteristic.get_descriptor(id.to_uuid()).await;
-        if let Err(e) = descriptor {
-            return Err(BleError::from(e))
-        }
-        Ok(descriptor?)
-        // match descriptor {
-        //     Ok(descriptor) => {
-        //         Ok(descriptor)
-        //     }
-        //     Err(e) => {
-        //         Err(BleError::from(e))
-        //     }
-        // }
+    pub async fn get_descriptor_async(&mut self, id: &BleId) -> Result<RemoteDescriptor, BleError>{
+        let remote_descriptor = self.characteristic.get_descriptor(id.to_uuid()).await?;
+        Ok(RemoteDescriptor::from(remote_descriptor))
     }
 
-    pub fn get_all_descriptors(&mut self) -> Result<Vec<&mut BLERemoteDescriptor>, BleError>{
+    pub fn get_all_descriptors(&mut self) -> Result<Vec<RemoteDescriptor>, BleError>{
         block_on(self.get_all_descriptors_async())
     }
 
-    pub async fn get_all_descriptors_async(&mut self) -> Result<Vec<&mut BLERemoteDescriptor>, BleError>{
-        let descriptors = self.characteristic.get_descriptors().await;
-        match descriptors {
-            Ok(descriptors_iter) => {
-                Ok(descriptors_iter.collect())
-            }
-            Err(e) => {
-                Err(BleError::from(e))
-            }
-        }
+    pub async fn get_all_descriptors_async(&mut self) -> Result<Vec<RemoteDescriptor>, BleError>{
+        let remote_descriptors = self.characteristic.get_descriptors().await?;
+        Ok(remote_descriptors.map(RemoteDescriptor::from).collect())
     }
 }
 
-impl<'a> From<&'a mut BLERemoteCharacteristic> for RemoteCharacteristic<'a>{
-    fn from(value: &'a mut BLERemoteCharacteristic) -> Self {
-        RemoteCharacteristic{characteristic: value}
+pub struct RemoteDescriptor{
+    descriptor: BLERemoteDescriptor
+}
+
+impl RemoteDescriptor{
+    pub fn id(&self)-> BleId{
+        BleId::from(self.descriptor.uuid())
+    }
+
+    pub async fn read_async(&mut self)-> Result<Vec<u8>, BleError>{
+        self.descriptor.read_value().await.map_err(BleError::from)
+    }
+    
+    pub fn read(&mut self)-> Result<Vec<u8>, BleError>{
+        block_on(self.read_async())
+    }
+
+    pub async fn write_async(&mut self, data: &[u8]) -> Result<(), BleError> {
+        self.descriptor.write_value(data, false).await.map_err(BleError::from)
+    }
+
+    pub fn write(&mut self, data: &[u8]) -> Result<(), BleError> {
+        block_on(self.write_async(data))
+    }
+}
+
+impl From<&mut BLERemoteDescriptor> for RemoteDescriptor{
+    fn from(value: &mut BLERemoteDescriptor) -> Self {
+        Self { descriptor: value.clone() }
+    }
+}
+
+
+
+
+
+impl From<&mut BLERemoteCharacteristic> for RemoteCharacteristic{
+    fn from(value: &mut BLERemoteCharacteristic) -> Self {
+        RemoteCharacteristic{characteristic: value.clone()}
     }
 }
 
