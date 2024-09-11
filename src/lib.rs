@@ -6,6 +6,7 @@ mod utils;
 pub mod serial;
 pub mod sensors;
 pub mod ble;
+pub mod wifi;
 
 pub use microcontroller_src::Microcontroller;
 pub use microcontroller_src::interrupt_driver::InterruptDriver;

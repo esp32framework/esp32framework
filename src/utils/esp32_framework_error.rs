@@ -1,13 +1,13 @@
 use crate::{
-    utils::timer_driver::TimerDriverError,
-    gpio::{
+    ble::BleError, gpio::{
         AnalogInError,
         AnalogInPwmError,
         AnalogOutError,
         DigitalInError,
         DigitalOutError,
-
-    }
+    }, serial::{I2CError, UARTError},
+    utils::timer_driver::TimerDriverError,
+    wifi::wifi::WifiError
 };
 
 #[derive(Debug)]
@@ -17,5 +17,9 @@ pub enum Esp32FrameworkError{
     AnalogOut(AnalogOutError),
     DigitalIn(DigitalInError),
     DigitalOut(DigitalOutError),
-    TimerDriver(TimerDriverError)
+    TimerDriver(TimerDriverError),
+    I2c(I2CError),
+    Uart(UARTError),
+    Ble(BleError),
+    Wifi(WifiError),
 }

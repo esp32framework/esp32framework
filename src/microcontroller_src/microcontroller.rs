@@ -1,17 +1,19 @@
 use std::future::join;
+
+
 use std::future::Future;
 use std::rc::Rc;
 use std::time::Duration;
 use std::time::Instant;
 use esp32_nimble::enums::AuthReq;
+use esp_idf_svc::eventloop::EspSystemEventLoop;
 use esp_idf_svc::hal::adc::ADC1;
 use esp_idf_svc::hal::adc::*;
-// use esp_idf_svc::hal::adc::config::{Config, Resolution};
 use esp_idf_svc::hal::delay::FreeRtos;
 use esp_idf_svc::hal::delay::TICK_RATE_HZ;
-//use esp_idf_svc::hal::task::notification::Notification;
 use esp_idf_svc::hal::i2c;
 use esp32_nimble::BLEDevice;
+use esp_idf_svc::hal::modem;
 use esp_idf_svc::hal::task::block_on;
 use oneshot::AdcDriver;
 use std::cell::RefCell;
@@ -36,6 +38,7 @@ use crate::utils::timer_driver::TimerDriver;
     
 use crate::microcontroller_src::peripherals::*;
 use crate::microcontroller_src::interrupt_driver::InterruptDriver;
+use crate::wifi::wifi::WifiDriver;
 
 const TICKS_PER_MILLI: f32 = TICK_RATE_HZ as f32 / 1000_f32;
 
@@ -45,7 +48,8 @@ pub struct Microcontroller<'a> {
     interrupt_drivers: Vec<Box<dyn InterruptDriver + 'a>>,
     adc_driver: Option<SharableAdcDriver<'a>>,
     notification: Notification,
-    i2c_driver: SharableI2CDriver<'a>
+    i2c_driver: SharableI2CDriver<'a>,
+    event_loop: EspSystemEventLoop,
 }
 
 impl <'a>Microcontroller<'a>{
@@ -60,14 +64,15 @@ impl <'a>Microcontroller<'a>{
             adc_driver: None,
             notification: Notification::new(),
             i2c_driver: Rc::new(RefCell::new(None)),
+            event_loop: EspSystemEventLoop::take().unwrap(),
         }
     }
 
-    pub fn get_timer_driver(&mut self)-> TimerDriver<'a>{
+    pub fn get_timer_driver(&mut self)-> TimerDriver<'a> {
         let mut timer_driver = if self.timer_drivers.len() < 2{
             let timer = self.peripherals.get_timer(self.timer_drivers.len());
             TimerDriver::new(timer, self.notification.notifier()).unwrap()
-        }else{
+        } else {
             self.timer_drivers.swap_remove(0)
         };
 
@@ -204,14 +209,16 @@ impl <'a>Microcontroller<'a>{
         UART::new(tx_peripheral, rx_peripheral, uart_peripheral, baudrate, parity, stopbit).unwrap()
     }
 
-    pub fn ble_beacon(&mut self, advertising_name: String, services: &Vec<Service>)-> BleBeacon<'a>{
+    pub fn ble_beacon(&mut self, advertising_name: String, services: &Vec<Service>)-> BleBeacon<'a>{ 
+        // TODO: The taking of the ble device from peripherals doesnt make any sense, if it returns None it still continues with inizialization
         self.peripherals.get_ble_device(); // TODO ver safety
         let ble_device = BLEDevice::take();
         BleBeacon::new(ble_device, self.get_timer_driver(), advertising_name, services).unwrap()
     }
     
     // TODO &VEc<Services>
-    pub fn ble_server(&mut self, advertising_name: String, services: &Vec<Service>)-> BleServer<'a>{
+    pub fn ble_server(&mut self, advertising_name: String, services: &Vec<Service>) -> BleServer<'a> {
+        // TODO: The taking of the ble device from peripherals doesnt make any sense, if it returns None it still continues with inizialization
         self.peripherals.get_ble_device();
         let ble_device = BLEDevice::take();
         BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() )
@@ -312,6 +319,15 @@ impl <'a>Microcontroller<'a>{
         let finished = SharableRef::new_sharable(false);
         let fut = wrap_user_future(self.notification.notifier(), finished.clone(), fut);
         block_on(join!(fut, self.wait_for_updates_until_finished(finished))).0
+    }
+    
+    
+    ///TODO: Docu of default space of nvs
+    pub fn get_wifi_driver(&mut self) -> WifiDriver<'a> {
+        match self.peripherals.get_modem() {
+            Peripheral::Modem => WifiDriver::new(self.event_loop.clone()),
+            _ => panic!("No modem available"),
+        }
     }
 }
 
