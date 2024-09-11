@@ -1,3 +1,5 @@
+// use std::sync::{atomic::AtomicU8, Arc};
+
 use std::sync::{atomic::AtomicU8, Arc};
 
 use esp32framework::{ble::{ble_client::BleClient, BleError, BleId, RemoteCharacteristic}, timer_driver::TimerDriver, Microcontroller};
@@ -11,8 +13,28 @@ fn main(){
   
   println!("Connected");
   micro.wait_for_updates(Some(2000));
+  
+  let characteristic_id: BleId = BleId::FromUuid16(0x0101);
+  let mut characteristic = client.get_characteristic(&service_id, &characteristic_id).unwrap();
+  
+  let descriptors = characteristic.get_all_descriptors().unwrap();
+  for mut desc in descriptors{
+    let value = match desc.read(){
+        Ok(value) => value,
+        Err(err) => match err{
+          BleError::NotReadable => continue,
+          _ => Err(err).unwrap()
+        },
+    };
+    println!("Descriptor: {:?}, value: {:?}", desc.id(), value);
+  }
+}
 
+  
+
+  /*
   let mut characteristics = client.get_all_characteristics(&service_id).unwrap();
+  
   let multiplier = Arc::new(AtomicU8::new(2));
   for characteristic in &mut characteristics{
     let cloned_multiplier = multiplier.clone();
@@ -31,8 +53,6 @@ fn main(){
   //TODO blockon en micro para hacer lo del usuario + los updates
   
   // recibe el future del usuario y por adentro tambien se le pasa el update: 
-  
-  
 }
 
 async fn main_loop<'a>(mut timer_driver: TimerDriver<'static>,mut characteristics: Vec<RemoteCharacteristic<'a>>, multiplier: Arc<AtomicU8>){
@@ -64,6 +84,7 @@ async fn main_loop<'a>(mut timer_driver: TimerDriver<'static>,mut characteristic
 	}
 }
 
+
 fn get_number_from_bytes(bytes: Vec<u8>)->u32{
   let mut aux = vec![0,0,0,0];
   aux.extend(bytes);
@@ -71,6 +92,7 @@ fn get_number_from_bytes(bytes: Vec<u8>)->u32{
   u32::from_be_bytes(*bytes)
 }
 
+*/
 /*
 use bstr::ByteSlice;
 use esp32_nimble::{utilities::BleUuid, uuid128, BLEClient, BLEDevice};
