@@ -5,13 +5,13 @@ use std::sync::Arc;
 use esp32_nimble::{BLEAddress, BLEService};
 use esp32_nimble::{utilities::mutex::Mutex, BLEAdvertisementData, BLEAdvertising, BLEConnDesc, BLEDevice, BLEError, BLEServer, NimbleProperties};
 use esp_idf_svc::hal::task;
-use esp_idf_svc::hal::task::notification::Notifier;
 
 
 use crate::utils::auxiliary::ISRQueue;
 use crate::utils::auxiliary::SharableRef;
 use crate::utils::auxiliary::SharableRefExt;
 use crate::utils::esp32_framework_error::Esp32FrameworkError;
+use crate::utils::notification::Notifier;
 use crate::InterruptDriver;
 use sharable_reference_macro::sharable_reference_wrapper;
 
@@ -41,11 +41,11 @@ pub struct BleServer<'a>{
 struct ConnectionCallback<'a>{
     callback: Box<dyn FnMut(&mut BleServer<'a>, &ConnectionInformation) + 'a>,
     info_queue: ISRQueue<ConnectionInformation>,
-    notifier: Arc<Notifier>
+    notifier: Notifier
 }
 
 impl<'a> ConnectionCallback<'a>{
-    fn new(notifier: Arc<Notifier>) -> Self{
+    fn new(notifier: Notifier) -> Self{
         Self { callback: Box::new(|_,_| {}), info_queue: ISRQueue::new(1000), notifier}
     }
 
@@ -115,7 +115,7 @@ impl ConnectionInformation{
 
 #[sharable_reference_wrapper]
 impl <'a>_BleServer<'a> {
-    pub fn new(name: String, ble_device: &mut BLEDevice, services: &Vec<Service>, connection_notifier: Arc<Notifier>, disconnection_notifier: Arc<Notifier>) -> Self {
+    pub fn new(name: String, ble_device: &mut BLEDevice, services: &Vec<Service>, connection_notifier: Notifier, disconnection_notifier: Notifier) -> Self {
         let mut server = _BleServer{
             advertising_name: name,
             ble_server: ble_device.get_server(),
@@ -140,7 +140,7 @@ impl <'a>_BleServer<'a> {
         user_on_connection.set_callback(handler);
         
         self.ble_server.on_connect(move |_, info| {
-            unsafe{ notifier_ref.notify_and_yield(NonZeroU32::new(1).unwrap()); }
+            notifier_ref.notify().unwrap();
             _ = con_info_ref.send_timeout(ConnectionInformation::from_BLEConnDesc(info, true, Ok(())), 1_000_000); //
         });
         self
@@ -155,7 +155,7 @@ impl <'a>_BleServer<'a> {
         user_on_disconnection.set_callback(handler);
         
         self.ble_server.on_disconnect(move |info, res| {
-            unsafe{ notifier_ref.notify_and_yield(NonZeroU32::new(1).unwrap()); }
+            notifier_ref.notify().unwrap();
             _ = con_info_ref.send_timeout(ConnectionInformation::from_BLEConnDesc(info, false,res), 1_000_000);
         });
         self
@@ -329,7 +329,7 @@ impl<'a> InterruptDriver for BleServer<'a>{
 }
 
 impl<'a> BleServer<'a>{
-    pub fn new(name: String, ble_device: &mut BLEDevice, services: &Vec<Service>, connection_notifier: Arc<Notifier>, disconnection_notifier: Arc<Notifier>) -> Self {
+    pub fn new(name: String, ble_device: &mut BLEDevice, services: &Vec<Service>, connection_notifier: Notifier, disconnection_notifier: Notifier) -> Self {
         Self { inner: SharableRef::new_sharable(
             _BleServer::new(name, ble_device, services, connection_notifier, disconnection_notifier)
         ) }
