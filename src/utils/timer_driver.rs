@@ -30,7 +30,7 @@ struct _TimerDriver<'a> {
     driver: timer::TimerDriver<'a>,
     interrupt_update: InterruptUpdate,
     alarms: BinaryHeap<Alarm>,
-    interrupts: HashMap<usize, TimeInterrupt>,
+    interrupts: HashMap<usize, TimeInterrupt<'a>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -46,14 +46,14 @@ pub enum TimerDriverError {
 }
 
 /// Represents an interrupt to be executed after some time a number of times
-struct TimeInterrupt{
+struct TimeInterrupt<'a>{
     after: u64,
     id: usize,
     current_alarm_id: usize,
     status: TimerInterruptStatus,
     remaining_triggers: Option<u32>,
     auto_reenable: bool,
-    callback: Box<dyn FnMut()>
+    callback: Box<dyn FnMut() + 'a>
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -107,8 +107,8 @@ impl InterruptUpdate{
     }
 }
 
-impl TimeInterrupt{
-    fn new(id:usize, callback: Box<dyn FnMut()>, time: u64, amount_of_triggers: Option<u32>, auto_reenable: bool)-> TimeInterrupt{
+impl<'a> TimeInterrupt<'a>{
+    fn new(id:usize, callback: Box<dyn FnMut() + 'a>, time: u64, amount_of_triggers: Option<u32>, auto_reenable: bool)-> Self{
         TimeInterrupt{
             after: time,
             id,
@@ -210,7 +210,7 @@ impl <'a>_TimerDriver<'a>{
 
     /// Sets an interrupt that triggers once after "microseconds". For this to start working enable()
     /// must be called. After the interrupt has been trigger it can be reset by calling enable()
-    pub fn interrupt_after<F: FnMut() + 'static>(&mut self, id: usize, micro_seconds: u64, callback: F){
+    pub fn interrupt_after<F: FnMut() + 'a>(&mut self, id: usize, micro_seconds: u64, callback: F){
         self.interrupt_after_n_times(id, micro_seconds, None, false, callback)
     }
 
@@ -218,7 +218,7 @@ impl <'a>_TimerDriver<'a>{
     /// triggers indefinitly. If autoenable is set, after triggering the callback, it will be set again
     /// if not it will have to be reenabled manually by caling enable(). For this to start working 
     /// enable() must be called. There can only be one callback per id.
-    pub fn interrupt_after_n_times<F: FnMut() + 'static>(&mut self, id: usize, micro_seconds: u64, amount_of_triggers: Option<u32>, auto_reenable: bool, callback: F){        
+    pub fn interrupt_after_n_times<F: FnMut() + 'a>(&mut self, id: usize, micro_seconds: u64, amount_of_triggers: Option<u32>, auto_reenable: bool, callback: F){        
         let time = self.micro_to_counter(micro_seconds);
         let interrupt = TimeInterrupt::new(id, Box::new(callback), time, amount_of_triggers, auto_reenable);
         if let Some(old_interrupt) = self.interrupts.insert(id, interrupt){
@@ -387,7 +387,6 @@ impl <'a>TimerDriver<'a>{
         let notifier = notif.notifier();
         let delay_id = self.id + MAX_CHILDREN;
         self.inner.deref_mut().interrupt_after(delay_id, mili as u64 * 1000, move || {
-            println!("Hola");
             notifier.notify().unwrap();
         });
         self.inner.deref_mut().enable(delay_id)?;

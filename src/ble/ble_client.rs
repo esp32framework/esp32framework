@@ -1,71 +1,32 @@
-use std::{ time::Duration};
+use std::{ collections::HashMap, ops::Rem, time::Duration};
 
 use esp32_nimble::{utilities::BleUuid, BLEClient, BLEDevice, BLERemoteCharacteristic, BLEScan};
 use esp_idf_svc::hal::{ delay::FreeRtos, task::block_on};
 const BLOCK: i32 = i32::MAX;
 
-use crate::ble::RemoteCharacteristic;
+use crate::{ble::RemoteCharacteristic, utils::{auxiliary::{SharableRef, SharableRefExt}, esp32_framework_error::Esp32FrameworkError, notification::Notifier}, InterruptDriver};
 
 use super::{BleAdvertisedDevice, BleError, BleId};
 
-pub struct BleClient{
+pub struct _BleClient{
     ble_client: BLEClient,
     ble_scan: &'static mut BLEScan,
-    time_between_scans: u16
+    time_between_scans: u16,
+    notifier: Notifier,
+    remote_characteristics: HashMap<BleId, RemoteCharacteristic>,
 }
 
-impl BleClient{
-    pub fn new(ble_device: & mut BLEDevice)-> Self{
-        BleClient{ble_client: BLEClient::new(), ble_scan: ble_device.get_scan(), time_between_scans: 100}
+#[derive(Clone)]
+pub struct BleClient{
+    inner: SharableRef<_BleClient>
+}
+
+#[sharable_reference_macro::sharable_reference_wrapper]
+impl _BleClient{
+    pub fn new(ble_device: & mut BLEDevice, notifier: Notifier)-> Self{
+        _BleClient{ble_client: BLEClient::new(), ble_scan: ble_device.get_scan(), time_between_scans: 100, notifier, remote_characteristics: HashMap::new()}
     }
-
-    /*
-    pub fn prueba(&mut self){
-        
-    let services = block_on(
-            self.prueba_async()
-        );
-
-        println!("Services {:?}", services);
-    }
-
-    async fn prueba_async(&mut self){
-        let service = self.ble_client.get_service(BleUuid::Uuid32(0x12345678)).await.unwrap();
-        loop{
-            let mut characteristics = service.get_characteristics().await.unwrap().collect();
-            for c in &mut characteristics{
-                println!("char: {}", c.uuid());
-                if c.can_read(){
-                    println!("Read_value {:?}", c.read_value().await);
-                }
-
-                println!("\n\n")
-            }
-            println!(")===================================(");
-            FreeRtos::delay_ms(1000)
-        }
-        /*
-        let services = self.ble_client.get_services().await.unwrap();
-        for s in services{
-            println!("service: {}", s.to_string());
-            for c in s.get_characteristics().await.unwrap(){
-                println!("char: {}", c.uuid());
-                if c.can_read(){
-                    println!("Readable: {}", c.can_read());
-                    println!("Read_value {:?}", c.read_value().await);
-
-                }
-                FreeRtos::delay_ms(1000)
-                //if c.can_read() && !c.can_write(){
-                //    println!("Read_value {:?}", c.read_value().await);
-                //}
-
-            }
-        }
-        */
-    }
-    */
-
+    
     pub async fn connect_to_device_async<C: Fn(&BleAdvertisedDevice) -> bool + Send + Sync>(&mut self, timeout: Option<Duration>, condition: C)->Result<(), BleError>{
         self._start_scan();
         let timeout = match timeout{
@@ -111,11 +72,6 @@ impl BleClient{
         block_on(self.connect_to_device_of_name_async(timeout, name))
     }
 
-    // closure que devuelva true si se quiere conectar a uno en particular
-    fn connect_to_any(&self ){
-        todo!()
-    }
-
     fn _start_scan(&mut self){
         self.ble_scan.active_scan(true)
             .interval(self.time_between_scans.max(1))
@@ -126,18 +82,21 @@ impl BleClient{
         block_on(self.get_characteristic_async(service_id, characteristic_id))
     }
     
-    
     pub async fn get_characteristic_async(&mut self, service_id: &BleId, characteristic_id: &BleId)-> Result<RemoteCharacteristic, BleError>{
         let remote_service = self.ble_client.get_service(service_id.to_uuid()).await.unwrap();
         let remote_characteristic = remote_service.get_characteristic(characteristic_id.to_uuid()).await.unwrap();
-        Ok(RemoteCharacteristic::from(remote_characteristic))
+        let remote_characteristic = RemoteCharacteristic::new(remote_characteristic, self.notifier.clone());
+        self.remote_characteristics.insert(remote_characteristic.id(), remote_characteristic.duplicate());
+        Ok(remote_characteristic)
     }
     
     pub async fn get_all_characteristics_async<'a>(&mut self, service_id: &BleId) -> Result<Vec<RemoteCharacteristic>, BleError>{
         let remote_service = self.ble_client.get_service(service_id.to_uuid()).await.unwrap();
-        let remote_characteristics = remote_service.get_characteristics().await.unwrap().map(|remote_characteristic|
-            RemoteCharacteristic::from(remote_characteristic)
-        ).collect();
+        let remote_characteristics = remote_service.get_characteristics().await.unwrap().map(|remote_characteristic| {
+            let remote_characteristic = RemoteCharacteristic::new(remote_characteristic, self.notifier.clone());
+            self.remote_characteristics.insert(remote_characteristic.id(), remote_characteristic.duplicate());
+            remote_characteristic
+        }).collect();
         Ok(remote_characteristics)
     }
     
@@ -155,28 +114,28 @@ impl BleClient{
         Ok(services)
     }
 
-    // pub fn get_all_descriptors(&mut self, service_id: &BleId, characteristic_id: &BleId)-> Result<Vec<BleId>, BleError>{
-    //     let mut characteristic = self.get_characteristic(service_id, characteristic_id)?;
-    //     let descriptors_iter = characteristic.get_descriptors()?.into_iter();
-    //     let descriptors = descriptors_iter.map(|descriptor| BleId::from(descriptor.uuid())).collect();
-    //     Ok(descriptors)
-    // }
-
-    // pub fn get_descriptor_value(&mut self, service_id: &BleId, characteristic_id: &BleId, descriptor_id: &BleId)-> Result<Vec<u8>, BleError>{
-    //     block_on(self.get_descriptor_value_async(service_id, characteristic_id, descriptor_id))
-    // }
-
-    // pub async fn get_descriptor_value_async(&mut self, service_id: &BleId, characteristic_id: &BleId, descriptor_id: &BleId)-> Result<Vec<u8>, BleError>{
-    //     let mut characteristic = self.get_characteristic(service_id, characteristic_id)?;
-    //     let descriptor = characteristic.get_descriptor(descriptor_id)?;
-    //     Ok(descriptor.read_value().await.map_err(BleError::from)?)
-    // }
-
+    //TODO lo ponemos?
     fn update_connection_params(){
         todo!()
     }
     
-    fn disconnect(){
-        todo!()
+    pub fn disconnect(&mut self)-> Result<(), BleError>{
+        self.ble_client.disconnect().map_err(BleError::from)
+    }
+}
+
+impl BleClient{
+    pub fn new(ble_device: & mut BLEDevice, notifier: Notifier)-> Self{
+        Self { inner: SharableRef::new_sharable(_BleClient::new(ble_device, notifier)) }
+    }
+}
+
+#[sharable_reference_macro::sharable_reference_wrapper]
+impl InterruptDriver for _BleClient{
+    fn update_interrupt(&mut self)-> Result<(), Esp32FrameworkError> {
+        for c in self.remote_characteristics.values_mut(){
+            c.update_interrupt()
+        }
+        Ok(())
     }
 }

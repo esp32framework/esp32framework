@@ -139,6 +139,11 @@ fn get_pub_instance_method(method: &ImplItemFn, args: &StringArgs, is_trait: boo
         quote! {}
     };
 
+    let awaiting = match method_sig.asyncness{
+        Some(_) => quote! { .await },
+        None => quote! {},
+    };
+
     let pub_level = match method_visibility{
         syn::Visibility::Public(pub_level) => pub_level.to_token_stream(),
         syn::Visibility::Restricted(restricted) => restricted.to_token_stream(),
@@ -152,7 +157,7 @@ fn get_pub_instance_method(method: &ImplItemFn, args: &StringArgs, is_trait: boo
     Some(quote! {
         #(#method_attr)*
         #pub_level #method_sig {
-            #borrow #method_name(#(#method_inputs),*)
+            #borrow #method_name(#(#method_inputs),*) #awaiting
             #final_return_type
         }
     })

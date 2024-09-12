@@ -239,7 +239,9 @@ impl <'a>Microcontroller<'a>{
     pub fn ble_client(&mut self)-> BleClient{
         self.peripherals.get_ble_device();
         let ble_device = BLEDevice::take();
-        BleClient::new(ble_device)
+        let ble_client = BleClient::new(ble_device, self.notification.notifier());
+        self.interrupt_drivers.push(Box::new(ble_client.clone()));
+        ble_client
     }
 
     pub fn update(&mut self) {

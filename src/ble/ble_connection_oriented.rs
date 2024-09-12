@@ -7,7 +7,7 @@ use esp32_nimble::{utilities::mutex::Mutex, BLEAdvertisementData, BLEAdvertising
 use esp_idf_svc::hal::task;
 
 
-use crate::utils::auxiliary::ISRQueue;
+use crate::utils::auxiliary::{ISRQueue, ISRQueueTrait};
 use crate::utils::auxiliary::SharableRef;
 use crate::utils::auxiliary::SharableRefExt;
 use crate::utils::esp32_framework_error::Esp32FrameworkError;

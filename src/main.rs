@@ -1,12 +1,22 @@
 // use std::sync::{atomic::AtomicU8, Arc};
 
-use std::sync::{atomic::AtomicU8, Arc};
+use std::{borrow::BorrowMut, sync::{atomic::AtomicU8, mpsc::{self, Receiver}, Arc}};
 
-use esp32framework::{ble::{ble_client::BleClient, BleError, BleId, RemoteCharacteristic}, timer_driver::TimerDriver, Microcontroller};
+use esp32framework::{ble::{ble_client::BleClient, BleError, BleId, Characteristic, RemoteCharacteristic}, timer_driver::TimerDriver, Microcontroller};
 use esp32_nimble::BLEDevice;
+
 fn main(){
   let mut micro = Microcontroller::new();
 
+  let mut characteristics = get_characteristics(&mut micro);
+
+  let receiver = set_notify_callback_for_characteristics(&mut micro, &mut characteristics);
+  let timer_driver = set_periodical_timer_driver_interrupts(&mut micro, 2000);
+
+  micro.block_on(main_loop(timer_driver, characteristics, receiver))
+}
+
+fn get_characteristics(micro: &mut Microcontroller)-> Vec<RemoteCharacteristic>{
   let mut client = micro.ble_client();
   let service_id = BleId::FromUuid32(0x12345678);
   client.connect_to_device_with_service(None, &service_id).unwrap();
@@ -14,48 +24,32 @@ fn main(){
   println!("Connected");
   micro.wait_for_updates(Some(2000));
   
-  let characteristic_id: BleId = BleId::FromUuid16(0x0101);
-  let mut characteristic = client.get_characteristic(&service_id, &characteristic_id).unwrap();
+  client.get_all_characteristics(&service_id).unwrap()
   
-  let descriptors = characteristic.get_all_descriptors().unwrap();
-  for mut desc in descriptors{
-    let value = match desc.read(){
-        Ok(value) => value,
-        Err(err) => match err{
-          BleError::NotReadable => continue,
-          _ => Err(err).unwrap()
-        },
-    };
-    println!("Descriptor: {:?}, value: {:?}", desc.id(), value);
-  }
 }
 
-  
+fn set_notify_callback_for_characteristics(micro: &mut Microcontroller, characteristics: &mut Vec<RemoteCharacteristic>)-> Receiver<u8>{
+  let (sender, receiver) = mpsc::channel();
 
-  /*
-  let mut characteristics = client.get_all_characteristics(&service_id).unwrap();
-  
-  let multiplier = Arc::new(AtomicU8::new(2));
-  for characteristic in &mut characteristics{
-    let cloned_multiplier = multiplier.clone();
+  for characteristic in characteristics{
+    let s = sender.clone();
     _ = characteristic.on_notify(move |data| {
-      cloned_multiplier.store(data[0], std::sync::atomic::Ordering::SeqCst)
+      s.send(data[0]);
     });
   }
 
-  let mut timer_driver = micro.get_timer_driver();
-  //timer_driver.interrupt_after(2000, || {println!("INTERRUPCION")});
-  //timer_driver.enable().unwrap();
-
-  micro.block_on(main_loop(timer_driver, characteristics, multiplier))
-  
-
-  //TODO blockon en micro para hacer lo del usuario + los updates
-  
-  // recibe el future del usuario y por adentro tambien se le pasa el update: 
+  receiver
 }
 
-async fn main_loop<'a>(mut timer_driver: TimerDriver<'static>,mut characteristics: Vec<RemoteCharacteristic<'a>>, multiplier: Arc<AtomicU8>){
+fn set_periodical_timer_driver_interrupts<'a>(micro: &mut Microcontroller<'a>, mili: u64)-> TimerDriver<'a>{
+  let mut timer_driver = micro.get_timer_driver();
+  timer_driver.interrupt_after_n_times(mili * 1000, None, true, || {println!("INTERRUPCION")});
+  timer_driver.enable().unwrap();
+  timer_driver
+}
+
+async fn main_loop<'a>(mut timer_driver: TimerDriver<'a>,mut characteristics: Vec<RemoteCharacteristic>, receiver: Receiver<u8>){
+  let mut mult = 2;
   loop{
     for characteristic in characteristics.iter_mut(){
       let read = match characteristic.read_async().await {
@@ -66,7 +60,9 @@ async fn main_loop<'a>(mut timer_driver: TimerDriver<'static>,mut characteristic
         }
       };
       
-      let mult = multiplier.load(std::sync::atomic::Ordering::Acquire);
+      if let Ok(new_mult) = receiver.try_recv(){
+        mult = new_mult
+      }
       let new_value = read.wrapping_mul(mult as u32);
 
       println!("Read value: {}, multipling by: {}, result: {}", read, mult, new_value);
@@ -79,8 +75,7 @@ async fn main_loop<'a>(mut timer_driver: TimerDriver<'static>,mut characteristic
       }
     }
 
-    println!("Antes de delay");
-    timer_driver.delay(2000).await.unwrap();
+    timer_driver.delay(4000).await.unwrap();
 	}
 }
 
@@ -91,8 +86,6 @@ fn get_number_from_bytes(bytes: Vec<u8>)->u32{
   let bytes = aux.last_chunk().unwrap();
   u32::from_be_bytes(*bytes)
 }
-
-*/
 /*
 use bstr::ByteSlice;
 use esp32_nimble::{utilities::BleUuid, uuid128, BLEClient, BLEDevice};
