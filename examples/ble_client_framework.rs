@@ -1,3 +1,9 @@
+//! Example of a ble client using an async aproach. The client will connect to a server that has a 
+//! characteristic of uuid 0x12345678. Once connected the client will read all characteristics interpreting
+//! their value as an u32 and then multiplies them by a value. This value is obtained from the notifiable 
+//! characteristics of the service. Thanks to the async aproch we can have other tasks running concurrently
+//! to this main function. In this case there is a TimerDriver se to print 'Tic' every 2 seconds.
+
 use std::sync::mpsc::{self, Receiver};
 
 use esp32framework::{ble::{BleError, BleId, RemoteCharacteristic}, timer_driver::TimerDriver, Microcontroller};
@@ -40,7 +46,7 @@ fn set_notify_callback_for_characteristics(characteristics: &mut Vec<RemoteChara
 
 fn set_periodical_timer_driver_interrupts<'a>(micro: &mut Microcontroller<'a>, mili: u64)-> TimerDriver<'a>{
   let mut timer_driver = micro.get_timer_driver();
-  timer_driver.interrupt_after_n_times(mili * 1000, None, true, || {println!("INTERRUPCION")});
+  timer_driver.interrupt_after_n_times(mili * 1000, None, true, || {println!("Tic")});
   timer_driver.enable().unwrap();
   timer_driver
 }

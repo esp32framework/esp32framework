@@ -1,8 +1,8 @@
 use std::{cell::{Ref, RefCell, RefMut}, ops::Deref, sync::Arc, rc::Rc};
-pub type SharableRef<T> = Rc<RefCell<T>>;
 use esp_idf_svc::{hal::{delay::BLOCK, task::queue::Queue}, sys::{EspError, configTICK_RATE_HZ}};
 use esp_idf_svc::sys::TickType_t;
 
+pub type SharableRef<T> = Rc<RefCell<T>>;
 #[derive(Debug)]
 pub enum ISRQueueError {
     Timeout,
