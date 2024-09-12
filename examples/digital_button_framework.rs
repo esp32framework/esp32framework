@@ -1,7 +1,8 @@
+//! Example using pin GPIO9 as digital in to count the amount of times a button
+//! is pressed. The signal is configured with a debounce time of 200msec.
+
 use esp32framework::{Microcontroller, gpio::{AnalogIn, InterruptType}};
 
-/// Example using pin GPIO9 as digital in to count the amount of times a button
-/// is pressed. The signal is configured with a debounce time of 200msec.
 fn main(){
     let mut micro = Microcontroller::new();
     let mut button = micro.set_pin_as_digital_in(9);

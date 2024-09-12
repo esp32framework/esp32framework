@@ -1,12 +1,10 @@
+//! Example using pin GPIO3(sqw), GPIO5 (sda) and GPIO6 (scl) with i2c to set 
+//! a date and time with an alarm in a ds3231 sensor. Then it will 
+//! ask the sensor for the time and print it with the state of the sqw signal.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
-
-use esp_idf_svc::hal::delay::{FreeRtos, BLOCK};
-use esp_idf_svc::hal::gpio::*;
-use esp_idf_svc::hal::i2c::*;
-use esp_idf_svc::hal::peripherals::Peripherals;
-use esp_idf_svc::hal::prelude::*;
+use esp_idf_svc::hal::{delay::{FreeRtos, BLOCK},gpio::*,i2c::*,peripherals::Peripherals,prelude::*};
 static FLAG: AtomicBool = AtomicBool::new(false);
 
 const DS3231_ADDR: u8 = 0x68;
@@ -156,5 +154,3 @@ fn main() {
         FreeRtos::delay_ms(500_u32);
     }
 }
-
-

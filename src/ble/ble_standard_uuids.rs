@@ -1,3 +1,5 @@
+/// Enums the UUIDs of standard Bluetooth Low Energy (BLE) services.
+/// Each variant corresponds to a specific service defined by the Bluetooth Special Interest Group (SIG).
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum StandarServiceId {
     GAP = 0x1800,
@@ -71,12 +73,20 @@ pub enum StandarServiceId {
     MeshProxySolicitation = 0x1859,
 }
 
-impl StandarServiceId{
+impl StandarServiceId {
+
+    /// Byte size of the StandarServiceId
+    /// 
+    /// # Returns
+    /// 
+    /// An usize representing the size
     pub fn byte_size(&self)-> usize{
         2
     }
 }
 
+/// Enums the UUIDs of standard Bluetooth Low Energy (BLE) characteristics.
+/// Each variant corresponds to a specific characteristic defined by the Bluetooth Special Interest Group (SIG).
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum StandarCharacteristicId{
     DeviceName = 0x10752,
@@ -533,7 +543,42 @@ pub enum StandarCharacteristicId{
 }
 
 impl StandarCharacteristicId{
+
+    /// Byte size of the StandarCharacteristicId
+    /// 
+    /// # Returns
+    /// 
+    /// An usize representing the size
     pub fn byte_size(&self)-> usize{
+        2
+    }
+}
+
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum StandarDescriptorId {
+    CharacteristicExtendedProperties = 10496,
+    CharacteristicUserDescription = 10497,
+    ClientCharacteristicConfiguration = 10498,
+    ServerCharacteristicConfiguration = 10499,
+    CharacteristicPresentationFormat = 10500,
+    CharacteristicAggregateFormat = 10501,
+    ValidRange = 10502,
+    ExternalReportReference = 10503,
+    ReportReference = 10504,
+    NumberofDigitals = 10505,
+    ValueTriggerSetting = 10506,
+    EnvironmentalSensingConfiguration = 10507,
+    EnvironmentalSensingMeasurement = 10508,
+    EnvironmentalSensingTriggerSetting = 10509,
+    TimeTriggerSetting = 10510,
+    CompleteBREDRTransportBlockData = 10511,
+    ObservationSchedule = 10512,
+    ValidRangeandAccuracy = 10513,
+}
+
+impl StandarDescriptorId{
+    pub fn byte_size(&self) -> usize{
         2
     }
 }
