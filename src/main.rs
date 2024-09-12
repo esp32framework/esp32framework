@@ -1,4 +1,3 @@
-
 use esp32framework::{ble::{ble_client::BleClient, BleId, Characteristic, Descriptor, Service, StandarCharacteristicId, StandarServiceId}, Microcontroller};
 use esp32_nimble::BLEDevice;
 
@@ -93,4 +92,3 @@ fn main() {
     }
 }
 	*/
-  

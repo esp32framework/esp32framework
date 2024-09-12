@@ -1,37 +1,27 @@
-use std::rc::Rc;
-use std::time::Duration;
-use std::time::Instant;
-use esp32_nimble::enums::AuthReq;
-use esp_idf_svc::hal::adc::ADC1;
-use esp_idf_svc::hal::adc::*;
-// use esp_idf_svc::hal::adc::config::{Config, Resolution};
-use esp_idf_svc::hal::delay::FreeRtos;
-use esp_idf_svc::hal::delay::TICK_RATE_HZ;
-use esp_idf_svc::hal::task::notification::Notification;
-use esp_idf_svc::hal::i2c;
-use esp32_nimble::BLEDevice;
+use std::{rc::Rc, time::{Duration, Instant}, cell::RefCell};
+use esp32_nimble::{enums::AuthReq, BLEDevice};
+use esp_idf_svc::hal::{adc::*, delay::{FreeRtos, TICK_RATE_HZ}, task::notification::Notification, i2c};
+use crate::microcontroller_src::{peripherals::*, interrupt_driver::InterruptDriver};
+use crate::ble::{BleBeacon,BleServer,Service,Security};
+use crate::gpio::{AnalogIn, AnalogInPwm, DigitalIn, DigitalOut,  AnalogOut};
+use crate::serial::{Parity, StopBit, UART, I2CMaster, I2CSlave};
+use crate::utils::timer_driver::TimerDriver;
 use oneshot::AdcDriver;
-use std::cell::RefCell;
+
 pub type SharableAdcDriver<'a> = Rc<AdcDriver<'a, ADC1>>;
 pub type SharableI2CDriver<'a> = Rc<RefCell<Option<i2c::I2C0>>>;
 
-use crate::ble::{BleBeacon,BleServer,Service,Security};
-use crate::gpio::AnalogIn;
-use crate::gpio::{AnalogInPwm,
-    DigitalIn,
-    DigitalOut, 
-    AnalogOut};
-use crate::serial::Parity;
-use crate::serial::StopBit;
-use crate::serial::UART;
-use crate::serial::{I2CMaster, I2CSlave};
-use crate::utils::timer_driver::TimerDriver;
-    
-use crate::microcontroller_src::peripherals::*;
-use crate::microcontroller_src::interrupt_driver::InterruptDriver;
-
 const TICKS_PER_MILLI: f32 = TICK_RATE_HZ as f32 / 1000_f32;
 
+/// Primary abstraction for interacting with the microcontroller, providing access to peripherals and drivers
+/// required for configuring pins and other functionalities.
+/// 
+/// - `peripherals`: An instance of `Peripherals`, representing the various hardware peripherals available on the microcontroller.
+/// - `timer_drivers`: A vector of `TimerDriver` instances, each associated with a timer peripheral for time-based operations.
+/// - `interrupt_drivers`: A vector of boxed `InterruptDriver` trait objects, representing the drivers responsible for handling hardware interrupts.
+/// - `adc_driver`: An optional shared instance of `SharableAdcDriver`, providing access to the ADC (Analog-to-Digital Converter) for analog input processing.
+/// - `notification`: An instance of `Notification`, used for managing notifications or signaling events within the microcontroller's operation.
+/// - `i2c_driver`: A shared instance of `SharableI2CDriver`, used for I2C communication with external devices connected to the microcontroller.
 pub struct Microcontroller<'a> {
     peripherals: Peripherals,
     timer_drivers: Vec<TimerDriver<'a>>,
@@ -41,7 +31,13 @@ pub struct Microcontroller<'a> {
     i2c_driver: SharableI2CDriver<'a>
 }
 
-impl <'a>Microcontroller<'a>{
+impl <'a>Microcontroller<'a> {
+
+    /// Creates a new Microcontroller instance
+    /// 
+    /// # Returns
+    /// 
+    /// The new Microcontroller
     pub fn new() -> Self {
         esp_idf_svc::sys::link_patches();
         let peripherals = Peripherals::new();
@@ -56,6 +52,17 @@ impl <'a>Microcontroller<'a>{
         }
     }
 
+    /// Retrieves a TimerDriver instance.
+    ///
+    /// # Returns
+    ///
+    /// A `TimerDriver` instance that can be used to manage timers in the microcontroller.
+    /// If the number of existing `TimerDriver`s is less than 2, a new one is created and added to the list.
+    /// Otherwise, the first driver in the list is reused.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the `TimerDriver` cannot be created, which might happen due to hardware constraints.
     pub fn get_timer_driver(&mut self)-> TimerDriver<'a>{
         let mut timer_driver = if self.timer_drivers.len() < 2{
             let timer = self.peripherals.get_timer(self.timer_drivers.len());
@@ -70,14 +77,38 @@ impl <'a>Microcontroller<'a>{
     }
 
     /// Creates a DigitalIn on the ESP pin with number 'pin_num' to read digital inputs.
-    pub fn set_pin_as_digital_in(&mut self, pin_num: usize)-> DigitalIn<'a> {
+    /// 
+    /// # Arguments
+    ///
+    /// - `pin_num`: The number of the pin on the microcontroller to configure as a digital input.
+    ///
+    /// # Returns
+    ///
+    /// A `DigitalIn` instance that can be used to read digital inputs from the specified pin.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the `DigitalIn` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration.
+    pub fn set_pin_as_digital_in(&mut self, pin_num: usize) -> DigitalIn<'a> {
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
         let dgin = DigitalIn::new(self.get_timer_driver(), pin_peripheral, Some(self.notification.notifier())).unwrap();
         self.interrupt_drivers.push(Box::new(dgin.clone()));
         dgin
     }
     
-    /// Creates a DigitalOut on the ESP pin with number 'pin_num' to writee digital outputs.
+    /// Creates a DigitalOut on the ESP pin with number 'pin_num' to write digital outputs.
+    /// 
+    /// # Arguments
+    ///
+    /// - `pin_num`: The number of the pin on the microcontroller to configure as a digital output.
+    ///
+    /// # Returns
+    ///
+    /// A `DigitalOut` instance that can be used to write digital outputs to the specified pin.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the `DigitalOut` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration.
     pub fn set_pin_as_digital_out(&mut self, pin_num: usize) -> DigitalOut<'a> {
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
         let dgout = DigitalOut::new(self.get_timer_driver(), pin_peripheral).unwrap();
@@ -87,6 +118,10 @@ impl <'a>Microcontroller<'a>{
     
     /// Starts an adc driver if no other was started before. Bitwidth is always set to 12, since 
     /// the ESP32-C6 only allows that width
+    /// 
+    /// # Panics
+    ///
+    /// This function will panic if the `AdcDriver` instance cannot be created, which might happen due to hardware constraints.
     fn start_adc_driver(&mut self) {
         if self.adc_driver.is_none() {
             self.peripherals.get_adc();
@@ -97,33 +132,96 @@ impl <'a>Microcontroller<'a>{
 
     // TODO: simplificar instanciacion analog in
     /// Sets pin as analog input with attenuation set to 2.5dB
+    /// 
+    /// # Arguments
+    ///
+    /// - `pin_num`: The number of the pin on the microcontroller to configure as an analog input.
+    ///
+    /// # Returns
+    ///
+    /// An `AnalogIn` instance that can be used to read analog inputs from the specified pin.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the `AnalogIn` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration.
     pub fn set_pin_as_analog_in_low_atten(&mut self, pin_num: usize) -> AnalogIn<'a> {
         self.start_adc_driver();
         let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
         AnalogIn::new(pin_peripheral, self.adc_driver.clone().unwrap(), attenuation::DB_2_5).unwrap()
     }
     
-    /// Sets pin as analog input with attenuation set to 6dB  
+    /// Sets pin as analog input with attenuation set to 6dB 
+    /// 
+    /// # Arguments
+    ///
+    /// - `pin_num`: The number of the pin on the microcontroller to configure as an analog input.
+    ///
+    /// # Returns
+    ///
+    /// An `AnalogIn` instance that can be used to read analog inputs from the specified pin.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the `AnalogIn` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration. 
     pub fn set_pin_as_analog_in_medium_atten(&mut self, pin_num: usize) -> AnalogIn<'a> {
         self.start_adc_driver();
         let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
         AnalogIn::new(pin_peripheral, self.adc_driver.clone().unwrap(), attenuation::DB_6).unwrap()
     }
     
-    /// Sets pin as analog input with attenuation set to 11dB  
+    /// Sets pin as analog input with attenuation set to 11dB
+    /// 
+    /// # Arguments
+    ///
+    /// - `pin_num`: The number of the pin on the microcontroller to configure as an analog input.
+    ///
+    /// # Returns
+    ///
+    /// An `AnalogIn` instance that can be used to read analog inputs from the specified pin.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the `AnalogIn` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration. 
     pub fn set_pin_as_analog_in_high_atten(&mut self, pin_num: usize) -> AnalogIn<'a> {
         self.start_adc_driver();
         let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
         AnalogIn::new(pin_peripheral, self.adc_driver.clone().unwrap(), attenuation::DB_11).unwrap()
     }
 
-    /// Sets pin as analog input with attenuation set to 0dB  
+    /// Sets pin as analog input with attenuation set to 0dB
+    /// 
+    /// # Arguments
+    ///
+    /// - `pin_num`: The number of the pin on the microcontroller to configure as an analog input.
+    ///
+    /// # Returns
+    ///
+    /// An `AnalogIn` instance that can be used to read analog inputs from the specified pin.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the `AnalogIn` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration. 
     pub fn set_pin_as_analog_in_no_atten(&mut self, pin_num: usize) -> AnalogIn<'a> {
         self.start_adc_driver();
         let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
         AnalogIn::new(pin_peripheral, self.adc_driver.clone().unwrap(), attenuation::NONE).unwrap()
     }
 
+    /// Sets pin as analog output, with desired frequency and resolution
+    /// 
+    /// # Arguments
+    ///
+    /// - `pin_num`: The number of the pin on the microcontroller to configure as an analog input.
+    /// - `freq_hz`: An u32 representing the desired frequency in hertz
+    /// - `resolution`: AN u32 representing the desired resolution. Value needs to be between 0 and 13, inclusive
+    ///
+    /// # Returns
+    ///
+    /// An `AnalogOut` instance that can be used to read analog inputs from the specified pin.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the `AnalogOut` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration. 
     pub fn set_pin_as_analog_out(&mut self, pin_num: usize, freq_hz: u32, resolution: u32) -> AnalogOut<'a> {
         let (pwm_channel, pwm_timer) = self.peripherals.get_next_pwm();
         let pin_peripheral = self.peripherals.get_pwm_pin(pin_num);
@@ -132,6 +230,19 @@ impl <'a>Microcontroller<'a>{
         anlg_out
     } 
 
+    /// Sets pin as analog output, with a default frequency of 100 Hertz and resolution of 8 bits
+    /// 
+    /// # Arguments
+    ///
+    /// - `pin_num`: The number of the pin on the microcontroller to configure as an analog input.
+    ///
+    /// # Returns
+    ///
+    /// An `AnalogOut` instance that can be used to read analog inputs from the specified pin.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the `AnalogOut` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration. 
     pub fn set_pin_as_default_analog_out(&mut self, pin_num: usize) -> AnalogOut<'a> {
         let (pwm_channel, pwm_timer) = self.peripherals.get_next_pwm();
         let pin_peripheral = self.peripherals.get_pwm_pin(pin_num);
@@ -140,19 +251,60 @@ impl <'a>Microcontroller<'a>{
         anlg_out
     }
 
+    /// Sets pin as analog input of PWM signals, with desired frequency and resolution
+    /// 
+    /// # Arguments
+    ///
+    /// - `pin_num`: The number of the pin on the microcontroller to configure as an analog input.
+    /// - `freq_hz`: An u32 representing the desired frequency in hertz
+    ///
+    /// # Returns
+    ///
+    /// An `AnalogInPwm` instance that can be used to read analog inputs of PWM signals from the specified pin.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the `AnalogInPwm` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration. 
     pub fn set_pin_as_analog_in_pwm(&mut self, pin_num: usize, freq_hz: u32) -> AnalogInPwm<'a> {
-        
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
         let timer_driver = self.get_timer_driver();            // TODO: Add a better error. If there is no timers a text should sayy this
         AnalogInPwm::new(timer_driver, pin_peripheral, freq_hz).unwrap()
     }
     
+    /// Sets pin as analog input of PWM signals, with default frequency of 1000 Hertz
+    /// 
+    /// # Arguments
+    ///
+    /// - `pin_num`: The number of the pin on the microcontroller to configure as an analog input.
+    ///
+    /// # Returns
+    ///
+    /// An `AnalogInPwm` instance that can be used to read analog inputs of PWM signals from the specified pin.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the `AnalogInPwm` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration.
     pub fn set_pin_as_default_analog_in_pwm(&mut self, pin_num: usize) -> AnalogInPwm<'a> {
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
         let timer_driver = self.get_timer_driver();
         AnalogInPwm::default(timer_driver, pin_peripheral).unwrap()
     }
     
+    /// Configures the specified pins for I2C master mode.
+    ///
+    /// # Arguments
+    ///
+    /// - `sda_pin`: The pin number to be used as the SDA (Serial Data) line.
+    /// - `scl_pin`: The pin number to be used as the SCL (Serial Clock) line.
+    ///
+    /// # Returns
+    ///
+    /// An `I2CMaster` instance configured to use the specified SDA and SCL pins.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the I2C peripheral is already in use or if the `I2CMaster` instance cannot be created, 
+    /// which might happen due to hardware constraints or incorrect pin configuration.
     pub fn set_pins_for_i2c_master(&mut self, sda_pin: usize, scl_pin: usize) -> I2CMaster<'a> {
         let sda_peripheral = self.peripherals.get_digital_pin(sda_pin);
         let scl_peripheral = self.peripherals.get_digital_pin(scl_pin);
@@ -167,6 +319,22 @@ impl <'a>Microcontroller<'a>{
         }
     }
 
+    /// Configures the specified pins for I2C slave mode and sets the slave address.
+    ///
+    /// # Arguments
+    ///
+    /// - `sda_pin`: The pin number to be used as the SDA (Serial Data) line.
+    /// - `scl_pin`: The pin number to be used as the SCL (Serial Clock) line.
+    /// - `slave_addr`: The address of the I2C slave device.
+    ///
+    /// # Returns
+    ///
+    /// An `I2CSlave` instance configured to use the specified SDA and SCL pins and the provided slave address.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the I2C peripheral is already in use or if the `I2CSlave` instance cannot be created,
+    /// which might happen due to hardware constraints or incorrect pin configuration.
     pub fn set_pins_for_i2c_slave(&mut self, sda_pin: usize, scl_pin: usize, slave_addr: u8) -> I2CSlave<'a> {
         let sda_peripheral = self.peripherals.get_digital_pin(sda_pin);
         let scl_peripheral = self.peripherals.get_digital_pin(scl_pin);
@@ -181,6 +349,21 @@ impl <'a>Microcontroller<'a>{
         }
     }
 
+    /// Configures the specified pins for a default UART configuration.
+    ///
+    /// # Arguments
+    ///
+    /// - `tx_pin`: The pin number to be used for UART transmission (TX).
+    /// - `rx_pin`: The pin number to be used for UART reception (RX).
+    /// - `uart_num`: The UART number to be configured.
+    ///
+    /// # Returns
+    ///
+    /// A `UART` instance configured with the default settings for the specified TX, RX pins, and UART number.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the `UART` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration.
     pub fn set_pins_for_default_uart(&mut self, tx_pin: usize, rx_pin: usize, uart_num: usize) -> UART<'a> {
         let tx_peripheral = self.peripherals.get_digital_pin(tx_pin);
         let rx_peripheral = self.peripherals.get_digital_pin(rx_pin);
@@ -189,6 +372,24 @@ impl <'a>Microcontroller<'a>{
         UART::default(tx_peripheral, rx_peripheral, uart_peripheral).unwrap()
     }
 
+    /// Configures the specified pins for a UART configuration with custom settings.
+    ///
+    /// # Arguments
+    ///
+    /// - `tx_pin`: The pin number to be used for UART transmission (TX).
+    /// - `rx_pin`: The pin number to be used for UART reception (RX).
+    /// - `uart_num`: The UART number to be configured.
+    /// - `baudrate`: The baud rate for the UART communication.
+    /// - `parity`: The parity setting for the UART.
+    /// - `stopbit`: The stop bit configuration for the UART.
+    ///
+    /// # Returns
+    ///
+    /// A `UART` instance configured with the specified settings for the TX, RX pins, and UART number.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the `UART` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration.
     pub fn set_pins_for_uart(&mut self, tx_pin: usize, rx_pin: usize, uart_num: usize, baudrate: u32, parity: Parity, stopbit: StopBit) -> UART<'a> {
         let tx_peripheral = self.peripherals.get_digital_pin(tx_pin);
         let rx_peripheral = self.peripherals.get_digital_pin(rx_pin);
@@ -197,12 +398,42 @@ impl <'a>Microcontroller<'a>{
         UART::new(tx_peripheral, rx_peripheral, uart_peripheral, baudrate, parity, stopbit).unwrap()
     }
 
+    /// Configures the BLE device as a beacon that will advertise the specified name and services.
+    ///
+    /// # Arguments
+    ///
+    /// - `advertising_name`: The name to be advertised by the BLE beacon.
+    /// - `services`: A reference to a vector of services that the beacon will advertise.
+    ///
+    /// # Returns
+    ///
+    /// A `BleBeacon` instance configured to advertise the specified name and services.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the `BleBeacon` instance cannot be created, which might happen due to hardware 
+    /// constraints or incorrect configuration of the BLE device.
     pub fn ble_beacon(&mut self, advertising_name: String, services: &Vec<Service>)-> BleBeacon<'a>{
         self.peripherals.get_ble_device(); // TODO ver safety
         let ble_device = BLEDevice::take();
         BleBeacon::new(ble_device, self.get_timer_driver(), advertising_name, services).unwrap()
     }
     
+    /// Configures a BLE device as a server.
+    ///
+    /// # Arguments
+    ///
+    /// - `advertising_name`: The name to be advertised by the BLE server.
+    /// - `services`: A reference to a vector of services that the server will offer.
+    ///
+    /// # Returns
+    ///
+    /// A `BleServer` instance configured to advertise the specified name and services.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the `BleServer` instance cannot be created, which might happen due to hardware
+    /// constraints or incorrect configuration of the BLE device.
     // TODO &VEc<Services>
     pub fn ble_server(&mut self, advertising_name: String, services: &Vec<Service>)-> BleServer<'a>{
         self.peripherals.get_ble_device();
@@ -210,6 +441,16 @@ impl <'a>Microcontroller<'a>{
         BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() )
     }
 
+    /// Configures the security settings for a BLE device.
+    ///
+    /// # Arguments
+    ///
+    /// - `ble_device`: A mutable reference to the BLEDevice instance to configure.
+    /// - `security_config`: A Security configuration struct containing the desired security settings.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if any of the security settings cannot be applied, which might happen due to invalid configuration values.
     fn config_bluetooth_security(&mut self, ble_device: &mut BLEDevice, security_config: Security){
         ble_device.security()
         .set_auth(AuthReq::from_bits(security_config.auth_mode.to_le()).unwrap())
@@ -218,6 +459,22 @@ impl <'a>Microcontroller<'a>{
         .resolve_rpa();
     }
 
+    /// Configures a secure BLE server with the specified name, services, and security settings.
+    ///
+    /// # Arguments
+    ///
+    /// - `advertising_name`: The name to be advertised by the secure BLE server.
+    /// - `services`: A reference to a vector of services that the server will offer.
+    /// - `security_config`: A `Security` configuration struct containing the desired security settings.
+    ///
+    /// # Returns
+    ///
+    /// A `BleServer` instance configured with the specified security settings, advertising name, and services.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the `BleServer` instance cannot be created, or if the security settings cannot be applied,
+    /// which might happen due to hardware constraints or incorrect configuration of the BLE device.
     // TODO &VEc<Services>
     pub fn ble_secure_server(&mut self, advertising_name: String, services: &Vec<Service>, security_config: Security)-> BleServer<'a>{
         self.peripherals.get_ble_device();
