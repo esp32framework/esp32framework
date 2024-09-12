@@ -1,7 +1,7 @@
 use esp_idf_svc::hal::{gpio::*, task::notification::Notifier};
 use std::{cell::RefCell, num::NonZeroU32, rc::Rc, sync::{atomic::{AtomicU8, Ordering}, Arc}};
 use crate::microcontroller_src::{interrupt_driver::InterruptDriver, peripherals::Peripheral};
-use crate::utils::{esp32_framework_error::Esp32FrameworkError, timer_driver::{TimerDriver,TimerDriverError}, error_text_parser::map_enable_disable_errors};
+use crate::utils::{esp32_framework_error::Esp32FrameworkError, notification::Notifier, timer_driver::{TimerDriver,TimerDriverError}, error_text_parser::map_enable_disable_errors};
 use sharable_reference_macro::sharable_reference_wrapper;
 
 type AtomicInterruptUpdateCode = AtomicU8;
@@ -34,7 +34,7 @@ struct _DigitalIn<'a>{
     pub interrupt_update_code: Arc<AtomicInterruptUpdateCode>,
     user_callback: Box<dyn FnMut()>,
     debounce_ms: Option<u64>,
-    notifier: Option<Arc<Notifier>>
+    notifier: Option<Notifier>
 }
 
 /// Driver for receiving digital inputs from a particular Pin
@@ -135,7 +135,7 @@ impl <'a>_DigitalIn<'a> {
     /// # Panics
     /// 
     /// When setting Down the pull fails
-    pub fn new(timer_driver: TimerDriver<'a>, per: Peripheral, notifier: Option<Arc<Notifier>>) -> Result<_DigitalIn<'a>, DigitalInError> { //flank default: asc
+    pub fn new(timer_driver: TimerDriver<'a>, per: Peripheral, notifier: Option<Notifier>) -> Result<_DigitalIn, DigitalInError> { 
         let gpio = per.into_any_io_pin().map_err(|_| DigitalInError::InvalidPeripheral)?;
         let pin_driver = PinDriver::input(gpio).map_err(|_| DigitalInError::CannotSetPinAsInput)?;
 
@@ -238,7 +238,7 @@ impl <'a>_DigitalIn<'a> {
                 let notif = notifier.clone();
                 let callback = move || {
                     func();
-                    unsafe { notif.notify_and_yield(NonZeroU32::new(1).unwrap()) };
+                    notif.notify().unwrap()
                 };
                 unsafe {
                     self.pin_driver.subscribe(callback).map_err(map_enable_disable_errors)?;
@@ -435,7 +435,7 @@ impl <'a>_DigitalIn<'a> {
         Ok(())
     }
 }
-
+Use
 impl<'a> DigitalIn<'a> {
     /// Create a new DigitalIn for a Pin by default pull is set to Down.
     /// 
@@ -457,7 +457,7 @@ impl<'a> DigitalIn<'a> {
     /// # Panics
     /// 
     /// When setting Down the pull fails
-    pub fn new(timer_driver: TimerDriver, per: Peripheral, notifier: Option<Arc<Notifier>>) -> Result<DigitalIn, DigitalInError> {
+    pub fn new(timer_driver: TimerDriver, per: Peripheral, notifier: Option<Notifier>)->Result<DigitalIn, DigitalInError>{
         Ok(DigitalIn{inner: Rc::new(RefCell::from(_DigitalIn::new(timer_driver, per, notifier)?))})
     }
 }

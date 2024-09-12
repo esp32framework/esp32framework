@@ -1,11 +1,11 @@
-use std::{rc::Rc, time::{Duration, Instant}, cell::RefCell};
+use std::{future::{join, Future}, rc::Rc, time::{Duration, Instant}, cell::RefCell};
 use esp32_nimble::{enums::AuthReq, BLEDevice};
-use esp_idf_svc::hal::{adc::*, delay::{FreeRtos, TICK_RATE_HZ}, task::notification::Notification, i2c};
+use esp_idf_svc::hal::{adc::*, delay::{FreeRtos, TICK_RATE_HZ}, task::block_on, i2c};
 use crate::microcontroller_src::{peripherals::*, interrupt_driver::InterruptDriver};
-use crate::ble::{BleBeacon,BleServer,Service,Security};
+use crate::ble::{BleBeacon,BleServer,Service,Security, ble_client::BleClient};
 use crate::gpio::{AnalogIn, AnalogInPwm, DigitalIn, DigitalOut,  AnalogOut};
 use crate::serial::{Parity, StopBit, UART, I2CMaster, I2CSlave};
-use crate::utils::timer_driver::TimerDriver;
+use crate::utils::{timer_driver::TimerDriver, auxiliary::{SharableRef, SharableRefExt}, notification::{Notification, Notifier};
 use oneshot::AdcDriver;
 
 pub type SharableAdcDriver<'a> = Rc<AdcDriver<'a, ADC1>>;
@@ -485,6 +485,14 @@ impl <'a>Microcontroller<'a> {
         ble_server
     }
 
+    pub fn ble_client(&mut self)-> BleClient{
+        self.peripherals.get_ble_device();
+        let ble_device = BLEDevice::take();
+        let ble_client = BleClient::new(ble_device, self.notification.notifier());
+        self.interrupt_drivers.push(Box::new(ble_client.clone()));
+        ble_client
+    }
+
     pub fn update(&mut self) {
         //timer_drivers must be updated before other drivers since this may efect the other drivers updates
         for timer_driver in &mut self.timer_drivers{
@@ -497,16 +505,17 @@ impl <'a>Microcontroller<'a> {
     
     fn wait_for_updates_indefinitly(&mut self){
         loop{
-            self.notification.wait_any();
+            self.notification.blocking_wait();
             self.update();
         }
     }
 
-    fn wait_for_updates_until(&mut self, miliseconds:u32){
+    /*
+    fn _wait_for_updates_until(&mut self, miliseconds:u32){
         let starting_time = Instant::now();
         let mut elapsed = Duration::from_millis(0);
         let sleep_time = Duration::from_millis(miliseconds as u64);
-
+        
         while elapsed < sleep_time{
             let timeout = ((sleep_time - elapsed).as_millis() as f32 * TICKS_PER_MILLI) as u32;
             if self.notification.wait(timeout).is_some(){
@@ -515,16 +524,52 @@ impl <'a>Microcontroller<'a> {
             elapsed = starting_time.elapsed();
         }
     }
+    */
+
+    fn wait_for_updates_until(&mut self, miliseconds:u32){
+        let timer_driver = match self.timer_drivers.first_mut(){
+            Some(timer_driver) => timer_driver,
+            None => &mut self.get_timer_driver(),
+        };
+        
+        let timed_out = SharableRef::new_sharable(false);
+        let mut timed_out_ref = timed_out.clone();
+
+        timer_driver.interrupt_after(miliseconds as u64 * 1000, move || {
+            *timed_out_ref.deref_mut() = true
+        });
+
+        timer_driver.enable().unwrap();
+
+        while !*timed_out.deref(){
+            self.notification.blocking_wait();
+            self.update();
+            println!("Updating");
+        }
+    }
 
     pub fn wait_for_updates(&mut self, miliseconds:Option<u32>){
         match miliseconds{
             Some(milis) => self.wait_for_updates_until(milis),
             None => self.wait_for_updates_indefinitly(),
-        }   
+        }
     }
 
     pub fn sleep(&self, miliseconds:u32){
         FreeRtos::delay_ms(miliseconds)
+    }
+
+    async fn wait_for_updates_until_finished(&mut self, finished: SharableRef<bool>){
+        while !*finished.deref(){
+            self.notification.wait().await;
+            self.update();
+        }
+    }
+
+    pub fn block_on<F: Future>(&mut self, fut: F)-> F::Output{
+        let finished = SharableRef::new_sharable(false);
+        let fut = wrap_user_future(self.notification.notifier(), finished.clone(), fut);
+        block_on(join!(fut, self.wait_for_updates_until_finished(finished))).0
     }
 }
 
@@ -532,4 +577,11 @@ impl<'a> Default for Microcontroller<'a> {
     fn default() -> Self {
     Self::new()
     }
+}
+
+async fn wrap_user_future<F: Future>(notifier: Notifier, mut finished: SharableRef<bool>, fut: F)-> F::Output{
+    let res = fut.await;
+    *finished.deref_mut() = true;
+    notifier.notify().unwrap();
+    res
 }
