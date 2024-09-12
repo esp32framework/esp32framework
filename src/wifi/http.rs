@@ -1,5 +1,6 @@
 use esp_idf_svc::{http::{self, client::{Configuration, EspHttpConnection}, Method}, sys::EspError};
 
+#[derive(Debug)]
 pub enum HttpError {
     InizializationError,
     RequestError,
@@ -22,7 +23,7 @@ pub struct HttpClient{
 
 impl HttpClient{
 
-    pub fn new(&self) -> Result<Self, HttpError> {
+    pub fn new() -> Result<Self, HttpError> {
         let config: &Configuration = &Default::default();
         let connection = EspHttpConnection::new(config).map_err(|_| HttpError::InizializationError)?;
         Ok( HttpClient { connection } )
