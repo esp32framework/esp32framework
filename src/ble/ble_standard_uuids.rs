@@ -553,3 +553,32 @@ impl StandarCharacteristicId{
         2
     }
 }
+
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum StandarDescriptorId {
+    CharacteristicExtendedProperties = 10496,
+    CharacteristicUserDescription = 10497,
+    ClientCharacteristicConfiguration = 10498,
+    ServerCharacteristicConfiguration = 10499,
+    CharacteristicPresentationFormat = 10500,
+    CharacteristicAggregateFormat = 10501,
+    ValidRange = 10502,
+    ExternalReportReference = 10503,
+    ReportReference = 10504,
+    NumberofDigitals = 10505,
+    ValueTriggerSetting = 10506,
+    EnvironmentalSensingConfiguration = 10507,
+    EnvironmentalSensingMeasurement = 10508,
+    EnvironmentalSensingTriggerSetting = 10509,
+    TimeTriggerSetting = 10510,
+    CompleteBREDRTransportBlockData = 10511,
+    ObservationSchedule = 10512,
+    ValidRangeandAccuracy = 10513,
+}
+
+impl StandarDescriptorId{
+    pub fn byte_size(&self) -> usize{
+        2
+    }
+}

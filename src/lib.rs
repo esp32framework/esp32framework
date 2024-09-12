@@ -7,4 +7,3 @@ pub mod ble;
 
 pub use microcontroller_src::Microcontroller;
 pub use microcontroller_src::interrupt_driver::InterruptDriver;
-
