@@ -30,6 +30,7 @@ esp32-nimble = {version = "0.7.0"}
 sharable_reference_macro = { path = "./sharable_reference_macro" }
 uuid =  { version = "1.10.0", features = ["v3"] }
 bstr = { version = "1.8.0", default-features = false }
+embedded-svc = { version = "0.28", default-features = false }
 
 [build-dependencies]
 embuild = { version = "0.31.3", features = ["espidf"] }

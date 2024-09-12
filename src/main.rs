@@ -2,7 +2,7 @@
 //! Example of using async wifi.
 const SSID: &str = "Iphone 8 Diego New";
 const PASSWORD: &str = "diegocivini";
-/*
+
 use core::convert::TryInto;
 use esp_idf_svc::hal::prelude::Peripherals;
 use esp_idf_svc::hal::task::block_on;
@@ -10,6 +10,10 @@ use esp_idf_svc::log::EspLogger;
 use esp_idf_svc::timer::EspTaskTimerService;
 use esp_idf_svc::wifi::{AsyncWifi, EspWifi,AuthMethod, ClientConfiguration, Configuration};
 use esp_idf_svc::{eventloop::EspSystemEventLoop, nvs::EspDefaultNvsPartition};
+
+use embedded_svc::http::client::Client;
+use esp_idf_svc::http::client::EspHttpConnection;
+// use esp_idf_svc::http::client::Client;
 
 use log::info;
 
@@ -67,8 +71,8 @@ async fn connect_wifi(wifi: &mut AsyncWifi<EspWifi<'static>>){
     wifi.wait_netif_up().await.unwrap();
     info!("Wifi netif up");
 }
- */
 
+ /*
 use esp32framework::{wifi::wifi::WifiDriver, Microcontroller};
 
 
@@ -85,3 +89,4 @@ fn main(){
     micro.sleep(1000);
   }
 }
+   */

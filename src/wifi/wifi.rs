@@ -4,7 +4,8 @@ use esp_idf_svc::{eventloop::EspSystemEventLoop, hal::modem::{self}, nvs::EspDef
 pub enum WifiError {
     ConfigurationError,
     StartingError,
-    ConnectingError
+    ConnectingError,
+    WifiNotInitialized
 }
 
 pub struct WifiDriver<'a> {
@@ -61,5 +62,13 @@ impl <'a>WifiDriver<'a> {
         println!("DEBUG:wifi netif up"); 
 
         Ok(())
+    }
+
+    pub fn is_started(&self) -> Result<bool, WifiError> {
+        self.controller.is_started().map_err(|_| WifiError::WifiNotInitialized) // This error appears if WiFi is not initialized by esp_wifi_init
+    }
+
+    pub fn is_connected(&self) -> Result<bool, WifiError> {
+        self.controller.is_connected().map_err(|_| WifiError::WifiNotInitialized) // This error appears if WiFi is not initialized by esp_wifi_init
     }
 }
