@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use proc_macro2::TokenStream as TokenStream2;
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{parse::{Parse, ParseStream}, parse_macro_input, punctuated::Punctuated, spanned::Spanned, FnArg, GenericParam, Ident, ImplItem, ImplItemFn, ItemImpl, LitStr, Signature, Token};
+use syn::{parse::{Parse, ParseStream}, parse_macro_input, punctuated::Punctuated, spanned::Spanned, FnArg, GenericParam, Ident, ImplItem, ImplItemFn, ItemImpl, LitStr, Signature, Token, Type, TypePath};
     
 /// This macro is used on top of an impl block for "_MyStruct" and creates a new impl block for 
 /// "MyStruct". This new impl block has a method with the same signature for all pub instance methods,
@@ -131,6 +131,18 @@ fn get_pub_instance_method(method: &ImplItemFn, args: &StringArgs, is_trait: boo
     }
 
     let method_sig = filter_method_signature(original_sig, &args);
+    let return_type_has_self = check_if_return_type_ref_self(&method_sig);
+
+    let final_return_type = if return_type_has_self{
+        quote! { ; self }
+    }else{
+        quote! {}
+    };
+
+    let awaiting = match method_sig.asyncness{
+        Some(_) => quote! { .await },
+        None => quote! {},
+    };
 
     let pub_level = match method_visibility{
         syn::Visibility::Public(pub_level) => pub_level.to_token_stream(),
@@ -145,9 +157,47 @@ fn get_pub_instance_method(method: &ImplItemFn, args: &StringArgs, is_trait: boo
     Some(quote! {
         #(#method_attr)*
         #pub_level #method_sig {
-            #borrow #method_name(#(#method_inputs),*)
+            #borrow #method_name(#(#method_inputs),*) #awaiting
+            #final_return_type
         }
     })
+}
+
+/// Returns wether the return type of a signature i &Self of &mut Self.
+/// Panics if Self is being returned, since the is no way to return it behind an Rc<RefCell<T>>
+fn check_if_return_type_ref_self(sig: &Signature)-> bool{
+    if let syn::ReturnType::Type(_, return_type) = &sig.output{
+        return_type_is_self(return_type.as_ref())
+    }else{
+        false
+    }
+}
+
+/// Returns wether the return type of a signature i &Self of &mut Self.
+/// Panics if Self is being returned, since the is no way to return it behind an Rc<RefCell<T>>
+fn return_type_is_self(return_type: &Type)-> bool{
+    match return_type{
+        Type::Path(type_path) => {
+            if type_path_is_self(type_path){
+                panic!("Macro does not work for function that return Self, it does however work for &self, or &mut self")
+            }
+            false
+        },
+        Type::Reference(type_ref) => {
+            let refed_type = type_ref.elem.as_ref();
+            if let Type::Path(type_path) = refed_type{
+                type_path_is_self(type_path)
+            }else{
+                false
+            }
+        }
+        _ => false
+    }
+
+}
+
+fn type_path_is_self(type_path: &TypePath)-> bool{
+    type_path.path.is_ident("Self")
 }
 
 /// Returns the input corresponding to each arg. It sets the borro acordingly. If the name of the arg 

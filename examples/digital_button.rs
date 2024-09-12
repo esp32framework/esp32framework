@@ -1,11 +1,15 @@
-use esp_idf_svc::hal::gpio::*;
-use esp_idf_svc::hal::peripherals::Peripherals;
-use esp_idf_svc::hal::delay::FreeRtos;
+//! Example using pin GPIO9 as digital in to count the amount of times a button
+//! is pressed. The signal is configured with a debounce time of 200msec.
+
+use esp_idf_svc::hal::{gpio::*,peripherals::Peripherals,delay::FreeRtos};
 use std::{collections::HashMap, sync::atomic::{AtomicBool, Ordering}};
+
 static FLAG: AtomicBool = AtomicBool::new(false);
 
-/// Example using pin GPIO9 as digital in to count the amount of times a button
-/// is pressed. The signal is configured with a debounce time of 200msec.
+fn callback(){
+    FLAG.store(true, Ordering::Relaxed);
+}
+
 fn main(){
     esp_idf_svc::sys::link_patches();
     let peripherals = Peripherals::take().unwrap();
@@ -30,8 +34,4 @@ fn main(){
         button.enable_interrupt().unwrap();
         FreeRtos::delay_ms(200_u32);
     }
-}
-
-fn callback(){
-    FLAG.store(true, Ordering::Relaxed);
 }

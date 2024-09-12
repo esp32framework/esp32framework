@@ -14,7 +14,7 @@ use esp32framework::Microcontroller;
 use std::thread;
 use std::time::Duration;
 
-use esp_idf_svc::hal::adc::config::Config;
+// use esp_idf_svc::hal::adc::config::Config;
 use esp_idf_svc::hal::adc::*;
 use esp_idf_svc::hal::delay::FreeRtos;
 use esp_idf_svc::hal::gpio::*;
@@ -51,7 +51,7 @@ fn main(){
         let smooth_read = analog_in.smooth_read(20).unwrap();
         println!("READ: {read} | RAW: {raw_read} | SMOOTH: {smooth_read}");
         FreeRtos::delay_ms(500_u32);
-        micro.update(vec![], vec![]);
+        micro.update();
     }
     //drop(analog_in);
     //println!("{:?}", micro);

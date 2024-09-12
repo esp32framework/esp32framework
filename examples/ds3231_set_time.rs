@@ -1,14 +1,14 @@
-use std::collections::HashMap;
+//! Example using pin GPIO5 (sda) and GPIO6 (scl) with i2c to set 
+//! a date and time in a ds3231 sensor. Then it will ask the sensor
+//! for the time and print it in the screen.
 
-use esp_idf_svc::hal::delay::{FreeRtos, BLOCK};
-use esp_idf_svc::hal::i2c::*;
-use esp_idf_svc::hal::peripherals::Peripherals;
-use esp_idf_svc::hal::prelude::*;
+use std::collections::HashMap;
+use esp_idf_svc::hal::{delay::{FreeRtos, BLOCK}, i2c::* , peripherals::Peripherals, prelude::*};
 
 const DS3231_ADDR: u8 = 0x68;
 
 #[repr(u8)]
-enum DS3231_REG_DIR {
+enum DS3231RegDir {
     Seconds,
     Minutes,
     Hours,
@@ -53,13 +53,13 @@ fn write_clock(clock: &mut I2cDriver, time: u8, addr: u8) {
 }
 
 fn set_time(clock: &mut I2cDriver, secs: u8, min: u8, hrs: u8, day: u8, date: u8, month: u8, year: u8) {
-    write_clock(clock, secs, DS3231_REG_DIR::Seconds as u8);
-    write_clock(clock, min, DS3231_REG_DIR::Minutes as u8);
-    write_clock(clock, hrs, DS3231_REG_DIR::Hours as u8);
-    write_clock(clock, day, DS3231_REG_DIR::Day as u8);
-    write_clock(clock, date, DS3231_REG_DIR::Date as u8);
-    write_clock(clock, month, DS3231_REG_DIR::Month as u8);
-    write_clock(clock, year, DS3231_REG_DIR::Year as u8);
+    write_clock(clock, secs, DS3231RegDir::Seconds as u8);
+    write_clock(clock, min, DS3231RegDir::Minutes as u8);
+    write_clock(clock, hrs, DS3231RegDir::Hours as u8);
+    write_clock(clock, day, DS3231RegDir::Day as u8);
+    write_clock(clock, date, DS3231RegDir::Date as u8);
+    write_clock(clock, month, DS3231RegDir::Month as u8);
+    write_clock(clock, year, DS3231RegDir::Year as u8);
 }
 
 fn parse_read_data(data: [u8; 13] )-> HashMap<String, String>{

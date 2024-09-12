@@ -1,6 +1,8 @@
-use esp32framework::sensors::{Alarm1Rate, DateTime, DS3231};
-use esp32framework::serial::READER;
-use esp32framework::Microcontroller;
+//! Example using pin GPIO3(sqw), GPIO5 (sda) and GPIO6 (scl) with i2c to set 
+//! a date and time with an alarm in a ds3231 sensor. Then, every second it will 
+//! ask the sensor for the time and print it with the state of the sqw signal.
+
+use esp32framework::{Microcontroller, serial::READER, sensors::{Alarm1Rate, DateTime, DS3231}};
 
 fn main() {
     let mut micro = Microcontroller::new();

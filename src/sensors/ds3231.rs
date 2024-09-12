@@ -1,7 +1,5 @@
 use std::collections::HashMap;
-
 use esp_idf_svc::hal::delay::BLOCK;
-
 use crate::serial::{I2CError, I2CMaster, READER};
 
 const DS3231_ADDR   : u8 = 0x68;
@@ -40,12 +38,12 @@ const TEMP_ADDR             : u8 = 0x11;
 const ALARM_MSB_ON: u8 = 128;
 
 /// Possible alar rates for alarm 1.
-/// EverySecond: The alarm activates every second. When using this rate, remember to update the alarm with update_alarm_1(). 
-/// Seconds: Receives (second). The alarm activates when seconds match.
-/// MinutesAndSeconds: Receives (minutes, seconds). The alarm activates when minutes and seconds match.
-/// HoursMinutesAndSeconds: Receives (hours, minutes, seconds). The alarm activates when hour, minutes and seconds match.
-/// DateHoursMinutesAndSeconds: Receives (date, hours, minutes, seconds). The alarm activates when date, hour, minutes and seconds match.
-/// DayHoursMinutesAndSeconds: Receives (day, hours, minutes, seconds). The alarm activates when day, hour, minutes and seconds match.
+/// - `EverySecond`: The alarm activates every second. When using this rate, remember to update the alarm with update_alarm_1(). 
+/// - `Seconds`: Receives (second). The alarm activates when seconds match.
+/// - `MinutesAndSeconds`: Receives (minutes, seconds). The alarm activates when minutes and seconds match.
+/// - `HoursMinutesAndSeconds`: Receives (hours, minutes, seconds). The alarm activates when hour, minutes and seconds match.
+/// - `DateHoursMinutesAndSeconds`: Receives (date, hours, minutes, seconds). The alarm activates when date, hour, minutes and seconds match.
+/// - `DayHoursMinutesAndSeconds`: Receives (day, hours, minutes, seconds). The alarm activates when day, hour, minutes and seconds match.
 pub enum Alarm1Rate {
     EverySecond,
     Seconds(u8),
@@ -56,11 +54,11 @@ pub enum Alarm1Rate {
 }
 
 /// Possible alar rates for alarm 2.
-/// EveryMinute: The alarm activates every minute (00 seconds of every minute).
-/// Minutes: Receives (minutes). The alarm activates when minutes match.
-/// HoursAndMinutes: Receives (hours, minutes). The alarm activates when hour and minutes match.
-/// DateHoursAndMinutes: Receives (date, hours, minutes). The alarm activates when date, hour and minutes.
-/// DayHoursAndMinutes: Receives (date, hours, minutes). The alarm activates when date, hour and minutes.
+/// - `EveryMinute`: The alarm activates every minute (00 seconds of every minute).
+/// - `Minutes`: Receives (minutes). The alarm activates when minutes match.
+/// - `HoursAndMinutes`: Receives (hours, minutes). The alarm activates when hour and minutes match.
+/// - `DateHoursAndMinutes`: Receives (date, hours, minutes). The alarm activates when date, hour and minutes.
+/// - `DayHoursAndMinutes`: Receives (date, hours, minutes). The alarm activates when date, hour and minutes.
 pub enum Alarm2Rate {
     EveryMinute,
     Minutes(u8),
@@ -80,6 +78,14 @@ pub enum DateTimeComponent {
     Year,
 }
 
+/// Represents a date and time
+/// - `second`: The second component of the time (0-59).
+/// - `minute`: The minute component of the time (0-59).
+/// - `hour`: The hour component of the time (0-23).
+/// - `week_day`: The day of the week (1-7).
+/// - `date`: The day of the month (1-31).
+/// - `month`: The month (1-12).
+/// - `year`: The year component (0-99, representing 2000-2099).
 pub struct DateTime {
     pub second: u8,
     pub minute: u8,
@@ -88,7 +94,7 @@ pub struct DateTime {
     pub date: u8,
     pub month: u8,
     pub year: u8
-} 
+}
 
 /// Simple abstraction of the DS3231 that facilitates its handling
 pub struct DS3231<'a> {
@@ -98,23 +104,59 @@ pub struct DS3231<'a> {
 
 impl <'a>DS3231<'a> {
     
-    /// Simply returns the DS3231 struct
+    /// Creates a new `DS3231` instance.
+    ///
+    /// # Arguments
+    ///
+    /// - `i2c`: The I2CMaster interface to communicate with the DS3231.
+    ///
+    /// # Returns
+    ///
+    /// A new `DS3231` instance.
     pub fn new(i2c: I2CMaster<'a>) -> DS3231<'a> {
         DS3231 { i2c }
     }
 
-    /// Receives a decimal and serializies with BCD
+    /// Converts a decimal number to its Binary-Coded Decimal (BCD) representation.
+    ///
+    /// # Arguments
+    ///
+    /// - `decimal`: The decimal value to be converted.
+    ///
+    /// # Returns
+    ///
+    /// The BCD representation of the decimal value.
     fn decimal_to_bcd(&self, decimal: u8) -> u8 {
         ((decimal / 10) << 4) | (decimal % 10)
     }
 
-    /// Receives a bcd serialized decimal and deserializes it into a decimal
+    /// Converts a Binary-Coded Decimal (BCD) value to its decimal representation.
+    ///
+    /// # Arguments
+    ///
+    /// - `bcd`: The BCD value to be converted.
+    ///
+    /// # Returns
+    ///
+    /// The decimal representation of the BCD value.
     fn bcd_to_decimal(&self, bcd: u8) -> u8 {
         (bcd & 0x0F) + ((bcd >> 4) * 10)
     }
 
     /// Receives a DateTime indicating the exact time in which the clock should be
     /// and sets the DS3231 into that time.
+    /// 
+    /// # Arguments
+    ///
+    /// - `date_time`: The DateTime struct representing the desired time.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` if the time was successfully set, otherwise an `I2CError`
+    /// 
+    /// # Errors
+    /// 
+    /// - `I2CError::InvalidArg`: If any of the value of the DateTime is not between acceptable boundaries
     pub fn set_time(&mut self, date_time: DateTime) -> Result<(), I2CError> {
         self.set(date_time.second, DateTimeComponent::Second)?;
         self.set(date_time.minute, DateTimeComponent::Minute)?;
@@ -125,7 +167,39 @@ impl <'a>DS3231<'a> {
         self.set(date_time.year, DateTimeComponent::Year)
     }
 
+
+    /// Retrieves a date_time with the current date and time. 
+    /// 
+    /// # Returns
+    ///
+    /// A `DateTime` struct representing the current date and time.
+    pub fn get_date_time(&mut self) -> DateTime {
+        let date_time = self.read_and_parse();
+        DateTime {
+            second: date_time["secs"].parse().unwrap(),
+            minute: date_time["min"].parse().unwrap(),
+            hour: date_time["hrs"].parse().unwrap(),
+            week_day: self.read(DateTimeComponent::WeekDay).unwrap(),
+            date: date_time["day_number"].parse().unwrap(),
+            month: date_time["month"].parse().unwrap(),
+            year: date_time["year"].parse().unwrap(),
+        }
+    }
+
     /// Allows to set just a component (seconds, minutes, hours, etc) of the time to the DS3231.
+    /// 
+    /// # Arguments
+    ///
+    /// - `value`: The value to set the component to.
+    /// - `time_component`: The specific component of time (seconds, minutes, hours, etc.) to set.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` if the component was successfully set, otherwise an `I2CError`.
+    /// 
+    /// # Errors
+    /// 
+    /// - `I2CError::InvalidArg`: If any of the value of the DateTime is not between acceptable boundaries
     pub fn set(&mut self, value: u8, time_component: DateTimeComponent) -> Result<(), I2CError> {
         if !time_component.is_between_boundaries(value) {
             return Err(I2CError::InvalidArg);
@@ -134,6 +208,20 @@ impl <'a>DS3231<'a> {
     }
 
     /// Allows to read just a component (seconds, minutes, hours, etc) of the time to the DS3231.
+    /// 
+    /// # Arguments
+    ///
+    /// - `component`: The specific component of time (seconds, minutes, hours, etc.) to read.
+    ///
+    /// # Returns
+    ///
+    /// The value of the component read, or an `I2CError` if the read operation failed.
+    /// 
+    /// # Errors
+    /// 
+    /// - `I2CError::InvalidArg`: If an invalid argument is passed.
+    /// - `I2CError::BufferTooSmall`: If the buffer is too small.
+    /// - `I2CError::NoMoreHeapMemory`: If there isn't enough heap memory to perform the operation.
     pub fn read(&mut self, component: DateTimeComponent) -> Result<u8, I2CError> {
         let mut buffer: [u8; 1] = [0];
 
@@ -144,18 +232,57 @@ impl <'a>DS3231<'a> {
     }
 
     /// Reads DS3231 registers starting from 'addr'.
+    /// 
+    /// # Arguments
+    ///
+    /// - `addr`: The starting register address to read from.
+    /// - `buffer`: A mutable buffer to store the data read from the registers.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` if the read operation was successful, otherwise an `I2CError`.
+    /// 
+    /// # Errors
+    /// 
+    /// - `I2CError::InvalidArg`: If an invalid argument is passed.
+    /// - `I2CError::BufferTooSmall`: If the buffer is too small.
+    /// - `I2CError::NoMoreHeapMemory`: If there isn't enough heap memory to perform the operation.
     fn read_clock(&mut self, addr: u8, buffer: &mut [u8]) -> Result<(), I2CError> {
         self.i2c.write(DS3231_ADDR, &[addr], BLOCK)?;
         self.i2c.read(DS3231_ADDR, buffer, BLOCK)
     }
 
     /// Writes DS3231 registers starting from 'addr'.
+    /// 
+    /// # Arguments
+    ///
+    /// - `time`: The time value to write, in decimal format.
+    /// - `addr`: The starting register address to write to.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` if the write operation was successful, otherwise an `I2CError`.
+    /// 
+    /// # Errors
+    /// 
+    /// - `I2CError::InvalidArg`: If an invalid argument is passed.
+    /// - `I2CError::BufferTooSmall`: If the buffer is too small.
+    /// - `I2CError::NoMoreHeapMemory`: If there isn't enough heap memory to perform the operation.
     fn write_clock(&mut self, time: u8, addr: u8) -> Result<(), I2CError> {
         let bcd_time = self.decimal_to_bcd(time);
         self.i2c.write(DS3231_ADDR, &[addr, bcd_time], BLOCK)
     }
 
     /// Parses the BCD decimals and uses a bit mask on some registers that have unnecessary bits.
+    /// 
+    /// # Arguments
+    ///
+    /// - `read_value`: The BCD-encoded value read from the DS3231.
+    /// - `component`: The `DateTimeComponent` representing the type of time component (e.g., second, hour).
+    ///
+    /// # Returns
+    ///
+    /// The decimal representation of the time component, with unnecessary bits masked out if applicable.
     fn parse_component(&self, read_value: u8, component: DateTimeComponent) -> u8 {
         match component {
             DateTimeComponent::Second => self.bcd_to_decimal(read_value & 0x7f),
@@ -165,6 +292,10 @@ impl <'a>DS3231<'a> {
     }
 
     /// Restarts the whole clock, setting every time component to 0.
+    /// 
+    /// # Returns
+    ///
+    /// `Ok(())` if the clock was successfully restarted, otherwise an `I2CError`.
     pub fn restart(&mut self) -> Result<(), I2CError> {
         let date_time = DateTime  {
             second: 0,
@@ -181,13 +312,21 @@ impl <'a>DS3231<'a> {
     /// When reading the whole date and time, the data needs to be parsed.
     /// This is done here and returns a HashMap for the user to have the data
     /// in the easiest way posible. The keys to get the different components are:
-    /// Seconds -> secs
-    /// Minutes -> min
-    /// Hour -> hrs
-    /// Day of the week -> dow
-    /// Day of the month -> day_number
-    /// Month -> month
-    /// Year -> year
+    /// - Seconds -> secs
+    /// - Minutes -> min
+    /// - Hour -> hrs
+    /// - Day of the week -> dow
+    /// - Day of the month -> day_number
+    /// - Month -> month
+    /// - Year -> year
+    /// 
+    /// # Arguments
+    ///
+    /// - `data`: An array of 13 bytes representing the raw data read from the DS3231.
+    ///
+    /// # Returns
+    ///
+    /// A `HashMap` where the keys are string representations of the time components (e.g., "secs", "min") and the values are their corresponding decimal values.
     fn parse_read_data(&self, data: [u8; 13] )-> HashMap<String, String> {
         let mut res = HashMap::new();
         let secs = self.bcd_to_decimal(data[0] & 0x7f);  // 0 1 1 1 1 1 1 1
@@ -219,6 +358,20 @@ impl <'a>DS3231<'a> {
     }   
 
     /// Reads only 1 register and returns its decimal value
+    /// 
+    /// # Arguments
+    ///
+    /// - `addr`: The register address to read from.
+    ///
+    /// # Returns
+    ///
+    /// The decimal value of the register, or an `I2CError` if the read operation failed.
+    /// 
+    /// # Errors
+    /// 
+    /// - `I2CError::InvalidArg`: If an invalid argument is passed.
+    /// - `I2CError::BufferTooSmall`: If the buffer is too small.
+    /// - `I2CError::NoMoreHeapMemory`: If there isn't enough heap memory to perform the operation.
     fn read_last_value(&mut self, addr: u8) -> Result<u8, I2CError> {
         let mut buffer: [u8; 1] = [0];
         self.read_clock(addr, &mut buffer)?;
@@ -227,6 +380,23 @@ impl <'a>DS3231<'a> {
     }
 
     /// Inside function to set alarm 1. Writes every necessary register.
+    /// 
+    /// # Arguments
+    ///
+    /// - `day`: The day of the month for the alarm.
+    /// - `hours`: The hour for the alarm.
+    /// - `minutes`: The minute for the alarm.
+    /// - `seconds`: The second for the alarm.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` if the alarm was successfully set, otherwise an `I2CError`.
+    /// 
+    /// # Errors
+    /// 
+    /// - `I2CError::InvalidArg`: If an invalid argument is passed.
+    /// - `I2CError::BufferTooSmall`: If the buffer is too small.
+    /// - `I2CError::NoMoreHeapMemory`: If there isn't enough heap memory to perform the operation.
     fn _set_alarm_1(&mut self, day: u8, hours: u8, minutes:u8, seconds: u8) -> Result<(), I2CError> {
         self.write_clock(seconds, SECONDS_ALARM_1_ADDR)?;
         self.write_clock(minutes, MINUTES_ALARM_1_ADDR)?;
@@ -241,6 +411,22 @@ impl <'a>DS3231<'a> {
     }
 
     /// Inside function to set alarm 2. Writes every necessary register.
+    /// 
+    /// # Arguments
+    ///
+    /// - `day`: The day of the month for the alarm.
+    /// - `hours`: The hour for the alarm.
+    /// - `minutes`: The minute for the alarm.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` if the alarm was successfully set, otherwise an `I2CError`.
+    /// 
+    /// # Errors
+    /// 
+    /// - `I2CError::InvalidArg`: If an invalid argument is passed.
+    /// - `I2CError::BufferTooSmall`: If the buffer is too small.
+    /// - `I2CError::NoMoreHeapMemory`: If there isn't enough heap memory to perform the operation.
     fn _set_alarm_2(&mut self, day: u8, hours: u8, minutes: u8) -> Result<(), I2CError> {
         self.write_clock(minutes, MINUTES_ALARM_2_ADDR)?;
         self.write_clock(hours, HOURS_ALARM_2_ADDR)?;
@@ -254,6 +440,20 @@ impl <'a>DS3231<'a> {
     }
     
     /// By receiving an Alarm1Rate, it is possible to set different rates on alarm 1.
+    /// 
+    /// # Arguments
+    ///
+    /// - `alarm_rate`: The rate at which alarm 1 should trigger. This can be one of several predefined rates in Alarm1Rate.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` if the alarm rate was successfully set, otherwise an `I2CError`.
+    /// 
+    /// # Errors
+    /// 
+    /// - `I2CError::InvalidArg`: If an invalid argument is passed.
+    /// - `I2CError::BufferTooSmall`: If the buffer is too small.
+    /// - `I2CError::NoMoreHeapMemory`: If there isn't enough heap memory to perform the operation.
     pub fn set_alarm_1(&mut self, alarm_rate: Alarm1Rate) -> Result<(), I2CError> {
         match alarm_rate {
             Alarm1Rate::EverySecond => self._set_alarm_1(ALARM_MSB_ON, ALARM_MSB_ON, ALARM_MSB_ON, ALARM_MSB_ON),
@@ -266,6 +466,20 @@ impl <'a>DS3231<'a> {
     }
     
     /// By receiving an Alarm2Rate, it is possible to set different rates on alarm 2.
+    /// 
+    /// # Arguments
+    ///
+    /// - `alarm_rate`: The rate at which alarm 2 should trigger. This can be one of several predefined rates in Alarm2Rate.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` if the alarm rate was successfully set, otherwise an `I2CError`.
+    /// 
+    /// # Errors
+    /// 
+    /// - `I2CError::InvalidArg`: If an invalid argument is passed.
+    /// - `I2CError::BufferTooSmall`: If the buffer is too small.
+    /// - `I2CError::NoMoreHeapMemory`: If there isn't enough heap memory to perform the operation.
     pub fn set_alarm_2(&mut self, alarm_rate: Alarm2Rate) -> Result<(), I2CError> {
         match alarm_rate {
             Alarm2Rate::EveryMinute => self._set_alarm_2(ALARM_MSB_ON, ALARM_MSB_ON, ALARM_MSB_ON),
@@ -276,7 +490,17 @@ impl <'a>DS3231<'a> {
         }
     }
 
-    /// Updates the control/status register so the alarm can be activated again. 
+    /// Updates the control/status register so the alarm can be activated again.
+    /// 
+    /// # Returns
+    ///
+    /// `Ok(())` if the register was successfully updated, otherwise an `I2CError`.
+    /// 
+    /// # Errors
+    /// 
+    /// - `I2CError::InvalidArg`: If an invalid argument is passed.
+    /// - `I2CError::BufferTooSmall`: If the buffer is too small.
+    /// - `I2CError::NoMoreHeapMemory`: If there isn't enough heap memory to perform the operation.
     pub fn update_alarm_1(&mut self) -> Result<(), I2CError> {
         // Update the control/status register. To activate the alarm we want to set bit 0 to 0 
         let last_value = self.read_last_value(CONTROL_STATUS_ADDR)?;
@@ -284,6 +508,16 @@ impl <'a>DS3231<'a> {
     }
 
     /// Updates the control/status register so the alarm can be activated again. 
+    /// 
+    /// # Returns
+    ///
+    /// `Ok(())` if the register was successfully updated, otherwise an `I2CError`.
+    /// 
+    /// # Errors
+    /// 
+    /// - `I2CError::InvalidArg`: If an invalid argument is passed.
+    /// - `I2CError::BufferTooSmall`: If the buffer is too small.
+    /// - `I2CError::NoMoreHeapMemory`: If there isn't enough heap memory to perform the operation.
     pub fn update_alarm_2(&mut self) -> Result<(), I2CError> {
         // Update the control/status register. To activate the alarm we want to set bit 1 to 0 
         let last_value = self.read_last_value(CONTROL_STATUS_ADDR)?;
@@ -291,6 +525,14 @@ impl <'a>DS3231<'a> {
     }
 
     /// Receives a decimal on two's complement and returns its decimal value.
+    ///
+    /// # Arguments
+    ///
+    /// - `value`: The value in two's complement form.
+    ///
+    /// # Returns
+    ///
+    /// The decimal equivalent of the two's complement value as f32.
     fn twos_complement_to_decimal(&self, value: u8) -> f32 {
         if value & 0x80 != 0 {
             -((!value + 1) as f32)
@@ -300,6 +542,10 @@ impl <'a>DS3231<'a> {
     }
 
     /// Returns the temperature on Celsius.
+    /// 
+    /// # Returns
+    ///
+    /// The temperature in degrees Celsius as a floating-point value as a f32.
     pub fn get_temperature(&mut self) -> f32 { // TODO: The values are not being deserialized with BCD, only twos complement. Check in datasheet if BCD needs to be used to.
         let mut buffer: [u8; 2] = [0; 2];
         self.i2c.write_read(DS3231_ADDR, &[TEMP_ADDR], &mut buffer,BLOCK).unwrap();
@@ -311,7 +557,20 @@ impl <'a>DS3231<'a> {
     }
 }
 
+
 impl<'a> READER for DS3231<'a> {
+    /// Reads the DS3231 registers and parses the data into a 
+    /// `HashMap` where each key corresponds to a time component (seconds, minutes, hours, etc.).
+    ///
+    /// # Returns
+    /// 
+    /// A `HashMap<String, String>` containing the parsed time components.
+    ///
+    /// # Example
+    /// ```
+    /// let date_time_data = self.read_and_parse();
+    /// println!("{:?}", date_time_data.get("hrs")); // Prints the current hour as a string.
+    /// ```
     fn read_and_parse(& mut self) -> HashMap<String, String> {
         let mut data: [u8; 13] = [0_u8; 13];
         self.i2c.write(DS3231_ADDR, &[0_u8], BLOCK).unwrap();
@@ -322,7 +581,11 @@ impl<'a> READER for DS3231<'a> {
 
 impl DateTimeComponent {
 
-    /// Returns the register address of the desired DateTime component.
+    /// Gets the register address of the desired DateTime component.
+    /// 
+    /// # Returns
+    /// 
+    /// An u8 representing the register address
     fn addr(&self) -> u8 {
         match self {
             DateTimeComponent::Second => SECONDS_ADDR,
@@ -336,6 +599,14 @@ impl DateTimeComponent {
     }
 
     /// For each component it checks if the value is between possible boundaries set by the bits in the register.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `val`: An u8 representing the value to check
+    /// 
+    /// # Returns
+    /// 
+    /// A bool. True if val is between boundaries, False if not.
     pub fn is_between_boundaries(&self, val: u8) -> bool {
         match self {
             DateTimeComponent::Second => self.check_boundaries(val, MIN_VALUE, MAX_SECS),
@@ -349,6 +620,22 @@ impl DateTimeComponent {
     }
 
     /// Receives a value and the boundaries. Returstrue if the values is between boundaries, else false.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `val`: The value to check.
+    /// - `min_boundarie`: The minimum allowable value (inclusive).
+    /// - `max_boundarie`: The maximum allowable value (inclusive).
+    ///
+    /// # Returns
+    /// 
+    /// True if `val` is between `min_boundarie` and `max_boundarie`, inclusive. False otherwise.
+    ///
+    /// # Example
+    /// ```
+    /// let result = self.check_boundaries(5, 1, 10);
+    /// assert!(result); // true
+    /// ```
     fn check_boundaries(&self, val: u8, min_boundarie: u8, max_boundarie: u8) -> bool {
         val >= min_boundarie && val <= max_boundarie
     }
