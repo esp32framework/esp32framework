@@ -1,4 +1,5 @@
-use esp_idf_svc::hal::{gpio::*, task::notification::Notifier};
+use esp_idf_svc::hal::gpio::*;
+pub use esp_idf_svc::hal::gpio::InterruptType;
 use std::{cell::RefCell, num::NonZeroU32, rc::Rc, sync::{atomic::{AtomicU8, Ordering}, Arc}};
 use crate::microcontroller_src::{interrupt_driver::InterruptDriver, peripherals::Peripheral};
 use crate::utils::{esp32_framework_error::Esp32FrameworkError, notification::Notifier, timer_driver::{TimerDriver,TimerDriverError}, error_text_parser::map_enable_disable_errors};
@@ -435,7 +436,7 @@ impl <'a>_DigitalIn<'a> {
         Ok(())
     }
 }
-Use
+
 impl<'a> DigitalIn<'a> {
     /// Create a new DigitalIn for a Pin by default pull is set to Down.
     /// 

@@ -37,6 +37,7 @@ fn set_notify_callback_for_characteristics(characteristics: &mut Vec<RemoteChara
   for characteristic in characteristics{
     let s = sender.clone();
     _ = characteristic.on_notify(move |data| {
+      println!("Received_notif mult {}", data[0]);
       s.send(data[0]).unwrap();
     });
   }

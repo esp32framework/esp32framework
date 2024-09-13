@@ -2,18 +2,18 @@ use std::{
     cell::RefCell, collections::{BinaryHeap, HashMap}, num::NonZeroU32, rc::Rc, sync::{
         atomic::{AtomicBool, Ordering},
         Arc
-    },
+    }
 };
 
-use esp_idf_svc::hal::{ task::notification, timer};
+use esp_idf_svc::hal::timer;
 use crate::{microcontroller_src::interrupt_driver::InterruptDriver, utils::timer_driver::timer::TimerConfig};
 use crate::microcontroller_src::peripherals::Peripheral;
 use sharable_reference_macro::sharable_reference_wrapper;
 
-use super::{auxiliary::{SharableRef, SharableRefExt}, esp32_framework_error::Esp32FrameworkError, notification::{Notification, Notifier}};
+use super::{auxiliary::SharableRefExt, esp32_framework_error::Esp32FrameworkError, notification::{self, Notification, Notifier}};
 
 const MICRO_IN_SEC: u64 = 1000000;
-const MAX_CHILDREN: usize = u8::MAX as usize;
+const MAX_CHILDREN: u16 = u8::MAX as u16;
 
 /// Wrapper of _TimerDriver, handling the coordination of multiple references to the inner driver, 
 /// in order to allow for interrupts to be set per timer resource. Each reference has a unique id
@@ -21,8 +21,8 @@ const MAX_CHILDREN: usize = u8::MAX as usize;
 /// In order to see the documentation of wrapper functions see [_TimerDriver]
 pub struct TimerDriver<'a> {
     inner: Rc<RefCell<_TimerDriver<'a>>>,
-    id: usize,
-    next_child: usize,
+    id: u16,
+    next_child: u16,
 }
 
 /// Driver for handling the timer resource, allowing for multiple interrupts to be set
@@ -30,7 +30,7 @@ struct _TimerDriver<'a> {
     driver: timer::TimerDriver<'a>,
     interrupt_update: InterruptUpdate,
     alarms: BinaryHeap<Alarm>,
-    interrupts: HashMap<usize, TimeInterrupt<'a>>,
+    interrupts: HashMap<u16, TimeInterrupt>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -46,14 +46,14 @@ pub enum TimerDriverError {
 }
 
 /// Represents an interrupt to be executed after some time a number of times
-struct TimeInterrupt<'a>{
+struct TimeInterrupt{
     after: u64,
-    id: usize,
+    id: u16,
     current_alarm_id: usize,
     status: TimerInterruptStatus,
     remaining_triggers: Option<u32>,
     auto_reenable: bool,
-    callback: Box<dyn FnMut() + 'a>
+    callback: Box<dyn FnMut()>
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -66,7 +66,7 @@ enum TimerInterruptStatus{
 #[derive(Debug, PartialEq, Eq)]
 struct Alarm{
     time: u64,
-    id: usize,
+    id: u16,
     alarm_id: usize
 }
 
@@ -107,8 +107,8 @@ impl InterruptUpdate{
     }
 }
 
-impl<'a> TimeInterrupt<'a>{
-    fn new(id:usize, callback: Box<dyn FnMut() + 'a>, time: u64, amount_of_triggers: Option<u32>, auto_reenable: bool)-> Self{
+impl TimeInterrupt{
+    fn new(id:u16, callback: Box<dyn FnMut()>, time: u64, amount_of_triggers: Option<u32>, auto_reenable: bool)-> TimeInterrupt{
         TimeInterrupt{
             after: time,
             id,
@@ -151,7 +151,7 @@ impl<'a> TimeInterrupt<'a>{
 }
 
 impl Alarm{
-    fn new(id: usize, alarm_id: usize, time: u64)-> Self{
+    fn new(id: u16, alarm_id: usize, time: u64)-> Self{
         Alarm { time, id, alarm_id}
     }
 }
@@ -201,7 +201,7 @@ impl <'a>_TimerDriver<'a>{
         unsafe{
             let alarm_callback = move || {
                 interrupt_update_ref.new_update();
-                notifier.notify().unwrap()
+                notifier.notify().unwrap();
             };
         
             self.driver.subscribe(alarm_callback).map_err(|_| TimerDriverError::SubscriptionError)
@@ -210,7 +210,7 @@ impl <'a>_TimerDriver<'a>{
 
     /// Sets an interrupt that triggers once after "microseconds". For this to start working enable()
     /// must be called. After the interrupt has been trigger it can be reset by calling enable()
-    pub fn interrupt_after<F: FnMut() + 'a>(&mut self, id: usize, micro_seconds: u64, callback: F){
+    pub fn interrupt_after<F: FnMut() + 'static>(&mut self, id: u16, micro_seconds: u64, callback: F){
         self.interrupt_after_n_times(id, micro_seconds, None, false, callback)
     }
 
@@ -218,7 +218,7 @@ impl <'a>_TimerDriver<'a>{
     /// triggers indefinitly. If autoenable is set, after triggering the callback, it will be set again
     /// if not it will have to be reenabled manually by caling enable(). For this to start working 
     /// enable() must be called. There can only be one callback per id.
-    pub fn interrupt_after_n_times<F: FnMut() + 'a>(&mut self, id: usize, micro_seconds: u64, amount_of_triggers: Option<u32>, auto_reenable: bool, callback: F){        
+    pub fn interrupt_after_n_times<F: FnMut() + 'static>(&mut self, id: u16, micro_seconds: u64, amount_of_triggers: Option<u32>, auto_reenable: bool, callback: F){        
         let time = self.micro_to_counter(micro_seconds);
         let interrupt = TimeInterrupt::new(id, Box::new(callback), time, amount_of_triggers, auto_reenable);
         if let Some(old_interrupt) = self.interrupts.insert(id, interrupt){
@@ -232,7 +232,7 @@ impl <'a>_TimerDriver<'a>{
     }
 
     /// Activates the timeInterrupt corresponding to "id".
-    fn activate(&mut self, id: usize)-> Result<(), TimerDriverError>{
+    fn activate(&mut self, id: u16)-> Result<(), TimerDriverError>{
         if let Some(interrupt) = self.interrupts.get_mut(&id){
             if interrupt.status == TimerInterruptStatus::Disabled{
                 let current_time = self.driver.counter().map_err(|_| TimerDriverError::ErrorReadingTimer)?;
@@ -244,7 +244,7 @@ impl <'a>_TimerDriver<'a>{
     }
     
     /// Diactivates the timeInterrupt corresponding to "id".
-    fn diactivate(&mut self, id: usize){
+    fn diactivate(&mut self, id: u16){
         if let Some(interrupt) = self.interrupts.get_mut(&id){
             if interrupt.status == TimerInterruptStatus::Enabled{
                 interrupt.disable_previouse_alarms()
@@ -262,7 +262,7 @@ impl <'a>_TimerDriver<'a>{
     /// Enables or disables the interrupt corresponding to "id". If the interrupt is enabled, if it 
     /// is the new lowest time, the alarm is updated. When the first interrupt is enabled, or the last
     /// disabled the timer is stoped
-    fn _enable(&mut self, id: usize, enable: bool) -> Result<(),TimerDriverError>{
+    fn _enable(&mut self, id: u16, enable: bool) -> Result<(),TimerDriverError>{
         let starting_len = self.alarms.len();
         if enable{
             self.activate(id)?;
@@ -287,17 +287,17 @@ impl <'a>_TimerDriver<'a>{
     /// Enables the interrupt corresponding to "id". If the interrupt is enabled, if it 
     /// is the new lowest time, the alarm is updated. When the first interrupt is enabled,
     /// the timer is stoped
-    pub fn enable(&mut self, id: usize) -> Result<(),TimerDriverError>{
+    pub fn enable(&mut self, id: u16) -> Result<(),TimerDriverError>{
         self._enable(id, true)
     }
     
     /// Disables the interrupt corresponding to "id". When the last disabled the timer is stoped
-    pub fn disable(&mut self, id: usize) -> Result<(),TimerDriverError>{
+    pub fn disable(&mut self, id: u16) -> Result<(),TimerDriverError>{
         self._enable(id, false)
     }
     
     /// Removes the interrupt corresponding to "id"
-    pub fn remove_interrupt(&mut self, id:usize)->Result<(), TimerDriverError>{
+    pub fn remove_interrupt(&mut self, id:u16)->Result<(), TimerDriverError>{
         self.disable(id)?;
         if let Some(interrupt) = self.interrupts.get_mut(&id){
             interrupt.status = TimerInterruptStatus::Removing;
@@ -316,7 +316,7 @@ impl <'a>_TimerDriver<'a>{
         Ok(())
     }
 
-    fn handle_alarm_update(&mut self, alarm: Alarm)-> Result<(), TimerDriverError> {  
+    fn handle_alarm_update(&mut self, alarm: Alarm) -> Result<(), TimerDriverError>{
         if let Some(interrupt) = self.interrupts.get_mut(&alarm.id){
             if interrupt.current_alarm_id == alarm.alarm_id{
                 match interrupt.status{
@@ -339,7 +339,7 @@ impl <'a>_TimerDriver<'a>{
         let mut updates = self.interrupt_update.handle_any_updates();
         while updates{
             if let Some(alarm) = self.alarms.pop(){
-                self.handle_alarm_update(alarm)?
+                self.handle_alarm_update(alarm)?;
             }
             self.set_lowest_alarm()?;
             updates = self.interrupt_update.handle_any_updates();
@@ -371,7 +371,7 @@ impl <'a>TimerDriver<'a>{
             return Err(TimerDriverError::OnlyOriginalCopyCanCreateChildren)
         }
         let child_id = self.next_child;
-        if child_id == MAX_CHILDREN{
+        if child_id >= MAX_CHILDREN{
             return Err(TimerDriverError::TooManyChildren)
         }
         self.next_child += 1;
@@ -382,14 +382,17 @@ impl <'a>TimerDriver<'a>{
         })
     }
 
-    pub async fn delay(&mut self, mili: u32)->Result<(), TimerDriverError>{
-        let notif = Notification::new();
-        let notifier = notif.notifier();
+    pub async fn delay(&mut self, mili_secs: u32) -> Result<(), TimerDriverError>{
+        let notification = Notification::new();
+        let notifier = notification.notifier();
+
         let delay_id = self.id + MAX_CHILDREN;
-        self.inner.deref_mut().interrupt_after(delay_id, mili as u64 * 1000, move || {
+        self.inner.deref_mut().interrupt_after(delay_id, mili_secs as u64 * 1000, move ||{
             notifier.notify().unwrap();
         });
-        self.inner.deref_mut().enable(delay_id)?;
-        Ok(notif.wait().await)
+        self.inner.deref_mut().enable(delay_id).unwrap();
+
+        notification.wait().await;
+        Ok(())
     }
 }

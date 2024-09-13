@@ -5,7 +5,7 @@ use crate::microcontroller_src::{peripherals::*, interrupt_driver::InterruptDriv
 use crate::ble::{BleBeacon,BleServer,Service,Security, ble_client::BleClient};
 use crate::gpio::{AnalogIn, AnalogInPwm, DigitalIn, DigitalOut,  AnalogOut};
 use crate::serial::{Parity, StopBit, UART, I2CMaster, I2CSlave};
-use crate::utils::{timer_driver::TimerDriver, auxiliary::{SharableRef, SharableRefExt}, notification::{Notification, Notifier};
+use crate::utils::{timer_driver::TimerDriver, auxiliary::{SharableRef, SharableRefExt}, notification::{Notification, Notifier}};
 use oneshot::AdcDriver;
 
 pub type SharableAdcDriver<'a> = Rc<AdcDriver<'a, ADC1>>;
