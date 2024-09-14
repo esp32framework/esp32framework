@@ -7,6 +7,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 static FLAG: AtomicBool = AtomicBool::new(false);
 
+fn callback(){
+    FLAG.store(true, Ordering::Relaxed);
+}
+
 fn main(){
     esp_idf_svc::sys::link_patches();
     let peripherals = Peripherals::take().unwrap();
@@ -39,8 +43,4 @@ fn main(){
         button.enable_interrupt().unwrap();
         FreeRtos::delay_ms(200_u32);
     }
-}
-
-fn callback(){
-    FLAG.store(true, Ordering::Relaxed);
 }

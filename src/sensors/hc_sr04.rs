@@ -7,7 +7,7 @@ use esp_idf_svc::hal::task::notification::Notification;
 const SOUND_SPEED_M_S: f64 = 340.0;
 const SOUND_SPEED_CM_US: f64 = SOUND_SPEED_M_S * 100.0 / 1_000_000.0;
 
-
+/// Simple abstraction of the HCSR04 that facilitates its handling
 pub struct HCSR04<'a> {
     trig: DigitalOut<'a>,
     echo: DigitalIn<'a>,
@@ -21,11 +21,16 @@ impl <'a>HCSR04<'a> {
         HCSR04 { trig, echo, echo_ans_time }
     }
 
+    /// Returns the distance of the object in front of the sensor in centimeters
+    /// 
+    /// # Returns
+    /// 
+    /// A f64 representing the distance of the object in front in centimeters
     pub fn get_distance(&mut self) -> f64 { // TODO: The polling on the whiles dont have sleeps. Need a way to use interrupts or other mechanism to release the CPU
         let delay = Delay::new_default();
         let notification = Notification::new();
-        let notifier = notification.notifier();
         /*
+        let notifier = notification.notifier();
         // Callback to notify when the echo has been received
         let callback = move || {
             unsafe { notifier.notify_and_yield(NonZero::new(1).unwrap()) };

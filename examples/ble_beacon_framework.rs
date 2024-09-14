@@ -1,4 +1,5 @@
-
+//! Example using ESP32 as a BLE beacon with multiple services and cycling 
+//! its data each 10 seconds.
 
 use esp32framework::{ ble::{Service, BleId}, Microcontroller};
 

@@ -1,9 +1,7 @@
-use esp32framework::sensors::{Alarm1Rate, DateTime, DS3231};
-use esp32framework::serial::READER;
-use esp32framework::Microcontroller;
+//! Example using pin GPIO5 (sda) and GPIO6 (scl) with i2c to communicate
+//! with a ds3231 sensor. Then it will ask the sensor temperature and print it every second.
 
-///! This example shows how to get the temperature from the DS3231 RTC
-///! and print it to the serial console.
+use esp32framework::{Microcontroller, sensors::{Alarm1Rate, DateTime, DS3231},serial::READER};
 
 fn main() {
     let mut micro = Microcontroller::new();

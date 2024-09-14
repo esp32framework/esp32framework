@@ -10,6 +10,7 @@ use crate::{
     wifi::wifi::WifiError
 };
 
+/// Represents various error conditions encountered in the ESP32 framework.
 #[derive(Debug)]
 pub enum Esp32FrameworkError{
     AnalogIn(AnalogInError),

@@ -1,24 +1,10 @@
-use esp_idf_svc::hal::ledc::*;
-use esp_idf_svc::hal::peripheral;
-use esp_idf_svc::hal::peripheral::PeripheralRef;
-use esp_idf_svc::hal::prelude::*;
-use esp_idf_svc::sys::ESP_FAIL;
+use esp_idf_svc::{hal::{ledc::*, peripheral, prelude::*}, sys::ESP_FAIL};
 use sharable_reference_macro::sharable_reference_wrapper;
-use crate::microcontroller_src::interrupt_driver::InterruptDriver;
-use crate::microcontroller_src::peripherals::Peripheral;
-use crate::utils::esp32_framework_error::Esp32FrameworkError;
-use crate::utils::timer_driver::TimerDriver;
-use crate::utils::timer_driver::TimerDriverError;
-use std::cell::RefCell;
-use std::ops::Deref;
-use std::ops::DerefMut;
-use std::rc::Rc;
-use std::sync::atomic::AtomicBool;
-use std::sync::{
-    Arc,
-    atomic::{AtomicU32, Ordering}
-};
+use crate::microcontroller_src::{interrupt_driver::InterruptDriver, peripherals::Peripheral};
+use crate::utils::{esp32_framework_error::Esp32FrameworkError, timer_driver::{TimerDriver, TimerDriverError}};
+use std::{cell::RefCell, rc::Rc, sync::{Arc,atomic::{AtomicU32, Ordering, AtomicBool}}};
 
+/// Enums the different errors possible when working with the analog out
 #[derive(Debug)]
 pub enum AnalogOutError{
     TooManyPWMOutputs,
@@ -29,6 +15,7 @@ pub enum AnalogOutError{
     TimerDriverError(TimerDriverError)
 }
 
+/// Enums the possible Duty Policies for the driver
 #[derive(Clone, Copy, Debug)]
 enum ExtremeDutyPolicy{
     BounceBack,
@@ -36,14 +23,22 @@ enum ExtremeDutyPolicy{
     None
 }
 
+/// Enums Change Type of the drivers
 #[derive(Clone, Copy, Debug)]
-enum FixedChangeType{
+enum FixedChangeType {
     Increase(ExtremeDutyPolicy),
     Decrease(ExtremeDutyPolicy),
     None
 }
 
 /// Driver to handle an analog output for a particular pin
+/// - `driver`: A LedCDriver instance that handles the PWM output signals
+/// - `timer_driver`: A TimerDriver instance
+/// - `duty`: The level of output duty
+/// - `change_duty_update`: ChangeDutyUpdate that indicates if a change on the duty is needed
+/// - `fixed_change_increasing`: Arc<AtomicBool> that indicates if a fixed change on the duty is needed
+/// - `fixed_change_type`: An instance of FixedChangeType that indicates the type of duty change
+/// - `amount_of_cycles`: An Option containing an u32 thath indicates the amount of desired cycles 
 pub struct _AnalogOut<'a> {
     driver: LedcDriver<'a>,
     timer_driver: TimerDriver<'a>,
@@ -61,27 +56,48 @@ pub struct AnalogOut<'a>{
     inner: Rc<RefCell<_AnalogOut<'a>>>
 }
 
+/// Wrapper for simple use of an Arc<AtomicBool>
+/// in the context of the changinf of the drivers duty
 #[derive(Clone)]
 struct ChangeDutyUpdate {
     change: Arc<AtomicBool>,
 }
 
 impl FixedChangeType{
-    fn increasing_starting_direction(&self)-> bool{
+
+    /// Indicates if the starting of the cycle is from the starting point or not
+    /// 
+    /// # Returns
+    /// 
+    /// A bool. True if the cycle needs to start from the starting point, False if the
+    /// cycle needs to start from the end point.
+    fn increasing_starting_direction(&self)-> bool {
         matches!(self, FixedChangeType::Increase(_policy))
     }
 }
 
 impl ChangeDutyUpdate{
+
+    /// Creates a new ChangeDutyUpdate instance
+    /// 
+    /// # Returns
+    /// 
+    /// The new ChangeDutyUpdate instance 
     fn new()-> Self{
         ChangeDutyUpdate{change: Arc::new(AtomicBool::new(false))}
     }
-
+    
+    /// Changes the state to True
     fn change_duty(&mut self){
         self.change.store(true, Ordering::Relaxed)
     }
     
-    fn handle_change_duty(&mut self)-> bool{
+    /// Changes the state to False
+    /// 
+    /// # Returns
+    /// 
+    /// A bool representing the previous state
+    fn handle_change_duty(&mut self)-> bool {
         let change_duty = self.change.load(Ordering::Relaxed);
         self.change.store(false, Ordering::Relaxed);
         change_duty
@@ -93,19 +109,58 @@ impl <'a>_AnalogOut<'a> {
     //TODO: Dejar elegir al usuario low y high resolution, segun que timer
     
     /// Creates a new _AnalogOut from a pin number, frequency and resolution.
-    pub fn new(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>, freq_hz: u32, resolution: u32) -> Result<_AnalogOut<'a>, AnalogOutError> {
+    /// 
+    /// # Arguments
+    /// 
+    /// - `peripheral_channel`: A Peripheral instance of type PWMChannel
+    /// - `timer`: A Peripheral instance of type PWMTimer
+    /// - `gpio_pin`: A Peripheral capable of being transformed into an AnyIOPin
+    /// - `timer_driver`: An instance of a TimerDriver
+    /// - `freq_hz`: An u32 representing the frequency in hertz desired for the configuration of the PWMTimer
+    /// - `resolution`: An u32 representing the desired output resolution
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` containing the new `_AnalogOut` instance, or an `AnalogOutError` if the
+    /// initialization fails.
+    /// 
+    /// # Errors
+    /// 
+    /// - `AnalogOutError::InvalidPeripheral`: If any of the peripherals are not from the correct type
+    /// - `AnalogOutError::InvalidFrequencyOrDuty`: If the frequency or duty are not compatible
+    /// - `AnalogOutError::InvalidArg`: If any of the arguments are not of the correct type
+    pub fn new(peripheral_channel: Peripheral, timer: Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>, freq_hz: u32, resolution: u32) -> Result<_AnalogOut<'a>, AnalogOutError> {
         let resolution = _AnalogOut::create_resolution(resolution);
         let config = &config::TimerConfig::new().frequency(freq_hz.Hz()).resolution(resolution);
         _AnalogOut::_new(peripheral_channel, timer, gpio_pin, timer_driver, config)
     }
     
     /// Creates a new _AnalogOut for a specific pin with a given configuration of frecuency and resolution.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `peripheral_channel`: A Peripheral instance of type PWMChannel
+    /// - `timer`: A Peripheral instance of type PWMTimer
+    /// - `gpio_pin`: A Peripheral capable of being transformed into an AnyIOPin
+    /// - `timer_driver`: An instance of a TimerDriver
+    /// - `config`: An instance of TimerConfig with the frequency and resolution already set
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` containing the new `_AnalogOut` instance, or an `AnalogOutError` if the
+    /// initialization fails.
+    /// 
+    /// # Errors
+    /// 
+    /// - `AnalogOutError::InvalidPeripheral`: If any of the peripherals are not from the correct type
+    /// - `AnalogOutError::InvalidFrequencyOrDuty`: If the frequency or duty are not compatible
+    /// - `AnalogOutError::InvalidArg`: If any of the arguments are not of the correct type
     pub fn _new(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>, config: &config::TimerConfig )-> Result<_AnalogOut<'a>, AnalogOutError> {
         let pwm_driver = match timer{
-            Peripheral::PWMTimer(0) => _AnalogOut::create_pwm_driver(peripheral_channel, unsafe{TIMER0::new()}, gpio_pin,config),
-            Peripheral::PWMTimer(1) => _AnalogOut::create_pwm_driver(peripheral_channel, unsafe{TIMER1::new()}, gpio_pin,config),
-            Peripheral::PWMTimer(2) => _AnalogOut::create_pwm_driver(peripheral_channel, unsafe{TIMER2::new()}, gpio_pin,config),
-            Peripheral::PWMTimer(3) => _AnalogOut::create_pwm_driver(peripheral_channel, unsafe{TIMER3::new()}, gpio_pin,config),
+            Peripheral::PWMTimer(0) => _AnalogOut::create_pwm_driver(peripheral_channel, unsafe{TIMER0::new()}, gpio_pin, config),
+            Peripheral::PWMTimer(1) => _AnalogOut::create_pwm_driver(peripheral_channel, unsafe{TIMER1::new()}, gpio_pin, config),
+            Peripheral::PWMTimer(2) => _AnalogOut::create_pwm_driver(peripheral_channel, unsafe{TIMER2::new()}, gpio_pin, config),
+            Peripheral::PWMTimer(3) => _AnalogOut::create_pwm_driver(peripheral_channel, unsafe{TIMER3::new()}, gpio_pin, config),
             _ => Err(AnalogOutError::InvalidPeripheral)?
         }?;
             
@@ -125,12 +180,38 @@ impl <'a>_AnalogOut<'a> {
     }
 
     /// Creates a new _AnalogOut with a default frecuency of 1000Hz and a resolution of 8bits.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `peripheral_channel`: A Peripheral instance of type PWMChannel
+    /// - `timer`: A Peripheral instance of type PWMTimer
+    /// - `gpio_pin`: A Peripheral capable of being transformed into an AnyIOPin
+    /// - `timer_driver`: An instance of a TimerDriver
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` containing the new `_AnalogOut` instance, or an `AnalogOutError` if the
+    /// initialization fails.
+    /// 
+    /// # Errors
+    /// 
+    /// - `AnalogOutError::InvalidPeripheral`: If any of the peripherals are not from the correct type
+    /// - `AnalogOutError::InvalidFrequencyOrDuty`: If the frequency or duty are not compatible
+    /// - `AnalogOutError::InvalidArg`: If any of the arguments are not of the correct type
     pub fn default(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>) -> Result<_AnalogOut<'a>, AnalogOutError>{
         _AnalogOut::_new(peripheral_channel, timer, gpio_pin, timer_driver, &config::TimerConfig::new())
     }
 
     /// Creates a new Resolution from a u32 value.
-    fn create_resolution(resolution: u32) -> Resolution{
+    /// 
+    /// # Arguments
+    /// 
+    /// - `resolution`: An u32 representing the desired resolution. Accpeted values go from 0 to 13
+    /// 
+    /// # Returns
+    /// 
+    /// A Resolution instance
+    fn create_resolution(resolution: u32) -> Resolution {
         match resolution {
             0 => Resolution::Bits1,
             1 => Resolution::Bits1,
@@ -151,11 +232,29 @@ impl <'a>_AnalogOut<'a> {
     }
 
     /// Creates a new LedcDriver from a Peripheral::PWMTimer
+    /// 
+    /// # Arguments
+    /// 
+    /// - `peripheral_channel`: A Peripheral of type PWMChannel
+    /// - `timer`: An esp_idf_svc::peripheral::Peripheral
+    /// - `gpio_pin`: A Peripheral capable of being transformed into an AnyIOPin
+    /// - `config`: A TimerConfig
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` containing the new `LedcDriver` instance, or an `AnalogOutError` if the
+    /// initialization fails.
+    /// 
+    /// # Errors
+    /// 
+    /// - `AnalogOutError::InvalidFrequencyOrDuty`: If the choosen frequency and duty are incompatible
+    /// - `AnalogOutError::InvalidArg`: If any of the arguments are not of the correct type
+    /// - `AnalogOutError::InvalidPeripheral`: If any of the peripherals are not of the correct type
     fn create_pwm_driver<L: 'a + LedcTimer<SpeedMode = LowSpeed>>(peripheral_channel: Peripheral, timer: impl peripheral::Peripheral<P = L> + 'a, gpio_pin: Peripheral, config: &config::TimerConfig) -> Result<LedcDriver<'a>, AnalogOutError> {
         let ledc_timer_driver = LedcTimerDriver::new(
             timer,
             config,
-        ).map_err(|error| match error.code(){
+        ).map_err(|error| match error.code() {
             ESP_FAIL => AnalogOutError::InvalidFrequencyOrDuty,
             _ => AnalogOutError::InvalidArg,
         })?;
@@ -172,13 +271,40 @@ impl <'a>_AnalogOut<'a> {
     }
 
     /// Changes the intensity of the signal using the High-Low level ratio
-    pub fn set_high_level_output_ratio(&mut self, high_ratio: f32) -> Result<(), AnalogOutError>{
+    /// 
+    /// # Arguments
+    /// 
+    /// - `high_ratio`: An f32 representinf the desired high level ratio
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` with Ok if the set operation completed successfully, or an `AnalogOutError` if it fails.
+    /// 
+    /// # Errors
+    /// 
+    /// - `AnalogOutError::ErrorSettingOutput`: If the set operation fails 
+    pub fn set_high_level_output_ratio(&mut self, high_ratio: f32) -> Result<(), AnalogOutError> {
         let duty: u32  = duty_from_high_ratio(self.driver.get_max_duty(), high_ratio);
         self.duty.store(duty, Ordering::SeqCst);
         self.driver.set_duty(duty).map_err(|_| AnalogOutError::ErrorSettingOutput)
     }
 
     /// Creates the proper callback and subscribes it to the TimerDriver
+    ///
+    /// # Arguments
+    /// 
+    /// - `fixed_change_type`: A FixedChangeType enum that defines whether the duty cycle should increase or decrease.
+    /// - `increase_after_miliseconds`: An u64 representing the time interval (in milliseconds) after which the duty cycle should change.
+    /// - `increase_by_ratio`: A f32 representing the ratio by which the duty cycle should change.
+    /// - `starting_high_ratio`: A f32 representing the initial high ratio for the duty cycle.
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` with Ok if the operation is successful, or an `AnalogOutError` if it fails.
+    /// 
+    /// # Errors
+    /// 
+    /// - `AnalogOutError::TimerDriverError`: If the timer driver cannot be enabled.
     fn start_changing_by_fixed_amount(&mut self, fixed_change_type: FixedChangeType, increase_after_miliseconds: u64, increase_by_ratio: f32, starting_high_ratio: f32)-> Result<(), AnalogOutError>{
         let mut change_duty_update_ref = self.change_duty_update.clone();
         let duty_ref = self.duty.clone();
@@ -209,6 +335,20 @@ impl <'a>_AnalogOut<'a> {
     }
   
     /// Sets the FixedChangeType to Increase. Stops when maximum ratio is reached.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `increase_after_miliseconds`: An u64 representing the time interval (in milliseconds) after which the duty cycle should increase.
+    /// - `increase_by_ratio`: A f32 representing the ratio by which the duty cycle should increase.
+    /// - `starting_high_ratio`: A f32 representing the initial high ratio for the duty cycle.
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` with Ok if the operation is successful, or an `AnalogOutError` if it fails.
+    /// 
+    /// # Errors
+    /// 
+    /// - `AnalogOutError::TimerDriverError`: If the timer driver cannot be enabled.
     pub fn start_increasing(&mut self, increase_after_miliseconds: u64, increase_by_ratio: f32, starting_high_ratio: f32)-> Result<(), AnalogOutError>{
         self.start_changing_by_fixed_amount(FixedChangeType::Increase(ExtremeDutyPolicy::None),
             increase_after_miliseconds, 
@@ -217,6 +357,20 @@ impl <'a>_AnalogOut<'a> {
     }
 
     /// Sets the FixedChangeType to Decrease. Stops when minimum ratio is reached.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `increase_after_miliseconds`: An u64 representing the time interval (in milliseconds) after which the duty cycle should decrease.
+    /// - `decrease_by_ratio`: A f32 representing the ratio by which the duty cycle should decrease.
+    /// - `starting_high_ratio`: A f32 representing the initial high ratio for the duty cycle.
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` with Ok if the operation is successful, or an `AnalogOutError` if it fails.
+    /// 
+    /// # Errors
+    /// 
+    /// - `AnalogOutError::TimerDriverError`: If the timer driver cannot be enabled.
     pub fn start_decreasing(&mut self, increase_after_miliseconds: u64, decrease_by_ratio: f32, starting_high_ratio: f32)-> Result<(), AnalogOutError>{
         self.start_changing_by_fixed_amount(FixedChangeType::Decrease(ExtremeDutyPolicy::None),
             increase_after_miliseconds, 
@@ -227,6 +381,21 @@ impl <'a>_AnalogOut<'a> {
     /// Increases the PWM signal ratio by 'increase_by_ratio', starting from 'starting_high_ratio' value until it reaches the maximum ratio possible. 
     /// Once the maximum is reached, it bounces back and starts to decrease until the minimum value is reached. Direction changes 'amount_of_bounces' times
     /// unless that parameter is set to None, meaning it will do it indefinitely.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `increase_after_miliseconds`: An u64 representing the time interval (in milliseconds) after which the duty cycle should increase.
+    /// - `increase_by_ratio`: A f32 representing the ratio by which the duty cycle should increase.
+    /// - `starting_high_ratio`: A f32 representing the initial high ratio for the duty cycle.
+    /// - `amount_of_bounces`: An Option<u32> representing the number of bounce-backs before stopping, or None for continuous bouncing.
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` with Ok if the operation is successful, or an `AnalogOutError` if it fails.
+    /// 
+    /// # Errors
+    /// 
+    /// - `AnalogOutError::TimerDriverError`: If the timer driver cannot be enabled.
     pub fn start_increasing_bounce_back(&mut self, increase_after_miliseconds: u64, increase_by_ratio: f32, starting_high_ratio: f32, amount_of_bounces: Option<u32>)-> Result<(), AnalogOutError>{
         self.amount_of_cycles = amount_of_bounces;
         self.start_changing_by_fixed_amount(FixedChangeType::Increase(ExtremeDutyPolicy::BounceBack),
@@ -238,6 +407,21 @@ impl <'a>_AnalogOut<'a> {
     /// Decreases the PWM signal ratio by 'decrease_by_ratio', starting from 'starting_high_ratio' value until it reaches the minimum ratio possible. 
     /// Once the minimum is reached, it bounces back and starts to increase until the maximum value is reached. Direction changes 'amount_of_bounces' times
     /// unless that parameter is set to None, meaning it will do it indefinitely.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `increase_after_miliseconds`: An u64 representing the time interval (in milliseconds) after which the duty cycle should decrease.
+    /// - `decrease_by_ratio`: A f32 representing the ratio by which the duty cycle should decrease.
+    /// - `starting_high_ratio`: A f32 representing the initial high ratio for the duty cycle.
+    /// - `amount_of_bounces`: An Option<u32> representing the number of bounce-backs before stopping, or None for continuous bouncing.
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` with Ok if the operation is successful, or an `AnalogOutError` if it fails.
+    /// 
+    /// # Errors
+    /// 
+    /// - `AnalogOutError::TimerDriverError`: If the timer driver cannot be enabled.
     pub fn start_decreasing_bounce_back(&mut self, increase_after_miliseconds: u64, decrease_by_ratio: f32, starting_high_ratio: f32, amount_of_bounces: Option<u32>)-> Result<(), AnalogOutError>{
         self.amount_of_cycles = amount_of_bounces;
         self.start_changing_by_fixed_amount(FixedChangeType::Decrease(ExtremeDutyPolicy::BounceBack),
@@ -249,6 +433,21 @@ impl <'a>_AnalogOut<'a> {
     /// Increses the PWM signal ratio by 'increase_by_ratio', starting from 'starting_high_ratio' value until it reaches the maximum ratio possible. 
     /// Once the maximum is reached, it goes back to the 'starting_high_ratio' and starts to increase once again. This is done 'amount_of_resets' times
     /// unless that parameter is set to None, meaning it will do it indefinitely.
+    ///  
+    /// # Arguments
+    /// 
+    /// - `increase_after_miliseconds`: A u64 representing the time interval (in milliseconds) after which the duty cycle should increase.
+    /// - `increase_by_ratio`: A f32 representing the ratio by which the duty cycle should increase.
+    /// - `starting_high_ratio`: A f32 representing the initial high ratio for the duty cycle.
+    /// - `amount_of_resets`: An Option<u32> representing the number of resets before stopping, or None for continuous resetting.
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` with Ok if the operation is successful, or an `AnalogOutError` if it fails.
+    /// 
+    /// # Errors
+    /// 
+    /// - `AnalogOutError::TimerDriverError`: If the timer driver cannot be enabled.
     pub fn start_increasing_reset(&mut self, increase_after_miliseconds: u64, increase_by_ratio: f32, starting_high_ratio: f32, amount_of_resets: Option<u32>)-> Result<(), AnalogOutError>{
         self.amount_of_cycles = amount_of_resets;
         self.start_changing_by_fixed_amount(FixedChangeType::Increase(ExtremeDutyPolicy::Reset),
@@ -260,6 +459,21 @@ impl <'a>_AnalogOut<'a> {
     /// Decreases the PWM signal ratio by 'decrease_by_ratio', starting from 'starting_high_ratio' value until it reaches the minimum ratio possible. 
     /// Once the minimum is reached, it goes back to the 'starting_high_ratio' and starts to increase once again. This is done 'amount_of_resets' times
     /// unless that parameter is set to None, meaning it will do it indefinitely.
+    ///
+    /// # Arguments
+    /// 
+    /// - `increase_after_miliseconds`: A `u64` representing the time interval (in milliseconds) after which the duty cycle should decrease.
+    /// - `decrease_by_ratio`: A `f32` representing the ratio by which the duty cycle should decrease.
+    /// - `starting_high_ratio`: A `f32` representing the initial high ratio for the duty cycle.
+    /// - `amount_of_resets`: An `Option<u32>` representing the number of resets before stopping, or `None` for continuous resetting.
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` with Ok if the operation is successful, or an `AnalogOutError` if it fails.
+    /// 
+    /// # Errors
+    /// 
+    /// - `AnalogOutError::TimerDriverError`: If the timer driver cannot be enabled.
     pub fn start_decreasing_intensity_reset(&mut self, increase_after_miliseconds: u64, decrease_by_ratio: f32, starting_high_ratio: f32, amount_of_resets: Option<u32>)-> Result<(), AnalogOutError>{
         self.amount_of_cycles = amount_of_resets;
         self.start_changing_by_fixed_amount(FixedChangeType::Decrease(ExtremeDutyPolicy::Reset),
@@ -270,7 +484,7 @@ impl <'a>_AnalogOut<'a> {
 
     /// Changes the direction to 'increasing' if the direction is set to 'decreasing' and
     /// vice versa.
-    fn turn_around(&mut self){
+    fn turn_around(&mut self) {
         let previouse_direction = self.fixed_change_increasing.load(Ordering::Acquire);
         self.fixed_change_increasing.store(!previouse_direction, Ordering::SeqCst)
     }
@@ -278,10 +492,14 @@ impl <'a>_AnalogOut<'a> {
     /// Amount of cycles can be a None or a Some(bounces). None means the turn around will be done indefinetly.
     /// Otherwise, the turn around will be done until the 'bounces' value becomes 0. Returns false if all the cycles
     /// were completed.
+    /// 
+    /// # Returns
+    /// 
+    /// A bool. True means it should turn around. False means it shouldn't
     fn attempt_turn_around(&mut self)-> bool {
         match self.amount_of_cycles{
             Some(bounces) => 
-                if bounces > 0{
+                if bounces > 0 {
                     self.turn_around();
                     self.amount_of_cycles.replace(bounces-1);
                 }else{
@@ -305,6 +523,10 @@ impl <'a>_AnalogOut<'a> {
     /// Amount of cycles can be a None or a Some(resets). None means the reset will be done indefinetly.
     /// Otherwise, the reset will be done until the 'resets' value becomes 0. Returns false if all the cycles
     /// were completed.
+    /// 
+    /// # Returns
+    /// 
+    /// A bool. True means it should reset. False means it shouldn't
     fn attempt_reset(&mut self)-> bool {
         match self.amount_of_cycles{
             Some(resets) => 
@@ -319,7 +541,16 @@ impl <'a>_AnalogOut<'a> {
         true
     }
 
-    /// Handler for InterruptUpdate::ChangeDuty, depending on the ExtremeDutyPolicy 
+    /// Handler for InterruptUpdate::ChangeDuty, depending on the ExtremeDutyPolicy
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` with Ok if the operation is successful, or an `AnalogOutError` if it fails.
+    /// 
+    /// # Errors
+    /// 
+    /// - `AnalogOutError::ErrorSettingOutput`: If setting the duty value fails
+    /// - `AnalogOutError::TimerDriverError`: If removing the timer interrupt fails
     fn change_duty_on_cycle(&mut self)-> Result<(), AnalogOutError>{
         let duty = self.duty.load(Ordering::Acquire);
         let prev_duty = self.driver.get_duty();
@@ -345,17 +576,40 @@ impl <'a>_AnalogOut<'a> {
     }
 
     /// Handles the diferent type of interrupts.
+    /// 
+    /// Returns a Result containing an AnalogOutError if an error ocurred.
+    /// 
+    /// # Errors:
+    /// - AnalogOutError::ErrorSettingOutput: In case of channel not initialized, parameter error or ESP_FAIL of fade function.
+    /// - AnalogOutError::TimerDriverError: In case of failure removing the interrupt.
     fn _update_interrupt(&mut self) -> Result<(), AnalogOutError> {
         if self.change_duty_update.handle_change_duty(){
-            println!("{:?}duty: {}", self.fixed_change_type, self.duty());
             self.change_duty_on_cycle()?
         }
         Ok(())
     }
 }
 
-impl<'a> AnalogOut<'a>{
-    pub fn new(peripheral_channel: Peripheral, timer: Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>, freq_hz: u32, resolution: u32)->Result<AnalogOut, AnalogOutError>{
+impl<'a> AnalogOut<'a> {
+
+    /// Creates a new AnalogOut from a channel, timer, pin number, timer driver, frequency and resolution.
+    /// 
+    /// # Arguments
+    /// - `peripheral_channel`: The peripheral channel from the microcontroller
+    /// - `timer`: The timer of the PWM signal
+    /// - `gpio_pin`: The gpio pin from which the PWM signal will be output
+    /// - `timer_driver`: The TimerDriver instance that will handle the interrupts
+    /// - `freq_hz`: The frequency of the PWM signal
+    /// - `resolution`: The resolution of the PWM signal
+    /// 
+    /// # Returns
+    /// A result containing the AnalogOut instance or an AnalogOutError
+    /// 
+    /// # Errors
+    /// !TODO : cuando puede tirar error? y que error tira?
+    /// 
+    /// 
+    pub fn new(peripheral_channel: Peripheral, timer: Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>, freq_hz: u32, resolution: u32)->Result<AnalogOut<'a>, AnalogOutError>{
         Ok(AnalogOut{inner: Rc::new(RefCell::from(_AnalogOut::new(
             peripheral_channel,
             timer, 
@@ -367,6 +621,20 @@ impl<'a> AnalogOut<'a>{
     }
 
     /// Creates a new _AnalogOut with a default frecuency of 1000Hz and a resolution of 8bits.
+    /// 
+    /// # Arguments
+    /// - `peripheral_channel`: The peripheral channel from the microcontroller
+    /// - `timer`: The timer of the PWM signal
+    /// - `gpio_pin`: The gpio pin from which the PWM signal will be output
+    /// - `timer_driver`: The TimerDriver instance that will handle the interrupts
+    /// 
+    /// # Returns
+    /// A result containing the AnalogOut instance or an AnalogOutError
+    /// 
+    /// # Errors
+    /// - AnalogOutError::
+    /// !TODO : errores???
+    /// 
     pub fn default(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>) -> Result<AnalogOut<'a>, AnalogOutError>{
         Ok(AnalogOut{inner: Rc::new(RefCell::from(_AnalogOut::default(
             peripheral_channel, timer, gpio_pin, timer_driver)?))})
@@ -382,6 +650,15 @@ impl <'a> InterruptDriver for _AnalogOut<'a>{
     }
 }
 
+
+/// Calculates the duty using the intensity of the signal
+/// 
+/// # Arguments
+/// - `max_duty` : Maximum duty of the driver instance, that depends of the resolution.
+/// - `high_ratio` : Intensity of the signal, from 0 to 1. Is the percentage of time the signal is high.
+///  
+/// # Returns
+/// An u32 value that represents the duty corresponding to the ratio of time the signal is high.  
 fn duty_from_high_ratio(max_duty: u32, high_ratio: f32) -> u32{
     ((max_duty as f32) * high_ratio) as u32
 }

@@ -10,4 +10,4 @@ pub mod wifi;
 
 pub use microcontroller_src::Microcontroller;
 pub use microcontroller_src::interrupt_driver::InterruptDriver;
-
+pub use utils::timer_driver;
