@@ -168,8 +168,8 @@ impl <'a>_BleServer<'a> {
     /// - `name`: The name of the server
     /// - `ble_device`: A BLEDevice needed to get the BLEServer and the BLEAdvertising
     /// - `services`: A vector with multiple Service that will contain the server information
-    /// - `connection_notifier`: An Arc<Notifier> used to notify when the connection callback should be executed
-    /// - `disconnection_notifier`: An Arc<Notifier> used to notify when the disconnection callback should be executed
+    /// - `connection_notifier`: An Notifier used to notify when the connection callback should be executed
+    /// - `disconnection_notifier`: An Notifier used to notify when the disconnection callback should be executed
     /// 
     /// # Returns
     /// 
@@ -185,7 +185,7 @@ impl <'a>_BleServer<'a> {
         };
             
         for service in services {
-            server.set_service(service);
+            server.set_service(service).unwrap(); // TODO: Remove this unwrap and return an error. Add it to the docu
         }
 
         server
@@ -209,7 +209,7 @@ impl <'a>_BleServer<'a> {
         
         self.ble_server.on_connect(move |_, info| {
             notifier_ref.notify().unwrap();
-            _ = con_info_ref.send_timeout(ConnectionInformation::from_BLEConnDesc(info, true, Ok(())), 1_000_000); //
+            _ = con_info_ref.send_timeout(ConnectionInformation::from_BLEConnDesc(info, true, Ok(())), 1_000_000);
         });
         self
     }
@@ -350,6 +350,7 @@ impl <'a>_BleServer<'a> {
         self.ble_server.create_service(service.id.to_uuid());
 
         for characteristic in &service.characteristics{
+            println!("Setting characteristic with id: {:?}: ", characteristic.id);
             self.set_characteristic(service.id.clone(), characteristic)?;
         }
         Ok(())
@@ -404,7 +405,8 @@ impl <'a>_BleServer<'a> {
                     // Create a new characteristic
                     match NimbleProperties::from_bits(characteristic.properties.to_le()) {
                         Some(properties) => {
-
+                            println!("Creating char with id: {:?}", characteristic.id);
+                            println!("Properties: {:?} == {:?}", properties.bits(), (NimbleProperties::READ | NimbleProperties::NOTIFY).bits());
                             let charac = service.lock(). create_characteristic(
                                 characteristic.id.to_uuid(),
                                 properties,
@@ -454,11 +456,14 @@ impl <'a>_BleServer<'a> {
         let server_characteristic = task::block_on(async {
             locked_service.get_characteristic(characteristic.id.to_uuid()).await
         });
-
+        println!("Desp la caracteristica {:?}", characteristic.id);
         if let Some(server_characteristic) = server_characteristic {
             let mut res_characteristic = server_characteristic.lock();
             res_characteristic.set_value(&characteristic.data);
+            println!("Setee el valor");
             if notify {
+
+                println!("Se notifica");
                 res_characteristic.notify();
             }
             return Ok(());
@@ -483,10 +488,12 @@ impl <'a>_BleServer<'a> {
     /// - `BleError::ServiceNotFound`: If the service_id doesnt match with the id of a service already set on the server
     /// - `BleError::CharacteristicNotFound`: If the characteristic was not setted before on the server
     pub fn notify_value(&mut self, service_id: BleId, characteristic: &Characteristic) -> Result<(), BleError> {
+        println!("en notify");
         let server_service = task::block_on(async {
             self.ble_server.get_service(service_id.to_uuid()).await
         });
-
+        println!("con service");
+        // TODO: Raise error if char is not notifiable
         if let Some(service) = server_service {
             self.try_to_update_characteristic(service, characteristic, true)?;
             return Ok(());
@@ -548,8 +555,8 @@ impl<'a> BleServer<'a>{
     /// - `name`: The name the server will use
     /// - `ble_device`: A BLEDevice needed to get the BLEServer and the BLEAdvertising
     /// - `services`: A vector with multiple Service that will contain the server information
-    /// - `connection_notifier`: An Arc<Notifier> used to notify when the connection callback should be executed
-    /// - `disconnection_notifier`: An Arc<Notifier> used to notify when the disconnection callback should be executed
+    /// - `connection_notifier`: An Notifier used to notify when the connection callback should be executed
+    /// - `disconnection_notifier`: An Notifier used to notify when the disconnection callback should be executed
     /// 
     /// # Returns
     /// 

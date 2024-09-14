@@ -1,4 +1,71 @@
+use esp32framework::{ble::{BleId, BleServer, Characteristic, Descriptor, IOCapabilities, Security, Service, StandarCharacteristicId, StandarDescriptorId, StandarServiceId}, Microcontroller};
 
+fn set_up_characteristics() -> Vec<Characteristic> {
+	// IDs
+  let writable_char_id = BleId::FromUuid16(32);
+	let readable_char_id = BleId::StandarCharacteristic(StandarCharacteristicId::BatteryLevel);
+	let notifiable_char_id = BleId::ByName("NotifiableCharacteristic".to_string());
+  let readable_descriptor_id = BleId::StandarDescriptor(StandarDescriptorId::ValidRange);
+
+	// Structures
+	let mut readable_descriptor = Descriptor::new(readable_descriptor_id, vec![0x43, 0x54]);
+	readable_descriptor.readeable(true);
+
+  // let mut writable_characteristic = Characteristic::new(writable_char_id, vec![0x00]);
+  // writable_characteristic.writable(true);
+	// writable_characteristic.add_descriptor(readable_descriptor);
+
+	let mut readable_characteristic = Characteristic::new(readable_char_id, vec![0x38]);
+	readable_characteristic.readeable(true);
+
+  // let mut notifiable_characteristic = Characteristic::new(notifiable_char_id, vec![0x00]);
+	// notifiable_characteristic.notifiable(true);
+
+	// vec![notifiable_characteristic, readable_characteristic, writable_characteristic]
+  vec![readable_characteristic]
+}
+
+fn add_handlers_to_server(server: &mut BleServer){
+	server.connection_handler(| _server, connection_info| { 
+    println!("The client {:?} is connected", connection_info.address)
+  });
+	server.disconnect_handler(| _server, connection_info| { 
+    println!("The client {:?} is disconnected", connection_info.address)
+  });
+}
+
+fn main(){
+	let mut micro = Microcontroller::new();
+	
+	// Security configuration
+	// let phone_capabilities = IOCapabilities::KeyboardDisplay;
+	// let security = Security::new(001234,phone_capabilities);
+    
+	let mut characteristics: Vec<Characteristic> = set_up_characteristics();
+  	let service_id = BleId::StandardService(StandarServiceId::Battery);
+  	let mut service = Service::new(&service_id, vec![0xAB]).unwrap();
+	service.add_characteristics(&characteristics);
+	// for characteristic in &characteristics{
+	// 	service.add_characteristic(characteristic.clone());
+	// }
+    
+	//let mut server = micro.ble_secure_server("Example Secure Server".to_string(), &vec![service], security);
+  	let mut server = micro.ble_server("Example Secure Server".to_string(), &vec![service]);
+
+	//add_handlers_to_server(&mut server);
+
+	server.start().unwrap();
+	
+  	let mut counter: u8 = 1;
+  	loop {
+  	  	characteristics[0].update_data(vec![counter]);
+  	  	server.notify_value(service_id.clone(), &characteristics[0]).unwrap();
+		micro.wait_for_updates(Some(1000));
+  	  	counter += 1;
+		}
+}
+
+/*
 //! Example of using async wifi.
 const SSID: &str = "Iphone 8 Diego New";
 const PASSWORD: &str = "diegocivini";
@@ -70,7 +137,135 @@ async fn connect_wifi(wifi: &mut AsyncWifi<EspWifi<'static>>){
     wifi.wait_netif_up().await.unwrap();
     info!("Wifi netif up");
 }
+use esp32framework::{ble::{BleId, BleServer, Characteristic, Descriptor, IOCapabilities, Security, Service, StandarCharacteristicId, StandarDescriptorId, StandarServiceId}, Microcontroller};
 
+fn set_up_characteristics() -> Vec<Characteristic> {
+	// IDs
+    let writable_char_id = BleId::FromUuid16(32);
+	let readable_char_id = BleId::StandarCharacteristic(StandarCharacteristicId::BatteryLevel);
+	let notifiable_char_id = BleId::ByName("NotifiableCharacteristic".to_string());
+    let readable_descriptor_id = BleId::StandarDescriptor(StandarDescriptorId::ValidRange);
+
+	// Structures
+	let mut readable_descriptor = Descriptor::new(readable_descriptor_id, vec![0x43, 0x54]);
+	readable_descriptor.readeable(true);
+
+    let mut writable_characteristic = Characteristic::new(writable_char_id, vec![0x00]);
+    writable_characteristic.writable(true);
+	writable_characteristic.add_descriptor(readable_descriptor);
+
+	let mut readable_characteristic = Characteristic::new(readable_char_id, vec![0x38]);
+	readable_characteristic.readeable(true);
+
+    let mut notifiable_characteristic = Characteristic::new(notifiable_char_id, vec![0x00]);
+	notifiable_characteristic.notifiable(true);
+
+	vec![notifiable_characteristic, readable_characteristic, writable_characteristic]
+}
+
+fn add_handlers_to_server(server: &mut BleServer){
+	server.connection_handler(| _server, connection_info| { 
+        println!("The client {:?} is connected", connection_info.address)
+    });
+	server.disconnect_handler(| _server, connection_info| { 
+        println!("The client {:?} is disconnected", connection_info.address)
+    });
+}
+
+fn main(){
+	let mut micro = Microcontroller::new();
+	
+	// Security configuration
+	// let phone_capabilities = IOCapabilities::KeyboardDisplay;
+	// let security = Security::new(001234,phone_capabilities);
+    
+	let mut characteristics: Vec<Characteristic> = set_up_characteristics();
+    let service_id = BleId::StandardService(StandarServiceId::Battery);
+    let mut service = Service::new(&service_id, vec![0xAB]).unwrap();
+	service.add_characteristics(&characteristics);
+	// for characteristic in &characteristics{
+	// 	service.add_characteristic(characteristic.clone());
+	// }
+    
+	//let mut server = micro.ble_secure_server("Example Secure Server".to_string(), &vec![service], security);
+    let mut server = micro.ble_server("Example Secure Server".to_string(), &vec![service]);
+
+	//add_handlers_to_server(&mut server);
+
+	server.start().unwrap();
+	
+    let mut counter: u8 = 1;
+    loop {
+        characteristics[0].update_data(vec![counter]);
+        server.notify_value(service_id.clone(), &characteristics[0]).unwrap();
+		micro.wait_for_updates(Some(1000));
+        counter += 1;
+	}
+}use esp32framework::{ble::{BleId, BleServer, Characteristic, Descriptor, IOCapabilities, Security, Service, StandarCharacteristicId, StandarDescriptorId, StandarServiceId}, Microcontroller};
+
+fn set_up_characteristics() -> Vec<Characteristic> {
+	// IDs
+    let writable_char_id = BleId::FromUuid16(32);
+	let readable_char_id = BleId::StandarCharacteristic(StandarCharacteristicId::BatteryLevel);
+	let notifiable_char_id = BleId::ByName("NotifiableCharacteristic".to_string());
+    let readable_descriptor_id = BleId::StandarDescriptor(StandarDescriptorId::ValidRange);
+
+	// Structures
+	let mut readable_descriptor = Descriptor::new(readable_descriptor_id, vec![0x43, 0x54]);
+	readable_descriptor.readeable(true);
+
+    let mut writable_characteristic = Characteristic::new(writable_char_id, vec![0x00]);
+    writable_characteristic.writable(true);
+	writable_characteristic.add_descriptor(readable_descriptor);
+
+	let mut readable_characteristic = Characteristic::new(readable_char_id, vec![0x38]);
+	readable_characteristic.readeable(true);
+
+    let mut notifiable_characteristic = Characteristic::new(notifiable_char_id, vec![0x00]);
+	notifiable_characteristic.notifiable(true);
+
+	vec![notifiable_characteristic, readable_characteristic, writable_characteristic]
+}
+
+fn add_handlers_to_server(server: &mut BleServer){
+	server.connection_handler(| _server, connection_info| { 
+        println!("The client {:?} is connected", connection_info.address)
+    });
+	server.disconnect_handler(| _server, connection_info| { 
+        println!("The client {:?} is disconnected", connection_info.address)
+    });
+}
+
+fn main(){
+	let mut micro = Microcontroller::new();
+	
+	// Security configuration
+	// let phone_capabilities = IOCapabilities::KeyboardDisplay;
+	// let security = Security::new(001234,phone_capabilities);
+    
+	let mut characteristics: Vec<Characteristic> = set_up_characteristics();
+    let service_id = BleId::StandardService(StandarServiceId::Battery);
+    let mut service = Service::new(&service_id, vec![0xAB]).unwrap();
+	service.add_characteristics(&characteristics);
+	// for characteristic in &characteristics{
+	// 	service.add_characteristic(characteristic.clone());
+	// }
+    
+	//let mut server = micro.ble_secure_server("Example Secure Server".to_string(), &vec![service], security);
+    let mut server = micro.ble_server("Example Secure Server".to_string(), &vec![service]);
+
+	//add_handlers_to_server(&mut server);
+
+	server.start().unwrap();
+	
+    let mut counter: u8 = 1;
+    loop {
+        characteristics[0].update_data(vec![counter]);
+        server.notify_value(service_id.clone(), &characteristics[0]).unwrap();
+		micro.wait_for_updates(Some(1000));
+        counter += 1;
+	}
+}*/
 /*
 use core::convert::TryInto;
 

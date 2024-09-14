@@ -176,7 +176,7 @@ impl Service {
         }
     }
 
-    /// Adds a new characteristic to thee service
+    /// Adds a new characteristic to the service
     /// 
     /// # Arguments
     /// 
@@ -187,6 +187,22 @@ impl Service {
     /// The Service itself
     pub fn add_characteristic(&mut self, characteristic: Characteristic) -> &mut Self {
         self.characteristics.push(characteristic);
+        self
+    }
+    
+    /// Adds multiple characteristics to the service
+    /// 
+    /// # Arguments
+    /// 
+    /// - `characteristics`: A vector with all characterisitcs to add in the service
+    /// 
+    /// # Returns
+    /// 
+    /// The Service itself
+    pub fn add_characteristics(&mut self, characteristics: &Vec<Characteristic>) -> &mut Self {
+        for characteristic in characteristics{
+            self.characteristics.push(characteristic.clone());
+        }
         self
     }
 }
