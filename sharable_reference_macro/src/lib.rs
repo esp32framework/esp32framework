@@ -17,6 +17,8 @@ use syn::{parse::{Parse, ParseStream}, parse_macro_input, punctuated::Punctuated
 /// If any arguments are given, these are interpreted as strings, and each represent an aditional field
 /// for the Wrapper struct. If any of the methods receives a parameter with the same name, then the
 /// new method wont receive it and instead will use "self.arg".
+/// This works also for async funtions, since it will add the .await to the end. It does not however work with
+/// functions that receive self, and will panic.
 /// CLARIFICATION: The inner struct does not have to beggin with '_', the macro simply removes the 
 /// first character from the inner struct to give to the wrapper struct
 /// 
@@ -40,6 +42,10 @@ use syn::{parse::{Parse, ParseStream}, parse_macro_input, punctuated::Punctuated
 ///     pub fn get_a_unmut(&self) -> u8 {
 ///         self.a
 ///     }
+/// 
+///     pub async fn async_print(&self){
+///         println!("async print")
+///     }
 /// }
 /// 
 /// //Will generate
@@ -49,6 +55,10 @@ use syn::{parse::{Parse, ParseStream}, parse_macro_input, punctuated::Punctuated
 ///     }
 ///     pub fn get_a_unmut(&self) -> u8 {
 ///         self.inner.borrow().get_a_unmut()
+///     }
+/// 
+///     pub async fn async_print(&self){
+///         self.inner.borrow().async_print.await
 ///     }
 /// }
 /// ```

@@ -1,7 +1,7 @@
 use esp_idf_svc::hal::gpio::*;
 pub use esp_idf_svc::hal::gpio::InterruptType;
 use std::{cell::RefCell, num::NonZeroU32, rc::Rc, sync::{atomic::{AtomicU8, Ordering}, Arc}};
-use crate::microcontroller_src::{interrupt_driver::InterruptDriver, peripherals::Peripheral};
+use crate::{microcontroller_src::{interrupt_driver::InterruptDriver, peripherals::Peripheral}, utils::auxiliary::{SharableRef, SharableRefExt}};
 use crate::utils::{esp32_framework_error::Esp32FrameworkError, notification::Notifier, timer_driver::{TimerDriver,TimerDriverError}, error_text_parser::map_enable_disable_errors};
 use sharable_reference_macro::sharable_reference_wrapper;
 
@@ -42,7 +42,7 @@ struct _DigitalIn<'a>{
 /// Wrapper of [_DigitalIn]
 #[derive(Clone)]
 pub struct DigitalIn<'a>{
-    inner: Rc<RefCell<_DigitalIn<'a>>>
+    inner: SharableRef<_DigitalIn<'a>>
 }
 
 /// After an interrupt is triggered an InterruptUpdate will be set and handled
@@ -459,7 +459,7 @@ impl<'a> DigitalIn<'a> {
     /// 
     /// When setting Down the pull fails
     pub fn new(timer_driver: TimerDriver, per: Peripheral, notifier: Option<Notifier>)->Result<DigitalIn, DigitalInError>{
-        Ok(DigitalIn{inner: Rc::new(RefCell::from(_DigitalIn::new(timer_driver, per, notifier)?))})
+        Ok(DigitalIn{inner: SharableRef::new_sharable(_DigitalIn::new(timer_driver, per, notifier)?)})
     }
 }
 

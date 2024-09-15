@@ -9,7 +9,7 @@ use crate::utils::{timer_driver::TimerDriver, auxiliary::{SharableRef, SharableR
 use oneshot::AdcDriver;
 
 pub type SharableAdcDriver<'a> = Rc<AdcDriver<'a, ADC1>>;
-pub type SharableI2CDriver<'a> = Rc<RefCell<Option<i2c::I2C0>>>;
+pub type SharableI2CDriver<'a> = SharableRef<Option<i2c::I2C0>>;
 
 const TICKS_PER_MILLI: f32 = TICK_RATE_HZ as f32 / 1000_f32;
 

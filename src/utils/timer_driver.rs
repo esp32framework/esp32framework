@@ -10,7 +10,7 @@ use crate::{microcontroller_src::interrupt_driver::InterruptDriver, utils::timer
 use crate::microcontroller_src::peripherals::Peripheral;
 use sharable_reference_macro::sharable_reference_wrapper;
 
-use super::{auxiliary::SharableRefExt, esp32_framework_error::Esp32FrameworkError, notification::{self, Notification, Notifier}};
+use super::{auxiliary::{SharableRef, SharableRefExt}, esp32_framework_error::Esp32FrameworkError, notification::{self, Notification, Notifier}};
 
 const MICRO_IN_SEC: u64 = 1000000;
 const MAX_CHILDREN: u16 = u8::MAX as u16;
@@ -20,7 +20,7 @@ const MAX_CHILDREN: u16 = u8::MAX as u16;
 /// and can create one interrupt each.
 /// In order to see the documentation of wrapper functions see [_TimerDriver]
 pub struct TimerDriver<'a> {
-    inner: Rc<RefCell<_TimerDriver<'a>>>,
+    inner: SharableRef<_TimerDriver<'a>>,
     id: u16,
     next_child: u16,
 }
@@ -358,7 +358,7 @@ impl <'a> InterruptDriver for _TimerDriver<'a>{
 impl <'a>TimerDriver<'a>{
     pub fn new(timer: Peripheral, notifier: Notifier) -> Result<TimerDriver<'a>, TimerDriverError> {
         Ok(TimerDriver{
-            inner: Rc::new(RefCell::new(_TimerDriver::new(timer, notifier)?)),
+            inner: SharableRef::new_sharable(_TimerDriver::new(timer, notifier)?),
             id: 0,
             next_child: 1,
         })
