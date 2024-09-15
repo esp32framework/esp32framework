@@ -205,7 +205,7 @@ fn main(){
   }
   
   loop {
-    micro.sleep(1000);
+	micro.sleep(1000);
   }
 }
 
