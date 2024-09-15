@@ -3,6 +3,7 @@
 const SSID: &str = "Iphone 8 Diego New";
 const PASSWORD: &str = "diegocivini";
 use embedded_svc::http::client::Client;
+use esp32framework::wifi::http::HttpHeader;
 use core::convert::TryInto;
 use esp_idf_svc::hal::prelude::Peripherals;
 use esp_idf_svc::hal::task::block_on;
@@ -168,8 +169,7 @@ fn connect_wifi(wifi: &mut BlockingWifi<EspWifi<'static>>) {
 */
 
 // ASYNC WIFI EXAMPLE WITH FRAMEWORK
-use esp32framework::{wifi::http::{HttpClient, HttpHeader}, Microcontroller};
-
+use esp32framework::Microcontroller;
 
 fn main(){
   let mut micro = Microcontroller::new();
@@ -180,7 +180,7 @@ fn main(){
   micro.block_on(f).unwrap();
   println!("Nos conectamos a WIFI");
   
-  let mut client = HttpClient::new().unwrap();
+  let mut client = wifi.get_http_client().unwrap();
   let header = HttpHeader::new(esp32framework::wifi::http::HttpHeaderType::Accept, "text/plain");
   let headers = vec![header];
   client.get("http://ifconfig.net/", headers).unwrap();

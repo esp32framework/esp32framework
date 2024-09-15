@@ -2,6 +2,8 @@ use std::net::Ipv4Addr;
 
 use esp_idf_svc::{eventloop::EspSystemEventLoop, hal::modem::{self}, nvs::EspDefaultNvsPartition, timer::EspTaskTimerService, wifi::{AsyncWifi, AuthMethod, ClientConfiguration, Configuration, EspWifi}};
 
+use super::http::HttpClient;
+
 #[derive(Debug)]
 pub enum WifiError {
     ConfigurationError,
@@ -9,7 +11,8 @@ pub enum WifiError {
     ConnectingError,
     WifiNotInitialized,
     InformationError,
-    DnsNotFound
+    DnsNotFound,
+    HttpError
 }
 
 pub struct WifiDriver<'a> {
@@ -17,6 +20,7 @@ pub struct WifiDriver<'a> {
 }
 
 impl <'a>WifiDriver<'a> {
+    
     ///TODO: Docu with Default value of nvs!
     pub fn new(event_loop: EspSystemEventLoop) -> Self {
         let modem = unsafe { modem::Modem::new() };
@@ -89,5 +93,9 @@ impl <'a>WifiDriver<'a> {
             Some(ip) => Ok(ip),
             None => Err(WifiError::DnsNotFound),
         }
+    }
+
+    pub fn get_http_client(&self) -> Result<HttpClient, WifiError>{
+        HttpClient::new().map_err(|_| WifiError::HttpError)
     }
 }
