@@ -19,6 +19,7 @@ pub enum BleError{
     StoppingFailure,
     TimerDriverError(TimerDriverError),
     Code(u32, String),
+    NotFound,
     ServiceNotFound,
     CharacteristicNotFound,
     PropertiesError,
@@ -32,7 +33,9 @@ pub enum BleError{
     CharacteristicIsNotReadable,
     CharacteristicIsNotWritable,
     CharacteristicIsNotNotifiable,
-    NotReadable
+    TimeOut,
+    NotReadable,
+    Disconnected
 }
 
 impl From<BLEError> for BleError {
@@ -52,13 +55,13 @@ impl From<BLEError> for BleError {
             esp_idf_svc::sys::BLE_HS_EDONE => BleError::AlreadyConnected,
             esp_idf_svc::sys::BLE_HS_ENOTCONN  => BleError::DeviceNotFound,
             ATTRIBUTE_CANNOT_BE_READ => BleError::NotReadable,
+            esp_idf_svc::sys::BLE_HS_CONN_HANDLE_NONE => BleError::NotFound,
             _ => BleError::Code(value.code(), value.to_string()),
         }
     }
 }
 
 impl BleError {
-    
     /// Creates a BleError from an u32
     /// 
     /// # Arguments
@@ -72,6 +75,28 @@ impl BleError {
         match BLEError::convert(code) {
             Ok(_) => None,
             Err(err) => Some(BleError::from(err)),
+        }
+    }
+
+    pub fn from_service_context(err: BLEError)-> Self{
+        Self::from(err).service_context()
+    }
+    
+    pub fn from_characteristic_context(err: BLEError) -> Self{
+        Self::from(err).characteristic_context()
+    }
+
+    fn service_context(self)-> Self{
+        match self{
+            BleError::NotFound => BleError::ServiceNotFound,
+            _ => self
+        }
+    }
+
+    fn characteristic_context(self)-> Self{
+        match self{
+            BleError::NotFound => BleError::CharacteristicNotFound,
+            _ => self
         }
     }
 }
@@ -244,13 +269,13 @@ impl BleId {
             BleId::StandardService(service) => {BleUuid::from_uuid16(*service as u16)},
             BleId::StandarCharacteristic(characteristic) => {BleUuid::from_uuid16(*characteristic as u16)},
             BleId::StandarDescriptor(descriptor) => {BleUuid::from_uuid16(*descriptor as u16)},
+            BleId::FromUuid16(uuid) => BleUuid::from_uuid16(*uuid),
+            BleId::FromUuid32(uuid) => BleUuid::from_uuid32(*uuid),
+            BleId::FromUuid128(uuid) => BleUuid::from_uuid128(*uuid),
             BleId::ByName(name) => {
                 let arr: [u8;4] = Uuid::new_v3(&Uuid::NAMESPACE_OID, name.as_bytes()).into_bytes()[0..4].try_into().unwrap();
                 BleUuid::from_uuid32(u32::from_be_bytes(arr))
             },
-            BleId::FromUuid16(uuid) => BleUuid::from_uuid16(*uuid),
-            BleId::FromUuid32(uuid) => BleUuid::from_uuid32(*uuid),
-            BleId::FromUuid128(uuid) => BleUuid::from_uuid128(*uuid),
         }
     }
 
@@ -264,7 +289,7 @@ impl BleId {
             BleId::StandardService(service) => service.byte_size(),
             BleId::StandarCharacteristic(characteristic) => characteristic.byte_size(),
             BleId::StandarDescriptor(descriptor) => descriptor.byte_size(),
-            BleId::ByName(_) => 16,
+            BleId::ByName(_) => 4,
             BleId::FromUuid16(_) => 2,
             BleId::FromUuid32(_) => 4,
             BleId::FromUuid128(_) => 16,
