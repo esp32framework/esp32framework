@@ -1,3 +1,5 @@
+use std::net::Ipv4Addr;
+
 use esp_idf_svc::{eventloop::EspSystemEventLoop, hal::modem::{self}, nvs::EspDefaultNvsPartition, timer::EspTaskTimerService, wifi::{AsyncWifi, AuthMethod, ClientConfiguration, Configuration, EspWifi}};
 
 #[derive(Debug)]
@@ -5,7 +7,9 @@ pub enum WifiError {
     ConfigurationError,
     StartingError,
     ConnectingError,
-    WifiNotInitialized
+    WifiNotInitialized,
+    InformationError,
+    DnsNotFound
 }
 
 pub struct WifiDriver<'a> {
@@ -70,5 +74,20 @@ impl <'a>WifiDriver<'a> {
 
     pub fn is_connected(&self) -> Result<bool, WifiError> {
         self.controller.is_connected().map_err(|_| WifiError::WifiNotInitialized) // This error appears if WiFi is not initialized by esp_wifi_init
+    }
+
+    pub fn get_address_info(&self) -> Result<Ipv4Addr, WifiError> {
+        let netif = self.controller.wifi().sta_netif();
+        let info = netif.get_ip_info().map_err(|_| WifiError::InformationError)?;
+        Ok(info.ip)
+    }
+
+    pub fn get_dns_info(&self) -> Result<Ipv4Addr, WifiError> {
+        let netif = self.controller.wifi().sta_netif();
+        let info = netif.get_ip_info().map_err(|_| WifiError::InformationError)?;
+        match info.dns {
+            Some(ip) => Ok(ip),
+            None => Err(WifiError::DnsNotFound),
+        }
     }
 }

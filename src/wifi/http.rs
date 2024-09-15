@@ -63,10 +63,6 @@ impl HttpClient{
         let temp: Vec<(&'a str, &'a str)> = headers.iter().map(|header| (header.header_type.to_string(), header.value)).collect();
         self.connection.initiate_request(Method::Options, uri, &temp).map_err(|_| HttpError::RequestError)
     }
-    
-    pub fn listen_response(&mut self) -> Result<(), HttpError> {
-        self.connection.initiate_response().map_err(|_| HttpError::ListeningError)
-    }
 
     pub fn response_status(&self) -> u16 {
         self.connection.status()
@@ -76,7 +72,17 @@ impl HttpClient{
         self.connection.status_message() // TODO: This can panic. Add it to the docu.
     }
 
-    pub fn read_response(&mut self, buffer: &mut [u8]) -> Result<usize, HttpError> {
+    // pub fn read_response(&mut self, buffer: &mut [u8]) -> Result<usize, HttpError> {
+    //     self.connection.read(buffer).map_err(|err| 
+    //         match err.code() {
+    //             -0x7007 => HttpError::TimeoutError,
+    //             _ => HttpError::ReadError
+    //         }
+    //     )
+    // }
+
+    pub fn wait_for_response(&mut self, buffer: &mut [u8]) -> Result<usize, HttpError>{
+        self.connection.initiate_response().map_err(|_| HttpError::ListeningError)?;
         self.connection.read(buffer).map_err(|err| 
             match err.code() {
                 -0x7007 => HttpError::TimeoutError,
