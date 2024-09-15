@@ -74,7 +74,7 @@ fn set_up_characteristics() -> Vec<Characteristic> {
 	vec![/*readable_characteristic, writable_characteristic,*/ notifiable_characteristic]
 }
 
-fn add_handlers_to_server(server: &mut BleServer){
+fn add_handlers_to_server(server: &mut BleServer) {
 	server.connection_handler(| _server, connection_info| { 
         println!("The client {:?} is connected", connection_info.address)
     });
@@ -90,8 +90,10 @@ fn main(){
 	// let phone_capabilities = IOCapabilities::KeyboardDisplay;
 	// let security = Security::new(001234,phone_capabilities);
     
-	let mut characteristics: Vec<Characteristic> = set_up_characteristics();
+	let characteristics: Vec<Characteristic> = set_up_characteristics();
+	let mut notifiable_characteristic = characteristics[0].clone();
     let service_id = BleId::StandardService(StandarServiceId::Battery);
+	// TODO: Services dont have data themselves. 
     let mut service = Service::new(&service_id, vec![0xAB]).unwrap();
 	service.add_characteristics(&characteristics);
     
@@ -104,7 +106,7 @@ fn main(){
 	
     let mut counter: u8 = 1;
     loop {
-        characteristics[0].update_data(vec![counter; 2]);
+        notifiable_characteristic.update_data(vec![counter; 2]);
         server.notify_value(service_id.clone(), &characteristics[0]).unwrap();
 		micro.wait_for_updates(Some(10000));
         counter += 1;
