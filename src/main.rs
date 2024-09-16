@@ -9,12 +9,11 @@ use esp_idf_svc::hal::prelude::Peripherals;
 use esp_idf_svc::hal::task::block_on;
 use esp_idf_svc::log::EspLogger;
 use esp_idf_svc::timer::EspTaskTimerService;
-use esp_idf_svc::wifi::{AsyncWifi, EspWifi,AuthMethod, ClientConfiguration, Configuration};
+use esp_idf_svc::wifi::{AsyncWifi, AuthMethod, BlockingWifi, ClientConfiguration, Configuration, EspWifi, H};
 use esp_idf_svc::{eventloop::EspSystemEventLoop, nvs::EspDefaultNvsPartition};
 
 use esp_idf_svc::http::client::EspHttpConnection;
-// use esp_idf_svc::http::client::Client;
-
+use embedded_svc::http::client::Client as HttpClient;
 use log::info;
 
 
@@ -86,7 +85,7 @@ use esp_idf_svc::{eventloop::EspSystemEventLoop, nvs::EspDefaultNvsPartition};
 
 use log::{error, info};
 
-
+ */
 fn main() {
     esp_idf_svc::sys::link_patches();
     EspLogger::initialize_default();
@@ -166,8 +165,7 @@ fn connect_wifi(wifi: &mut BlockingWifi<EspWifi<'static>>) {
 
 }
 
-*/
-
+/*x
 // ASYNC WIFI EXAMPLE WITH FRAMEWORK
 use esp32framework::Microcontroller;
 
@@ -209,3 +207,5 @@ fn main(){
   }
 }
 
+use esp32framework::wifi::http::HttpClient;
+*/
