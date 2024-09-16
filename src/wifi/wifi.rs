@@ -2,7 +2,7 @@ use std::net::Ipv4Addr;
 
 use esp_idf_svc::{eventloop::EspSystemEventLoop, hal::modem::{self}, nvs::EspDefaultNvsPartition, timer::EspTaskTimerService, wifi::{AsyncWifi, AuthMethod, ClientConfiguration, Configuration, EspWifi}};
 
-use super::http::{Http, HttpClient};
+use super::http::{Http, HttpClient, HttpsClient};
 
 #[derive(Debug)]
 pub enum WifiError {
@@ -95,7 +95,11 @@ impl <'a>WifiDriver<'a> {
         }
     }
 
-    pub fn get_http_client(&self) -> Result<HttpClient, WifiError>{
+    pub fn get_http_client(&self) -> Result<HttpClient, WifiError> {
         HttpClient::new().map_err(|_| WifiError::HttpError)
+    }
+
+    pub fn get_https_client(&self) -> Result<HttpsClient, WifiError> {
+        HttpsClient::new().map_err(|_| WifiError::HttpError)
     }
 }
