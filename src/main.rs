@@ -3,18 +3,21 @@
 const SSID: &str = "Iphone 8 Diego New";
 const PASSWORD: &str = "diegocivini";
 use embedded_svc::http::client::Client;
+use embedded_svc::utils::io;
 use esp32framework::wifi::http::HttpHeader;
+use esp_idf_svc::hal::delay::FreeRtos;
+use esp_idf_svc::http::Method;
 use core::convert::TryInto;
 use esp_idf_svc::hal::prelude::Peripherals;
 use esp_idf_svc::hal::task::block_on;
 use esp_idf_svc::log::EspLogger;
 use esp_idf_svc::timer::EspTaskTimerService;
-use esp_idf_svc::wifi::{AsyncWifi, AuthMethod, BlockingWifi, ClientConfiguration, Configuration, EspWifi, H};
+use esp_idf_svc::wifi::{AsyncWifi, AuthMethod, BlockingWifi, ClientConfiguration, Configuration, EspWifi};
 use esp_idf_svc::{eventloop::EspSystemEventLoop, nvs::EspDefaultNvsPartition};
 
 use esp_idf_svc::http::client::EspHttpConnection;
 use embedded_svc::http::client::Client as HttpClient;
-use log::info;
+use log::{error, info};
 
 
 //TODO: micro.get_event_loop()
@@ -109,7 +112,7 @@ fn main() {
     get_request(&mut client);
 
     loop {
-      FreeRtos::delay_ms(1000);
+        FreeRtos::delay_ms(1000);
     }
 }
 

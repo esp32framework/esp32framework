@@ -9,86 +9,100 @@ pub enum HttpError {
     ReadError
 }
 
-// impl From<EspError> for HttpError {
-//     fn from(value: EspError) -> Self {
-//         match value.code() {
-//             _ => HttpError::Code(value.code(), value.to_string()),
-//         }
-//     }
-// }
+pub trait Http {
 
-pub struct HttpClient{
-    connection: EspHttpConnection,
-}
+    fn new() -> Result<Self, HttpError> where Self: Sized;
 
-impl HttpClient{
+    fn get_connection(&mut self) -> &mut EspHttpConnection;
 
-    pub fn new() -> Result<Self, HttpError> {
-        let config: &Configuration = &Default::default();
-        let connection = EspHttpConnection::new(config).map_err(|_| HttpError::InizializationError)?;
-        Ok( HttpClient { connection } )
+    fn post<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>) -> Result<(), HttpError> {
+        let temp: Vec<(&'a str, &'a str)> = headers.iter().map(|header| (header.header_type.to_string(), header.value)).collect();
+        self.get_connection().initiate_request(Method::Post, uri, &temp).map_err(|_| HttpError::RequestError)
     }
 
-    pub fn post<'a>(mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>) -> Result<(), HttpError> {
+    fn get<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>) -> Result<(), HttpError> {
         let temp: Vec<(&'a str, &'a str)> = headers.iter().map(|header| (header.header_type.to_string(), header.value)).collect();
-        self.connection.initiate_request(Method::Post, uri, &temp).map_err(|_| HttpError::RequestError)
+        self.get_connection().initiate_request(Method::Get, uri, &temp).map_err(|_| HttpError::RequestError)
     }
 
-    pub fn get<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>) -> Result<(), HttpError> {
+    fn put<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>) -> Result<(), HttpError> {
         let temp: Vec<(&'a str, &'a str)> = headers.iter().map(|header| (header.header_type.to_string(), header.value)).collect();
-        self.connection.initiate_request(Method::Get, uri, &temp).map_err(|_| HttpError::RequestError)
+        self.get_connection().initiate_request(Method::Put, uri, &temp).map_err(|_| HttpError::RequestError)
     }
 
-    pub fn put<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>) -> Result<(), HttpError> {
+    fn delete<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>) -> Result<(), HttpError> {
         let temp: Vec<(&'a str, &'a str)> = headers.iter().map(|header| (header.header_type.to_string(), header.value)).collect();
-        self.connection.initiate_request(Method::Put, uri, &temp).map_err(|_| HttpError::RequestError)
-    }
-
-    pub fn delete<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>) -> Result<(), HttpError> {
-        let temp: Vec<(&'a str, &'a str)> = headers.iter().map(|header| (header.header_type.to_string(), header.value)).collect();
-        self.connection.initiate_request(Method::Delete, uri, &temp).map_err(|_| HttpError::RequestError)
+        self.get_connection().initiate_request(Method::Delete, uri, &temp).map_err(|_| HttpError::RequestError)
     }
     
-    pub fn patch<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>) -> Result<(), HttpError> {
+    fn patch<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>) -> Result<(), HttpError> {
         let temp: Vec<(&'a str, &'a str)> = headers.iter().map(|header| (header.header_type.to_string(), header.value)).collect();
-        self.connection.initiate_request(Method::Patch, uri, &temp).map_err(|_| HttpError::RequestError)
+        self.get_connection().initiate_request(Method::Patch, uri, &temp).map_err(|_| HttpError::RequestError)
     }
 
-    pub fn head<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>) -> Result<(), HttpError> {
+    fn head<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>) -> Result<(), HttpError> {
         let temp: Vec<(&'a str, &'a str)> = headers.iter().map(|header| (header.header_type.to_string(), header.value)).collect();
-        self.connection.initiate_request(Method::Head, uri, &temp).map_err(|_| HttpError::RequestError)
+        self.get_connection().initiate_request(Method::Head, uri, &temp).map_err(|_| HttpError::RequestError)
     }
 
-    pub fn options<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>) -> Result<(), HttpError> {
+    fn options<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>) -> Result<(), HttpError> {
         let temp: Vec<(&'a str, &'a str)> = headers.iter().map(|header| (header.header_type.to_string(), header.value)).collect();
-        self.connection.initiate_request(Method::Options, uri, &temp).map_err(|_| HttpError::RequestError)
+        self.get_connection().initiate_request(Method::Options, uri, &temp).map_err(|_| HttpError::RequestError)
     }
 
-    pub fn response_status(&self) -> u16 {
-        self.connection.status()
+    fn response_status(&mut self) -> u16 {
+        self.get_connection().status()
+    }
+  
+    fn response_status_message(&mut self) -> Option<&str> {
+        self.get_connection().status_message() // TODO: This can panic. Add it to the docu.
     }
 
-    pub fn response_status_message(&self) -> Option<&str> {
-        self.connection.status_message() // TODO: This can panic. Add it to the docu.
-    }
-
-    // pub fn read_response(&mut self, buffer: &mut [u8]) -> Result<usize, HttpError> {
-    //     self.connection.read(buffer).map_err(|err| 
-    //         match err.code() {
-    //             -0x7007 => HttpError::TimeoutError,
-    //             _ => HttpError::ReadError
-    //         }
-    //     )
-    // }
-
-    pub fn wait_for_response(&mut self, buffer: &mut [u8]) -> Result<usize, HttpError>{
-        self.connection.initiate_response().map_err(|_| HttpError::ListeningError)?;
-        self.connection.read(buffer).map_err(|err| 
+    fn wait_for_response(&mut self, buffer: &mut [u8]) -> Result<usize, HttpError>{
+        self.get_connection().initiate_response().map_err(|_| HttpError::ListeningError)?;
+        self.get_connection().read(buffer).map_err(|err| 
             match err.code() {
                 -0x7007 => HttpError::TimeoutError,
                 _ => HttpError::ReadError
             }
         )
+    }  
+    
+}
+
+pub struct HttpClient{
+    connection: EspHttpConnection,
+}
+
+impl Http for HttpClient {
+    fn new() -> Result<Self, HttpError> {
+        let config: &Configuration = &Default::default();
+        let connection = EspHttpConnection::new(config).map_err(|_| HttpError::InizializationError)?;
+        Ok( HttpClient { connection } )
+    }
+
+    fn get_connection(&mut self) -> &mut EspHttpConnection {
+        &mut self.connection
+    }
+}
+
+pub struct HttpsClient {
+    connection: EspHttpConnection
+}
+
+impl Http for HttpsClient {
+    fn new() -> Result<Self, HttpError> where Self: Sized {
+        let config: &Configuration = &Configuration{
+            use_global_ca_store: true,
+            crt_bundle_attach: Some(esp_idf_svc::sys::esp_crt_bundle_attach),
+            ..Default::default()
+        };
+        let connection = EspHttpConnection::new(config).map_err(|_| HttpError::InizializationError)?;
+        Ok( HttpsClient { connection } )
+    }
+
+    fn get_connection(&mut self) -> &mut EspHttpConnection {
+        &mut self.connection
     }
 }
 

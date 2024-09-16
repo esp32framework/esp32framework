@@ -2,7 +2,7 @@ use std::net::Ipv4Addr;
 
 use esp_idf_svc::{eventloop::EspSystemEventLoop, hal::modem::{self}, nvs::EspDefaultNvsPartition, timer::EspTaskTimerService, wifi::{AsyncWifi, AuthMethod, ClientConfiguration, Configuration, EspWifi}};
 
-use super::http::HttpClient;
+use super::http::{Http, HttpClient};
 
 #[derive(Debug)]
 pub enum WifiError {
