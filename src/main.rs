@@ -4,8 +4,8 @@
 
 use esp32framework::{wifi::http::{Http, HttpHeader}, Microcontroller};
 
-const SSID: &str = "Iphone 8 Diego New";
-const PASSWORD: &str = "diegocivini";
+const SSID: &str = "WIFI_SSID";
+const PASSWORD: &str = "WIFI_PASS";
 const URI: &str = "https://dog.ceo/api/breeds/image/random";
 
 fn main(){

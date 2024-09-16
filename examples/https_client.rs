@@ -5,9 +5,9 @@
 
 use esp_idf_svc::{eventloop::EspSystemEventLoop, hal::{delay::FreeRtos, prelude::Peripherals}, http::{client::{EspHttpConnection, Configuration}, Method}, nvs::EspDefaultNvsPartition, timer::EspTaskTimerService, wifi::{Configuration as WifiConfiguration, AsyncWifi, ClientConfiguration, AuthMethod, EspWifi}};
 use esp_idf_svc::hal::task::block_on;
-const SSID: &str = "WIFI_SSID";
-const PASSWORD: &str = "WIFI_PASS";
-const URI: &str = "http://ifconfig.net/";
+const SSID: &str = "Iphone 8 Diego New";
+const PASSWORD: &str = "diegocivini";
+const URI: &str = "https://dog.ceo/api/breeds/image/random";
 
 fn main() {
     esp_idf_svc::sys::link_patches();
@@ -42,7 +42,11 @@ fn main() {
     
     // HTTP
     let mut buf = [0u8; 1024];
-    let config: &Configuration = &Default::default();
+    let config: &Configuration = &Configuration{
+        use_global_ca_store: true,
+        crt_bundle_attach: Some(esp_idf_svc::sys::esp_crt_bundle_attach),
+        ..Default::default()
+    };
     let mut client = EspHttpConnection::new(config).unwrap();
 
     let headers = [("accept", "text/plain")];
