@@ -35,6 +35,7 @@ pub enum BleError{
     NotReadable,
     DescriptorNotReadable,
     CharacteristicNotReadable,
+    CanOnlyBeOneBleDriver,
     Disconnected
 }
 
