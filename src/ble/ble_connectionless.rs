@@ -26,13 +26,12 @@ impl <'a>BleBeacon<'a>{
     /// - `services`: The vector of services that will be advertised by the beacon
     /// 
     /// # Returns
-    /// A `Result` containing the new `BleBeacon` instance, or an `BleError` if the
-    /// initialization fails.
+    /// A `Result` containing the new `BleBeacon` instance, or an `BleError` if setting the initial
+    /// services fails
     /// 
     /// # Errors
     /// 
-    /// - `BleError::`:
-    // TODO: I dont know which errors aree posible here
+    /// Returns the same errors as [Self::set_services]
     pub fn new(ble_device: &'a mut BLEDevice, timer_driver: TimerDriver<'a>, advertising_name: String, services: &Vec<Service>) -> Result<Self, BleError> {
         let mut advertisement = BLEAdvertisementData::new();
         advertisement.name(&advertising_name);
@@ -81,9 +80,8 @@ impl <'a>BleBeacon<'a>{
     /// A `Result` with Ok if the update operation completed successfully, or an `BleError` if it fails.
     /// 
     /// # Errors
-    /// 
-    /// - `BleError::`:
-    // TODO: I dont know which errors aree posible here
+    /// - `BleError::ServiceDoesNotFit`: if advertising is too big
+    /// - `BleError::Code` on other errors
     fn update_advertisement(&mut self) -> Result<(), BleError> {
         set_advertising_data(self.ble_device.get_advertising(), &mut self.advertisement.deref_mut())
     }
@@ -100,9 +98,7 @@ impl <'a>BleBeacon<'a>{
     /// A `Result` containing the `BleBeacon` itself, or a `BleError` if it fails
     /// 
     /// # Errors
-    /// 
-    /// - `BleError::`:
-    // TODO: I dont know which errors aree posible here
+    /// Returns the same errors as [Self::update_advertisement]
     pub fn set_service(&mut self, service: &Service) -> Result<&mut Self, BleError>{
         self.insert_service(service);
         self.update_advertisement()?;
@@ -114,14 +110,14 @@ impl <'a>BleBeacon<'a>{
     /// 
     /// # Arguments
     /// 
-    /// - `services`: A vector of Services to set on the beacon
+    /// - `services`: All services to set on the beacon
     /// 
     /// # Returns
     /// 
     /// A `Result` with Ok if the read operation completed successfully, or an `BleError` if it fails.
     /// 
     /// # Errors
-    // TODO: I dont know which errors aree posible here
+    /// Returns the same errors as [Self::update_advertisement]
     pub fn set_services(&mut self, services: &Vec<Service>) -> Result<(), BleError>{
         for service in services{
             self.insert_service(service)
@@ -138,7 +134,7 @@ impl <'a>BleBeacon<'a>{
     /// # Errors
     /// 
     /// - `BleError::`:
-    // TODO: I dont know which errors aree posible here
+    ///   Returns the same errors as [Self::update_advertisement]
     fn reset_advertisement(&mut self) -> Result<(), BleError> {
         let mut advertisement = BLEAdvertisementData::new();
         for service in self.services.deref().values(){
@@ -161,7 +157,7 @@ impl <'a>BleBeacon<'a>{
     /// 
     /// # Errors
     /// 
-    // TODO: I dont know which errors aree posible here
+    /// Returns the same errors as [Self::update_advertisement]
     pub fn remove_service(&mut self, service_id: &BleId) -> Result<&mut Self, BleError>{
         self.services.deref_mut().remove(service_id);
         self.reset_advertisement()?;
@@ -180,7 +176,7 @@ impl <'a>BleBeacon<'a>{
     /// 
     /// # Errors
     /// 
-    // TODO: I dont know which errors aree posible here
+    /// Returns the same errors as [Self::update_advertisement]
     pub fn remove_services(&mut self, service_ids: &Vec<BleId>)->Result<(), BleError>{
         for service_id in service_ids{
             self.services.deref_mut().remove(service_id);
@@ -200,7 +196,10 @@ impl <'a>BleBeacon<'a>{
     /// 
     /// # Errors
     /// 
-    // TODO: I dont know which errors aree posible here
+    /// - `BleError::StartingFailure`: If the starting operation fails
+    /// - `BleError::ServiceDoesNotFit`: if the advertising data is too big
+    /// - `BleError::ServiceUnkown`:  if asked to change to data of an unkown service
+    /// - `BleError::Code`: on other errors
     fn change_advertised_service_data(&mut self, service_id: &BleId) -> Result<(), BleError> {
         match self.services.deref().get(service_id){
             Some(request_service) => {
@@ -226,13 +225,20 @@ impl <'a>BleBeacon<'a>{
     /// # Returns
     /// 
     /// A `Result` with Ok if the operation completed successfully, or a `BleError` if it fails.
-    // TODO: I dont know which errors aree posible here
+    /// 
+    /// #Errors
+    /// 
+    /// - `BleError::StartingFailure`: If the starting operation fails
+    /// - `BleError::TimerDriverErorr(TimerDriverError)`: If the underlying timer_driver fails
+    /// - `BleError::ServiceDoesNotFit`: if the advertising data is too big
+    /// - `BleError::ServiceUnkown`:  if asked to change to data of an unkown service
+    /// - `BleError::Code`: on other errors
     pub fn advertise_service_data(&mut self, service_id: &BleId)-> Result<(), BleError>{
         self.stop_looping_data()?;
         self.change_advertised_service_data(service_id)
     }
 
-    /// Sets the time the beacon will advertise the data of a service if [`advertise_all_service_data`]
+    /// Sets the time the beacon will advertise the data of a service if [Self::advertise_all_service_data]
     /// was called
     /// 
     /// # Arguments
@@ -243,7 +249,7 @@ impl <'a>BleBeacon<'a>{
     }
 
     /// The beacon advertises the data of each service every fixed duration. If services are added or 
-    /// removed this is reflected. The time per service can be set with []
+    /// removed this is reflected. The time per service can be set with [Self::set_time_per_service]
     /// 
     /// # Returns
     /// 
@@ -255,7 +261,7 @@ impl <'a>BleBeacon<'a>{
     /// 
     /// # Panics
     /// 
-    /// If the setting of the advertising data failed
+    /// It may panic if the setting of the advertising data fails
     pub fn advertise_all_service_data(&mut self) -> Result<(), BleError> {
         let services = self.services.clone();
         let advertising = self.ble_device.get_advertising();
@@ -315,6 +321,13 @@ impl <'a>BleBeacon<'a>{
     }
 }
 
+
+/// Sets the advertising data of advertising and parses the error
+/// If the ble device is Busy, then it will retry the operation
+/// #Errors
+/// 
+/// - `BleError::ServiceDoesNotFit,`: if the advertising data is too big
+/// - `BleError::Code`: on other errors
 fn set_advertising_data(ble_adv: &Mutex<BLEAdvertising>, data: &mut BLEAdvertisementData) -> Result<(), BleError> {
     let mut ble_adv = ble_adv.lock();
     loop{

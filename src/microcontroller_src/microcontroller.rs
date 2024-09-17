@@ -400,7 +400,7 @@ impl <'a>Microcontroller<'a> {
             Peripheral::BleDevice => {
                 BLEDevice::take()
             },
-            _ => Err(BleError::CanOnlyBeOneBleDriver).unwrap(),
+            _ => panic!("{:?}", BleError::CanOnlyBeOneBleDriver),
         }
     }
 
@@ -439,7 +439,6 @@ impl <'a>Microcontroller<'a> {
     ///
     /// This function will panic if the `BleServer` instance cannot be created, which might happen due to hardware
     /// constraints or incorrect configuration of the BLE device.
-    // TODO &VEc<Services>
     pub fn ble_server(&mut self, advertising_name: String, services: &Vec<Service>)-> BleServer<'a>{
         let ble_device = self.take_ble_device();
         BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() ).unwrap()
