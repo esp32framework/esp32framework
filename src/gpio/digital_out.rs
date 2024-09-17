@@ -1,7 +1,5 @@
 use esp_idf_svc::hal::gpio::*;
 use sharable_reference_macro::sharable_reference_wrapper;
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 use crate::microcontroller_src::interrupt_driver::InterruptDriver;

@@ -1,7 +1,7 @@
-use esp32_nimble::{utilities::{mutex::Mutex, BleUuid}, BLEAdvertisementData, BLEAdvertising, BLEDevice, BLEError};
-use std::{cell::RefCell, collections::HashMap, hash::Hash, rc::Rc, time::Duration};
+use esp32_nimble::{utilities::mutex::Mutex, BLEAdvertisementData, BLEAdvertising, BLEDevice, BLEError};
+use std::{cell::RefCell, collections::HashMap, rc::Rc, time::Duration};
 use super::{Service, BleId, BleError};
-use crate::utils::{auxiliary::{SharableRef, SharableRefExt}, timer_driver::{TimerDriver, TimerDriverError}};
+use crate::utils::{auxiliary::{SharableRef, SharableRefExt}, timer_driver::TimerDriver};
 
 /// The Beacon advertises information in small packets of data at regular intervals.
 /// The small packets can be detected by other devices and get the information.
@@ -264,10 +264,10 @@ impl <'a>BleBeacon<'a>{
 
         let callback = move || {
             let services = services.deref();
-            i = i % services.len();
+            i %= services.len();
             let service = services.values().collect::<Vec<&Service>>()[i];
             advertisement.borrow_mut().service_data(service.id.to_uuid(), &service.data);
-            set_advertising_data(&advertising, &mut (*advertisement.borrow_mut())).unwrap();
+            set_advertising_data(advertising, &mut advertisement.borrow_mut()).unwrap();
             i+=1
         };
 

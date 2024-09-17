@@ -1,8 +1,7 @@
-use std::{future::Future, num::NonZeroU32, ops::Not, rc::Rc, sync::Arc, task::{Context, Poll}, time::{Duration, Instant}};
+use std::sync::Arc;
 
 use esp_idf_svc::hal::task::{asynch::Notification as AsyncNotif, block_on};
 
-use super::{auxiliary::{SharableRef, SharableRefExt}, timer_driver::TimerDriver};
 
 #[derive(Debug)]
 pub enum NotificationError{
@@ -18,6 +17,12 @@ pub struct Notifier{
     notif: Arc<AsyncNotif>,
 }
 
+impl Default for Notification {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Notification{
     pub fn new()-> Self{
         Self { notif: Arc::new(AsyncNotif::new()) }
@@ -25,6 +30,7 @@ impl Notification{
 
     pub async fn wait(&self){
         self.notif.wait().await;
+        println!("Recibi notif");
     }
 
     pub fn blocking_wait(&self){
@@ -47,6 +53,7 @@ impl Notifier{
         if self.notif.notify_lsb(){
             Ok(())
         }else {
+            return Ok(());
             Err(NotificationError::NoOneToNotify)
         }
     }

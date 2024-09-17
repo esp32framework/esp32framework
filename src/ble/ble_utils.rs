@@ -1,9 +1,9 @@
 use esp32_nimble::{enums::{AdvFlag, AdvType, AuthReq, ConnMode, DiscMode, SecurityIOCap}, utilities::BleUuid, BLEAddress, BLEAdvertisedDevice, BLEError,DescriptorProperties,  BLERemoteCharacteristic, BLERemoteDescriptor, NimbleProperties};
 use uuid::Uuid;
-use crate::utils::{auxiliary::{ISRByteArrayQueue, ISRQueue, ISRQueueTrait, SharableRef, SharableRefExt}, notification::Notifier, timer_driver::TimerDriverError};
+use crate::utils::{auxiliary::{ISRByteArrayQueue, ISRQueueTrait, SharableRef, SharableRefExt}, notification::Notifier, timer_driver::TimerDriverError};
 use esp_idf_svc::hal::task::block_on;
 use super::{StandarCharacteristicId, StandarServiceId, StandarDescriptorId};
-use std::{cell::RefCell, hash::Hash, sync::Arc};
+use std::hash::Hash;
 
 const MAX_ADV_PAYLOAD_SIZE: usize = 31;
 const PAYLOAD_FIELD_IDENTIFIER_SIZE: usize = 2;
@@ -62,21 +62,6 @@ impl From<BLEError> for BleError {
 }
 
 impl BleError {
-    /// Creates a BleError from an u32
-    /// 
-    /// # Arguments
-    /// 
-    /// - `code`: An u32 representing the error code
-    /// 
-    /// # Returns
-    /// 
-    /// An option containing the corresponding BleError, or a None if conversion fails
-    fn from_code(code: u32) -> Option<BleError> {
-        match BLEError::convert(code) {
-            Ok(_) => None,
-            Err(err) => Some(BleError::from(err)),
-        }
-    }
 
     pub fn from_service_context(err: BLEError)-> Self{
         Self::from(err).service_context()
@@ -354,7 +339,7 @@ impl BleAdvertisedDevice{
     /// 
     /// A vector of BleId containing every service id
     pub fn get_service_uuids(&self) -> Vec<BleId> {
-        self.device.get_service_uuids().map(|id| BleId::from(id)).collect()
+        self.device.get_service_uuids().map(BleId::from).collect()
     }
 
     /// Indicates whether a service is being advertised or not
@@ -785,7 +770,7 @@ impl _RemoteCharacteristic{
         }
         if let Some(notifier) = self.notifier.take(){
             self.characteristic.on_notify(move |bytes| {
-                notifier.notify();
+                notifier.notify().unwrap();
                 queue.send(bytes.to_vec())
             });
         }

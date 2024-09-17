@@ -1,8 +1,6 @@
-#![feature(future_join)]
-
 mod microcontroller_src;
 pub mod gpio;
-mod utils;
+pub mod utils;
 pub mod serial;
 pub mod sensors;
 pub mod ble;

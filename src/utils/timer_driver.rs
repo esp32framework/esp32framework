@@ -1,5 +1,5 @@
 use std::{
-    cell::RefCell, collections::{BinaryHeap, HashMap}, num::NonZeroU32, rc::Rc, sync::{
+    collections::{BinaryHeap, HashMap}, sync::{
         atomic::{AtomicBool, Ordering},
         Arc
     }
@@ -10,7 +10,7 @@ use crate::{microcontroller_src::interrupt_driver::InterruptDriver, utils::timer
 use crate::microcontroller_src::peripherals::Peripheral;
 use sharable_reference_macro::sharable_reference_wrapper;
 
-use super::{auxiliary::{SharableRef, SharableRefExt}, esp32_framework_error::Esp32FrameworkError, notification::{self, Notification, Notifier}};
+use super::{auxiliary::{SharableRef, SharableRefExt}, esp32_framework_error::Esp32FrameworkError, notification::{Notification, Notifier}};
 
 const MICRO_IN_SEC: u64 = 1000000;
 const MAX_CHILDREN: u16 = u8::MAX as u16;

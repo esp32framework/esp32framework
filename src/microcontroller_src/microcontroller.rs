@@ -1,6 +1,7 @@
-use std::{future::{join, Future}, rc::Rc, time::{Duration, Instant}, cell::RefCell};
+use std::{future::Future, rc::Rc, cell::RefCell};
 use esp32_nimble::{enums::AuthReq, BLEDevice};
 use esp_idf_svc::hal::{adc::*, delay::{FreeRtos, TICK_RATE_HZ}, task::block_on, i2c};
+use futures::future::join;
 use crate::microcontroller_src::{peripherals::*, interrupt_driver::InterruptDriver};
 use crate::ble::{BleBeacon,BleServer,Service,Security, ble_client::BleClient};
 use crate::gpio::{AnalogIn, AnalogInPwm, DigitalIn, DigitalOut,  AnalogOut};
@@ -27,7 +28,7 @@ pub struct Microcontroller<'a> {
     timer_drivers: Vec<TimerDriver<'a>>,
     interrupt_drivers: Vec<Box<dyn InterruptDriver + 'a>>,
     adc_driver: Option<SharableAdcDriver<'a>>,
-    notification: Notification,
+    pub notification: Notification,
     i2c_driver: SharableI2CDriver<'a>
 }
 
@@ -438,7 +439,7 @@ impl <'a>Microcontroller<'a> {
     pub fn ble_server(&mut self, advertising_name: String, services: &Vec<Service>)-> BleServer<'a>{
         self.peripherals.get_ble_device();
         let ble_device = BLEDevice::take();
-        BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() )
+        BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() ).unwrap()
     }
 
     /// Configures the security settings for a BLE device.
@@ -480,7 +481,7 @@ impl <'a>Microcontroller<'a> {
         self.peripherals.get_ble_device();
         let ble_device = BLEDevice::take();
         self.config_bluetooth_security(ble_device,security_config);
-        let ble_server = BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() );
+        let ble_server = BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() ).unwrap();
         self.interrupt_drivers.push(Box::new(ble_server.clone()));
         ble_server
     }
@@ -543,8 +544,8 @@ impl <'a>Microcontroller<'a> {
 
         while !*timed_out.deref(){
             self.notification.blocking_wait();
-            self.update();
             println!("Updating");
+            self.update();
         }
     }
 
@@ -566,10 +567,19 @@ impl <'a>Microcontroller<'a> {
         }
     }
 
+    /*
+    pub fn block_on2<F: Future, G: Future>(&mut self, fut1:F, fut2:G)-> (F::Output, G::Output){
+        let finished = SharableRef::new_sharable(false);
+        //let fut = wrap_user_future(self.notification.notifier(), finished.clone(), fut);
+        let res = block_on(join(fut1, fut2, self.wait_for_updates_until_finished(finished)));
+        (res.0, res.1)
+    }
+    */
+
     pub fn block_on<F: Future>(&mut self, fut: F)-> F::Output{
         let finished = SharableRef::new_sharable(false);
         let fut = wrap_user_future(self.notification.notifier(), finished.clone(), fut);
-        block_on(join!(fut, self.wait_for_updates_until_finished(finished))).0
+        block_on(join(fut, self.wait_for_updates_until_finished(finished))).0
     }
 }
 
@@ -582,6 +592,7 @@ impl<'a> Default for Microcontroller<'a> {
 async fn wrap_user_future<F: Future>(notifier: Notifier, mut finished: SharableRef<bool>, fut: F)-> F::Output{
     let res = fut.await;
     *finished.deref_mut() = true;
+    println!("FIN DE ASYNC");
     notifier.notify().unwrap();
     res
 }

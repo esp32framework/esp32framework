@@ -1,6 +1,3 @@
-use std::cell::RefCell;
-use std::num::NonZeroU32;
-use std::rc::Rc;
 use std::sync::Arc;
 use esp32_nimble::{BLEAddress, BLEService};
 use esp32_nimble::{utilities::mutex::Mutex, BLEAdvertisementData, BLEAdvertising, BLEConnDesc, BLEDevice, BLEError, BLEServer, NimbleProperties};
@@ -15,7 +12,7 @@ use crate::utils::notification::Notifier;
 use crate::InterruptDriver;
 use sharable_reference_macro::sharable_reference_wrapper;
 
-use super::{BleError, BleId, Characteristic, ConnectionMode, Descriptor, DiscoverableMode, Service};
+use super::{BleError, BleId, Characteristic, ConnectionMode, DiscoverableMode, Service};
 
 // TODO: How do we document this?
 pub struct _BleServer<'a> {
@@ -126,7 +123,7 @@ impl ConnectionInformation{
     /// # Returns
     /// 
     /// A new ConnectionInformation
-    fn from_BLEConnDesc(desc: &BLEConnDesc, is_connected: bool, desc_res: Result<(), BLEError>) -> Self {
+    fn from_bleconn_desc(desc: &BLEConnDesc, is_connected: bool, desc_res: Result<(), BLEError>) -> Self {
         let mut res = None;
         if !is_connected{
             res = match desc_res {
@@ -173,8 +170,13 @@ impl <'a>_BleServer<'a> {
     /// 
     /// # Returns
     /// 
-    /// The new created _BleServer
-    pub fn new(name: String, ble_device: &mut BLEDevice, services: &Vec<Service>, connection_notifier: Notifier, disconnection_notifier: Notifier) -> Self {
+    /// A `Result` with the newly created _BleServer, or a `BleError` if a failure occured when setting the
+    /// services
+    /// 
+    /// # Errors
+    /// 
+    /// Returns the same errors as [Self::set_service]
+    pub fn new(name: String, ble_device: &mut BLEDevice, services: &Vec<Service>, connection_notifier: Notifier, disconnection_notifier: Notifier) -> Result<Self, BleError> {
         let mut server = _BleServer{
             advertising_name: name,
             ble_server: ble_device.get_server(),
@@ -185,10 +187,10 @@ impl <'a>_BleServer<'a> {
         };
             
         for service in services {
-            server.set_service(service);
+            server.set_service(service)?;
         }
 
-        server
+        Ok(server)
     }
 
     /// Sets the connection handler. The handler is a callback that will be executed when a client connects to the server
@@ -209,7 +211,7 @@ impl <'a>_BleServer<'a> {
         
         self.ble_server.on_connect(move |_, info| {
             notifier_ref.notify().unwrap();
-            _ = con_info_ref.send_timeout(ConnectionInformation::from_BLEConnDesc(info, true, Ok(())), 1_000_000); //
+            _ = con_info_ref.send_timeout(ConnectionInformation::from_bleconn_desc(info, true, Ok(())), 1_000_000); //
         });
         self
     }
@@ -232,7 +234,7 @@ impl <'a>_BleServer<'a> {
         
         self.ble_server.on_disconnect(move |info, res| {
             notifier_ref.notify().unwrap();
-            _ = con_info_ref.send_timeout(ConnectionInformation::from_BLEConnDesc(info, false,res), 1_000_000);
+            _ = con_info_ref.send_timeout(ConnectionInformation::from_bleconn_desc(info, false,res), 1_000_000);
         });
         self
     }
@@ -254,7 +256,7 @@ impl <'a>_BleServer<'a> {
     /// 
     /// A `Result` with Ok if the configuration of connection settings completed successfully, or an `BleError` if it fails.
     pub fn set_connection_settings(&mut self, info: &ConnectionInformation, min_interval: u16, max_interval: u16, latency: u16, timeout: u16) -> Result<(), BleError>{
-        self.ble_server.update_conn_params(info.conn_handle, min_interval, max_interval, latency, timeout).map_err(|e| BleError::from(e)) 
+        self.ble_server.update_conn_params(info.conn_handle, min_interval, max_interval, latency, timeout).map_err(BleError::from) 
     } // TODO: This func doesnt tell which errors it can return, so i can put it in the documentation
 
     /// Set the advertising time parameters.
@@ -269,7 +271,7 @@ impl <'a>_BleServer<'a> {
     /// # Returns
     /// 
     /// The _BleServer itself
-    fn set_advertising_interval(&mut self, min_interval: u16, max_interval: u16) -> &mut Self {
+    pub fn set_advertising_interval(&mut self, min_interval: u16, max_interval: u16) -> &mut Self {
         self.advertisement.lock().min_interval(min_interval).max_interval(max_interval);
         self
     }
@@ -370,7 +372,7 @@ impl <'a>_BleServer<'a> {
     /// - `BleError::PropertiesError`: If a characteristic on the service has an invalid property
     pub fn set_services(&mut self, services: &Vec<Service>) -> Result<(),BleError> {
         for service in services {
-            self.set_service(&service)?;
+            self.set_service(service)?;
         }
         Ok(())
     }
@@ -541,11 +543,11 @@ impl<'a> InterruptDriver for BleServer<'a>{
 }
 
 impl<'a> BleServer<'a>{
-    /// Creates a new BleServer
+    /// Creates a new _BleServer
     /// 
     /// # Arguments
     /// 
-    /// - `name`: The name the server will use
+    /// - `name`: The name of the server
     /// - `ble_device`: A BLEDevice needed to get the BLEServer and the BLEAdvertising
     /// - `services`: A vector with multiple Service that will contain the server information
     /// - `connection_notifier`: An Arc<Notifier> used to notify when the connection callback should be executed
@@ -553,11 +555,16 @@ impl<'a> BleServer<'a>{
     /// 
     /// # Returns
     /// 
-    /// The new created BleServer
-    pub fn new(name: String, ble_device: &mut BLEDevice, services: &Vec<Service>, connection_notifier: Notifier, disconnection_notifier: Notifier) -> Self {
-        Self { inner: SharableRef::new_sharable(
-            _BleServer::new(name, ble_device, services, connection_notifier, disconnection_notifier)
-        ) }
+    /// A `Result` with the newly created _BleServer, or a `BleError` if a failure occured when setting the
+    /// services
+    /// 
+    /// # Errors
+    /// 
+    /// Returns the same errors as [Self::set_service]
+    pub fn new(name: String, ble_device: &mut BLEDevice, services: &Vec<Service>, connection_notifier: Notifier, disconnection_notifier: Notifier) -> Result<Self, BleError> {
+        Ok(Self { inner: SharableRef::new_sharable(
+            _BleServer::new(name, ble_device, services, connection_notifier, disconnection_notifier)?
+        ) })
     }
 
     /// Takes ownership of both of the connection and disconnection callbacks

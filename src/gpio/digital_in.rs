@@ -1,6 +1,6 @@
 use esp_idf_svc::hal::gpio::*;
 pub use esp_idf_svc::hal::gpio::InterruptType;
-use std::{cell::RefCell, num::NonZeroU32, rc::Rc, sync::{atomic::{AtomicU8, Ordering}, Arc}};
+use std::sync::{atomic::{AtomicU8, Ordering}, Arc};
 use crate::{microcontroller_src::{interrupt_driver::InterruptDriver, peripherals::Peripheral}, utils::auxiliary::{SharableRef, SharableRefExt}};
 use crate::utils::{esp32_framework_error::Esp32FrameworkError, notification::Notifier, timer_driver::{TimerDriver,TimerDriverError}, error_text_parser::map_enable_disable_errors};
 use sharable_reference_macro::sharable_reference_wrapper;

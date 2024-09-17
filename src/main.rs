@@ -1,94 +1,83 @@
-use esp32framework::{ble::{ble_client::BleClient, BleId, Characteristic, Descriptor, Service, StandarCharacteristicId, StandarServiceId}, Microcontroller};
+//! Example of a ble client using an async aproach. The client will connect to a server that has a 
+//! characteristic of uuid 0x12345678. Once connected the client will read all characteristics interpreting
+//! their value as an u32 and then multiplies them by a value. This value is obtained from the notifiable 
+//! characteristics of the service. Thanks to the async aproch we can have other tasks running concurrently
+//! to this main function. In this case there is a TimerDriver se to print 'Tic' every 2 seconds.
+
+use std::{future::Future, sync::mpsc::{self, Receiver}, time::Duration};
+use futures::{future::join};
+
 use esp32_nimble::BLEDevice;
+use esp32framework::{ble::{ble_client::BleClient, BleError, BleId, RemoteCharacteristic}, timer_driver::{self, TimerDriver}, utils::notification::Notifier, Microcontroller};
+use esp_idf_svc::hal::{delay::FreeRtos, task::block_on};
 
 fn main(){
-	let mut micro = Microcontroller::new();
+  let mut micro = Microcontroller::new();
+  let client = micro.ble_client();
+  let mut timer_driver = micro.get_timer_driver();
+  let mut timer_driver = micro.get_timer_driver();
+  let mut button = micro.set_pin_as_digital_in(9);
 
-	// IDs
-	let service_id = BleId::StandardService(StandarServiceId::EnvironmentalSensing);
-	let char_id = BleId::StandarCharacteristic(StandarCharacteristicId::ActivityGoal);
-	let desc_id = BleId::FromUuid16(32);
-
-	// Descriptor
-	let mut desc = Descriptor::new(desc_id, vec![0x0, 0x1]);
-	desc.readeable(true);
-
-	// Characteristic
-	let mut characteristic: Characteristic = Characteristic::new(char_id, vec![]);
-	characteristic.readeable(true).indicatable(true);
-  	characteristic.add_descriptor(desc);
-
-	// Service
-	let mut service = Service::new(&service_id, vec![]).unwrap();
-	service.add_characteristic(characteristic);
-	let services = vec![service];
+  button.trigger_on_interrupt(|| {
+    println!("Apreto");
+  }, esp32framework::gpio::InterruptType::NegEdge).unwrap();
   
+  println!("hola");
+  let fut1 = connect_framework(client);
+  //let fut1 = connect();
+  let fut2 = print("aca");
+  //let fut2 = timer_driver_sleep(timer_driver, 1);
+  //let joined = join(fut1, fut2);
+  micro.block_on(join(fut1, fut2));
+  //micro.block_on2(fut1, fut2);
+
+  println!("chau");
+  micro.wait_for_updates(None);
+
+  /*
+  let mut characteristics = get_characteristics(&mut micro);
   
-  
-	let mut server = micro.ble_server("Server".to_string(), &services);
-	server.start();
-	loop {
-		micro.wait_for_updates(Some(1000));
-	}
+  let receiver = set_notify_callback_for_characteristics(&mut characteristics);
+  let timer_driver1 = set_periodical_timer_driver_interrupts(&mut micro, 2000);
+  let timer_driver3 = micro.get_timer_driver();
+  let fut1 = join!(main_loop(timer_driver1, characteristics, receiver), timer_driver_sleep(timer_driver3, 1), timer_driver_sleep(timer_driver2, 2));
+  //let fut3 = join!(fut2, timer_driver_sleep(timer_driver4, 3));
+  micro.block_on(fut1);
+  */
 }
 
-
-/*
-use esp32_nimble::{BLEAdvertisementData, BLEDevice, DescriptorProperties, NimbleProperties};
-use esp32_nimble::{utilities::BleUuid, uuid128, BLEClient};
-use esp_idf_svc::hal::{
-  delay::FreeRtos, prelude::Peripherals, task::block_on, timer::{TimerConfig, TimerDriver}
-};
-
-fn main() {
-    esp_idf_svc::sys::link_patches();
-    esp_idf_svc::log::EspLogger::initialize_default();
-
-    let device = BLEDevice::take();
-    let ble_advertising = device.get_advertising();
-
-    let server = device.get_server();
-    // server.on_connect(|server, desc| {
-    //   ::log::info!("Client connected: {:?}", desc);
-
-    //     if server.connected_count() < (esp_idf_svc::sys::CONFIG_BT_NIMBLE_MAX_CONNECTIONS as ) {
-    //         ::log::info!("Multi-connect support: start advertising");
-    //         ble_advertising.lock().start().unwrap();
-    //     }
-    // });
-    // server.on_disconnect(|_desc, reason| {
-    //   ::log::info!("Client disconnected ({:?})", reason);
-    //   if let Err(e) = reason {
-    //       println!("El error fue {:?}", e.to_string());
-    //   }
-    // });
-
-    let service = server.create_service(BleUuid::Uuid16(0xABCD));
-
-    let characteristic = service
-      .lock()
-      .create_characteristic(BleUuid::Uuid16(0xAAAA), NimbleProperties::READ | NimbleProperties::NOTIFY);
-    characteristic
-      .lock()
-      .set_value("non_secure_characteristic".as_bytes());
-
-    //let desc = characteristic.lock().create_descriptor(BleUuid::Uuid16(0x2900), DescriptorProperties::READ);
-    characteristic.lock().create_descriptor(BleUuid::Uuid16(0x2911), DescriptorProperties::READ);
-	// desc.lock().set_value(&[0x12;1]);
-
-    // With esp32-c3, advertising stops when a device is bonded.
-    // (https://github.com/taks/esp32-nimble/issues/70)
-    ble_advertising.lock().set_data(
-      BLEAdvertisementData::new()
-        .name("ESP32-GATT-Server")
-        .add_service_uuid(BleUuid::Uuid16(0xABCD)),
-    ).unwrap();
-    ble_advertising.lock().start().unwrap();
-
-    ::log::info!("bonded_addresses: {:?}", device.bonded_addresses());
-
-    loop {
-      	esp_idf_svc::hal::delay::FreeRtos::delay_ms(1000);
-    }
+async fn print(s: &str){
+  println!("{}", s)
 }
-	*/
+
+async  fn a(noifier: Notifier){
+  println!("Durmiendo");
+  FreeRtos::delay_ms(2000);
+  noifier.notify().unwrap();
+}
+
+async fn connect_framework(mut client: BleClient){
+  let service_id = BleId::FromUuid32(0x12345678);
+  println!("Attempting connection");
+  //client.connect_to_device_with_service_async(None, &service_id).await.unwrap();
+  client.connect_to_device_async(None, |_| {false}).await.unwrap();
+  
+  println!("Connected");
+}
+
+async fn timer_driver_sleep<'a>(mut timer_driver: TimerDriver<'a>, i: u8){
+  timer_driver.delay(5000).await.unwrap();
+  println!("delay {}", i)
+}
+
+async fn connect(){
+  let ble_device = BLEDevice::take();
+  let ble_scan = ble_device.get_scan();
+  ble_scan.active_scan(true)
+    .interval(100)
+    .window(99);
+  
+  let device = ble_scan.find_device(i32::MAX, |adv| {
+      false
+  }).await.unwrap();
+}

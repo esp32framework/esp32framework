@@ -5,10 +5,12 @@ use std::collections::HashSet;
 use proc_macro2::TokenStream as TokenStream2;
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{parse::{Parse, ParseStream}, parse_macro_input, punctuated::Punctuated, spanned::Spanned, FnArg, GenericParam, Ident, ImplItem, ImplItemFn, ItemImpl, LitStr, Signature, Token, Type, TypePath};
+use syn::{parse::{Parse, ParseStream}, parse_macro_input, FnArg, Ident, ImplItem, ImplItemFn, ItemImpl, LitStr, Signature, Type, TypePath};
     
 /// This macro is used on top of an impl block for "_MyStruct" and creates a new impl block for 
-/// "MyStruct". This new impl block has a method with the same signature for all pub instance methods,
+/// "MyStruct" with the same methods.
+/// 
+/// This new impl block has a method with the same signature for all pub instance methods,
 /// while leaving out class methods. This macro assumes "MyStruct" has a field called "inner", which
 /// must be something that implements the trait deref and deref mut which inside has something that 
 /// calls "borrow()" and "borrow_mut()", and that inside has an instance of "_MyStruct". For example
@@ -130,7 +132,7 @@ fn get_pub_instance_method(method: &ImplItemFn, args: &StringArgs, is_trait: boo
     let mut is_instance_method = false;
     let mut borrow = quote! {self.inner.borrow().};
     for arg in methods_args{
-        match get_inputs_from_arg(arg, &mut borrow, &args){
+        match get_inputs_from_arg(arg, &mut borrow, args){
             Some(input) => method_inputs.push(input),
             None => is_instance_method = true,
         }
@@ -140,7 +142,7 @@ fn get_pub_instance_method(method: &ImplItemFn, args: &StringArgs, is_trait: boo
         return None;
     }
 
-    let method_sig = filter_method_signature(original_sig, &args);
+    let method_sig = filter_method_signature(original_sig, args);
     let return_type_has_self = check_if_return_type_ref_self(&method_sig);
 
     let final_return_type = if return_type_has_self{
@@ -242,11 +244,7 @@ fn filter_method_signature(original_sig: &Signature, args: &StringArgs)-> Signat
     sig.inputs = sig.inputs.into_iter().filter(|arg| {
         if let syn::FnArg::Typed(pat_type) = arg {
             let arg_str = pat_type.pat.to_token_stream().to_string();
-            if args.strings.contains(&arg_str){
-                false
-            }else{
-                true
-            }
+            !args.strings.contains(&arg_str)
         }else{
             true
         }
@@ -279,7 +277,7 @@ fn get_wrapper_struct(input: &ItemImpl)->TokenStream2{
                 let new_name = segment.ident.clone().to_string().split_off(1);
                 
                 segment.ident = Ident::new(&new_name, segment.ident.span());
-                return wrapper_struct.to_token_stream()
+                wrapper_struct.to_token_stream()
             } else {
                 panic!("Expected a type path with at least one segment");
             }

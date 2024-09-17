@@ -16,14 +16,26 @@ struct _BleClient{
     connected: bool,
     time_between_scans: u16,
     notifier: Notifier,
+}
+
+#[derive(Default)]
+struct BleClientUpdater{
     remote_characteristics: HashMap<BleId, RemoteCharacteristic>,
 }
+
+impl BleClientUpdater{
+    fn add_characteristic(&mut self, characteristic: &RemoteCharacteristic) {
+        self.remote_characteristics.insert(characteristic.id(), characteristic.duplicate());
+    }
+}
+
 
 /// Driver responsible for handling the client-end of ble connections. Can be used to read, write or notify 
 /// on characteristics of services of connected clients
 #[derive(Clone)]
 pub struct BleClient{
-    inner: SharableRef<_BleClient>
+    inner: SharableRef<_BleClient>,
+    updater: SharableRef<BleClientUpdater>
 }
 
 #[sharable_reference_macro::sharable_reference_wrapper]
@@ -38,7 +50,7 @@ impl _BleClient{
     /// # Returns
     /// A [_BleClient] with the default time_between_scans, ready to connect to a ble server
     pub fn new(ble_device: & mut BLEDevice, notifier: Notifier)-> Self{
-        _BleClient{ble_client: BLEClient::new(), ble_scan: ble_device.get_scan(), connected: false,time_between_scans: 100, notifier, remote_characteristics: HashMap::new()}
+        _BleClient{ble_client: BLEClient::new(), ble_scan: ble_device.get_scan(), connected: false,time_between_scans: 100, notifier}
     }
 
     /// Blocking method that attempts to connect to a device that fullfills a condition, for a specified ammount of time or indefinitly.
@@ -105,9 +117,11 @@ impl _BleClient{
         self._start_scan();
         let timeout = match timeout{
             Some(timeout) => timeout.as_millis().min(i32::MAX as u128) as i32,
-            None => BLOCK as i32,
+            None => BLOCK,
         };
         
+        println!("Started Scan");
+
         let device = self.ble_scan.find_device(timeout, |adv| {
             let adv = BleAdvertisedDevice::from(adv);
             condition(&adv)
@@ -165,66 +179,21 @@ impl _BleClient{
         let services = remote_services.map(|remote_service| BleId::from(remote_service.uuid())).collect();
         Ok(services)
     }
-
-    /// Blocking method that attempts to get a characteristic from a service of the current connection.
-    /// 
-    /// # Arguments
-    /// 
-    /// - `service_id`: The id of the service which owns the characteristic.
-    /// - `characteristic_id`: The id of the desired characterisitc, of the given service.
-    /// 
-    /// # Returns
-    /// 
-    /// A `Result` containing a `RemoteCharacteristic` if it was able to find the characteristic in the 
-    /// specified service or `BleError` if a failure occured.
-    /// 
-    /// # Errors
-    /// - `BleError::Disconnected`: if there is no connection stablished to go look for a service
-    /// - `BleError::ServiceNotFound`: if the device does not have a service of the specified id
-    /// - `BleError::CharacteristicNotFound`: if the devices's service does not have a characteristic of the 
-    /// specified id
-    /// - `BleError::Code`: on other errors
-    pub fn get_characteristic(&mut self, service_id: &BleId, characteristic_id: &BleId)-> Result<RemoteCharacteristic, BleError>{
-        block_on(self.get_characteristic_async(service_id, characteristic_id))
-    }
     
-    /// Non blocking async version of [Self::get_characteristic]
-    pub async fn get_characteristic_async(&mut self, service_id: &BleId, characteristic_id: &BleId)-> Result<RemoteCharacteristic, BleError>{
+    /// Inner version of [TimerDriver::get_characteristic]
+    async fn _get_characteristic_async(&mut self, service_id: &BleId, characteristic_id: &BleId)-> Result<RemoteCharacteristic, BleError>{
         self.is_connected()?;
         let remote_service = self.ble_client.get_service(service_id.to_uuid()).await.map_err(BleError::from_service_context)?;
         let remote_characteristic = remote_service.get_characteristic(characteristic_id.to_uuid()).await.map_err(BleError::from_characteristic_context)?;
-        let remote_characteristic = RemoteCharacteristic::new(remote_characteristic, self.notifier.clone());
-        self.remote_characteristics.insert(remote_characteristic.id(), remote_characteristic.duplicate());
-        Ok(remote_characteristic)
-    }
-    
-    /// Blocking method that attempts to get all characteristics of a given service of the current connection
-    /// 
-    /// # Arguments
-    /// 
-    /// - `service_id`: The id of the service .
-    /// 
-    /// # Returns
-    /// 
-    /// A `Result` containing a `Vec<RemoteCharacteristic>` if it was able to find the specified service or 
-    /// `BleError` if a failure occured.
-    /// 
-    /// # Errors
-    /// - `BleError::Disconnected`: if there is no connection stablished to go look for a service
-    /// - `BleError::ServiceNotFound`: if the device does not have a service of the specified id
-    /// - `BleError::Code`: on other errors
-    pub fn get_all_characteristics(&mut self, service_id: &BleId) -> Result<Vec<RemoteCharacteristic>, BleError>{
-        block_on(self.get_all_characteristics_async(service_id))
+        Ok(RemoteCharacteristic::new(remote_characteristic, self.notifier.clone()))
     }
 
-    /// Non blocking async version of [Self::get_all_characteristic]
-    pub async fn get_all_characteristics_async(&mut self, service_id: &BleId) -> Result<Vec<RemoteCharacteristic>, BleError>{
+    /// Inner version of [TimerDriver::get_all_characteristic]
+    async fn _get_all_characteristics_async(&mut self, service_id: &BleId) -> Result<Vec<RemoteCharacteristic>, BleError>{
         self.is_connected()?;
         let remote_service = self.ble_client.get_service(service_id.to_uuid()).await.map_err(BleError::from_service_context)?;
         let remote_characteristics = remote_service.get_characteristics().await?.map(|remote_characteristic| {
-            let remote_characteristic = RemoteCharacteristic::new(remote_characteristic, self.notifier.clone());
-            self.remote_characteristics.insert(remote_characteristic.id(), remote_characteristic.duplicate());
-            remote_characteristic
+            RemoteCharacteristic::new(remote_characteristic, self.notifier.clone())
         }).collect();
         Ok(remote_characteristics)
     }
@@ -277,15 +246,75 @@ impl BleClient{
     /// # Returns
     /// A [BleClient] with the default time_between_scans, ready to connect to a ble server
     pub fn new(ble_device: & mut BLEDevice, notifier: Notifier)-> Self{
-        Self { inner: SharableRef::new_sharable(_BleClient::new(ble_device, notifier)) }
+        Self{
+            inner: SharableRef::new_sharable(_BleClient::new(ble_device, notifier)),
+            updater: SharableRef::new_sharable(BleClientUpdater::default())
+        }
     }
+
+    /// Blocking method that attempts to get a characteristic from a service of the current connection.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `service_id`: The id of the service which owns the characteristic.
+    /// - `characteristic_id`: The id of the desired characterisitc, of the given service.
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` containing a `RemoteCharacteristic` if it was able to find the characteristic in the 
+    /// specified service or `BleError` if a failure occured.
+    /// 
+    /// # Errors
+    /// - `BleError::Disconnected`: if there is no connection stablished to go look for a service
+    /// - `BleError::ServiceNotFound`: if the device does not have a service of the specified id
+    /// - `BleError::CharacteristicNotFound`: if the devices's service does not have a characteristic of the 
+    /// specified id
+    /// - `BleError::Code`: on other errors
+    pub fn get_characteristic(&mut self, service_id: &BleId, characteristic_id: &BleId)-> Result<RemoteCharacteristic, BleError>{
+        block_on(self.get_characteristic_async(service_id, characteristic_id))
+    }
+
+    /// Blocking method that attempts to get all characteristics of a given service of the current connection
+    /// 
+    /// # Arguments
+    /// 
+    /// - `service_id`: The id of the service .
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` containing a `Vec<RemoteCharacteristic>` if it was able to find the specified service or 
+    /// `BleError` if a failure occured.
+    /// 
+    /// # Errors
+    /// - `BleError::Disconnected`: if there is no connection stablished to go look for a service
+    /// - `BleError::ServiceNotFound`: if the device does not have a service of the specified id
+    /// - `BleError::Code`: on other errors
+    pub fn get_all_characteristics(&mut self, service_id: &BleId) -> Result<Vec<RemoteCharacteristic>, BleError>{
+        block_on(self.get_all_characteristics_async(service_id))
+    }
+
+    /// Non blocking async version of [Self::get_characteristic]
+    pub async fn get_characteristic_async(&mut self, service_id: &BleId, characteristic_id: &BleId)->Result<RemoteCharacteristic, BleError>{
+        let characteristic = self.inner.deref_mut()._get_characteristic_async(service_id, characteristic_id).await?;
+        self.updater.borrow_mut().add_characteristic(&characteristic);
+        Ok(characteristic)
+    }
+
+    /// Non blocking async version of [Self::get_all_characteristics]
+    pub async fn get_all_characteristics_async(&mut self, service_id: &BleId)->Result<Vec<RemoteCharacteristic>, BleError>{
+        let characteristics = self.inner.deref_mut()._get_all_characteristics_async(service_id).await?;
+        for c in &characteristics{
+            self.updater.borrow_mut().add_characteristic(c);
+        }
+        Ok(characteristics)
+    }
+
 }
 
-#[sharable_reference_macro::sharable_reference_wrapper]
-impl InterruptDriver for _BleClient{
+impl InterruptDriver for BleClient{
     /// Updates all characteristics that have ben gotten
     fn update_interrupt(&mut self)-> Result<(), Esp32FrameworkError> {
-        for c in self.remote_characteristics.values_mut(){
+        for c in self.updater.deref_mut().remote_characteristics.values_mut(){
             c.update_interrupt()
         }
         Ok(())
