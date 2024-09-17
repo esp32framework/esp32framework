@@ -207,9 +207,11 @@ impl _BleClient{
 
 
     //TODO lo ponemos?
+    /*
     fn update_connection_params(){
         todo!()
     }
+    */
     
 
     /// Disconnects the client from the current connection
