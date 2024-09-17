@@ -3,6 +3,7 @@ use esp32_nimble::BLEError;
 use crate::timer_driver::TimerDriverError;
 
 const ATTRIBUTE_CANNOT_BE_READ: u32 = 258;
+const ATTRIBUTE_CANNOT_BE_WRITTEN: u32 = 259;
 
 /// Enums the different errors possible when working with BLE  
 #[derive(Debug)]
