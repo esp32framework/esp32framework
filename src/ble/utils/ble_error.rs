@@ -17,6 +17,7 @@ pub enum BleError{
     NotFound,
     ServiceNotFound,
     CharacteristicNotFound,
+    DescriptorNotFound,
     PropertiesError,
     AdvertisementError,
     StartingAdvertisementError,
@@ -25,11 +26,14 @@ pub enum BleError{
     InvalidParameters,
     DeviceNotFound,
     AlreadyConnected,
-    CharacteristicIsNotReadable,
-    CharacteristicIsNotWritable,
-    CharacteristicIsNotNotifiable,
+    NotWritable,
+    CharacteristicNotWritable,
+    DescriptorNotWritable,
+    CharacteristicNotNotifiable,
     TimeOut,
     NotReadable,
+    DescriptorNotReadable,
+    CharacteristicNotReadable,
     Disconnected
 }
 
@@ -50,6 +54,7 @@ impl From<BLEError> for BleError {
             esp_idf_svc::sys::BLE_HS_EDONE => BleError::AlreadyConnected,
             esp_idf_svc::sys::BLE_HS_ENOTCONN  => BleError::DeviceNotFound,
             ATTRIBUTE_CANNOT_BE_READ => BleError::NotReadable,
+            ATTRIBUTE_CANNOT_BE_WRITTEN => BleError::NotWritable,
             esp_idf_svc::sys::BLE_HS_CONN_HANDLE_NONE => BleError::NotFound,
             _ => BleError::Code(value.code(), value.to_string()),
         }
@@ -58,24 +63,72 @@ impl From<BLEError> for BleError {
 
 impl BleError {
 
+    /// Creates a more specif BleError from a BLEError, taking into acount its in a service context
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: The BLEError to transform
+    /// 
+    /// # Returns
+    /// 
+    /// The new BleError
     pub fn from_service_context(err: BLEError)-> Self{
         Self::from(err).service_context()
     }
     
+    /// Creates a more specif BleError from a BLEError, taking into acount its in a characteristic context
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: The BLEError to transform
+    /// 
+    /// # Returns
+    /// 
+    /// The new BleError
     pub fn from_characteristic_context(err: BLEError) -> Self{
         Self::from(err).characteristic_context()
     }
 
+    /// Creates a more specif BleError from a BLEError, taking into acount its in a descriptors context
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: The BLEError to transform
+    /// 
+    /// # Returns
+    /// 
+    /// The new BleError
+    pub fn from_descriptors_context(err: BLEError) -> Self{
+        Self::from(err).descriptor_context()
+    }
+
+    /// Makes a BleError more specific in the context of services
     fn service_context(self)-> Self{
         match self{
             BleError::NotFound => BleError::ServiceNotFound,
+            BleError::DeviceNotFound => BleError::Disconnected,
             _ => self
         }
     }
-
+    
+    /// Makes a BleError more specific in the context of characteristic
     fn characteristic_context(self)-> Self{
         match self{
             BleError::NotFound => BleError::CharacteristicNotFound,
+            BleError::DeviceNotFound => BleError::Disconnected,
+            BleError::NotReadable => BleError::CharacteristicNotReadable,
+            BleError::NotWritable => BleError::CharacteristicNotWritable,
+            _ => self
+        }
+    }
+    
+    /// Makes a BleError more specific in the context of descriptors
+    fn descriptor_context(self)-> Self{
+        match self{
+            BleError::NotFound => BleError::DescriptorNotFound,
+            BleError::DeviceNotFound => BleError::Disconnected,
+            BleError::NotReadable => BleError::DescriptorNotReadable,
+            BleError::NotWritable => BleError::DescriptorNotWritable,
             _ => self
         }
     }

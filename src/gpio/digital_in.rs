@@ -27,7 +27,7 @@ pub enum DigitalInError {
 /// - `interrupt_update_code`: Arc<AtomicInterruptUpdateCode> that indicates how to handle the interrupt
 /// - `user_callback`: A closure to execute when the interrupt activates
 /// - `debounce_ms`: An Option containing an u64 representing the debounce time in milliseconds
-/// - `notifier`: An Option<Arc<Notifier>>, used to notify
+/// - `notifier`: An Option<Notifier>, used to notify
 struct _DigitalIn<'a>{
     pub pin_driver: PinDriver<'a, AnyIOPin, Input>,
     timer_driver: TimerDriver<'a>,
@@ -122,7 +122,7 @@ impl <'a>_DigitalIn<'a> {
     /// 
     /// - `timer_driver`: A TimerDriver that manages timing-related operations.
     /// - `per`: A Peripheral capable of transforming into an AnyIOPin.
-    /// - `notifier`: An optional `Arc<Notifier>` to handle notifications after interrupts.
+    /// - `notifier`: An optional `Notifier` to handle notifications after interrupts.
     /// 
     /// # Returns
     /// 
@@ -444,7 +444,7 @@ impl<'a> DigitalIn<'a> {
     /// 
     /// - `timer_driver`: A TimerDriver that manages timing-related operations.
     /// - `per`: A Peripheral capable of transforming into an AnyIOPin.
-    /// - `notifier`: An optional `Arc<Notifier>` to handle notifications after interrupts.
+    /// - `notifier`: An optional `Notifier` to handle notifications after interrupts.
     /// 
     /// # Returns
     /// 

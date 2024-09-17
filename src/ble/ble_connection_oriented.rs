@@ -166,8 +166,8 @@ impl <'a>_BleServer<'a> {
     /// - `name`: The name of the server
     /// - `ble_device`: A BLEDevice needed to get the BLEServer and the BLEAdvertising
     /// - `services`: A vector with multiple Service that will contain the server information
-    /// - `connection_notifier`: An Arc<Notifier> used to notify when the connection callback should be executed
-    /// - `disconnection_notifier`: An Arc<Notifier> used to notify when the disconnection callback should be executed
+    /// - `connection_notifier`: A Notifier used to notify when the connection callback should be executed
+    /// - `disconnection_notifier`: A Notifier used to notify when the disconnection callback should be executed
     /// 
     /// # Returns
     /// 
@@ -551,8 +551,8 @@ impl<'a> BleServer<'a>{
     /// - `name`: The name of the server
     /// - `ble_device`: A BLEDevice needed to get the BLEServer and the BLEAdvertising
     /// - `services`: A vector with multiple Service that will contain the server information
-    /// - `connection_notifier`: An Arc<Notifier> used to notify when the connection callback should be executed
-    /// - `disconnection_notifier`: An Arc<Notifier> used to notify when the disconnection callback should be executed
+    /// - `connection_notifier`: An Notifier used to notify when the connection callback should be executed
+    /// - `disconnection_notifier`: An Notifier used to notify when the disconnection callback should be executed
     /// 
     /// # Returns
     /// 

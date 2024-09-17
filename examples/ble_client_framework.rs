@@ -62,7 +62,7 @@ async fn main_loop<'a>(mut timer_driver: TimerDriver<'a>,mut characteristics: Ve
       let read = match characteristic.read_async().await {
         Ok(read) => get_number_from_bytes(read),
         Err(err) => match err{
-          BleError::CharacteristicIsNotReadable => continue,
+          BleError::CharacteristicNotReadable => continue,
           _ => Err(err).unwrap()
         }
       };
@@ -76,7 +76,7 @@ async fn main_loop<'a>(mut timer_driver: TimerDriver<'a>,mut characteristics: Ve
     
       if let Err(err) = characteristic.write_async(&new_value.to_be_bytes()).await{
         match err{
-          BleError::CharacteristicIsNotWritable => continue,
+          BleError::CharacteristicNotWritable => continue,
           _ => Err(err).unwrap()
         }
       }
