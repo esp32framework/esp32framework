@@ -1,6 +1,6 @@
-use std::{future::Future, rc::Rc, cell::RefCell};
+use std::{future::Future, rc::Rc};
 use esp32_nimble::{enums::AuthReq, BLEDevice};
-use esp_idf_svc::hal::{adc::*, delay::{FreeRtos, TICK_RATE_HZ}, task::block_on, i2c};
+use esp_idf_svc::hal::{adc::*, delay::FreeRtos, task::block_on, i2c};
 use futures::future::join;
 use crate::microcontroller_src::{peripherals::*, interrupt_driver::InterruptDriver};
 use crate::ble::{BleBeacon,BleServer,Service,Security, ble_client::BleClient};
@@ -10,9 +10,6 @@ use crate::utils::{timer_driver::TimerDriver, auxiliary::{SharableRef, SharableR
 use oneshot::AdcDriver;
 
 pub type SharableAdcDriver<'a> = Rc<AdcDriver<'a, ADC1>>;
-pub type SharableI2CDriver<'a> = SharableRef<Option<i2c::I2C0>>;
-
-const TICKS_PER_MILLI: f32 = TICK_RATE_HZ as f32 / 1000_f32;
 
 /// Primary abstraction for interacting with the microcontroller, providing access to peripherals and drivers
 /// required for configuring pins and other functionalities.
@@ -28,8 +25,7 @@ pub struct Microcontroller<'a> {
     timer_drivers: Vec<TimerDriver<'a>>,
     interrupt_drivers: Vec<Box<dyn InterruptDriver + 'a>>,
     adc_driver: Option<SharableAdcDriver<'a>>,
-    pub notification: Notification,
-    i2c_driver: SharableI2CDriver<'a>
+    notification: Notification,
 }
 
 impl <'a>Microcontroller<'a> {
@@ -49,7 +45,6 @@ impl <'a>Microcontroller<'a> {
             interrupt_drivers: Vec::new(),
             adc_driver: None,
             notification: Notification::new(),
-            i2c_driver: Rc::new(RefCell::new(None)),
         }
     }
 
@@ -593,6 +588,6 @@ async fn wrap_user_future<F: Future>(notifier: Notifier, mut finished: SharableR
     let res = fut.await;
     *finished.deref_mut() = true;
     println!("FIN DE ASYNC");
-    notifier.notify().unwrap();
+    notifier.notify();
     res
 }

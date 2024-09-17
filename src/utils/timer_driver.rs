@@ -16,8 +16,9 @@ const MICRO_IN_SEC: u64 = 1000000;
 const MAX_CHILDREN: u16 = u8::MAX as u16;
 
 /// Wrapper of _TimerDriver, handling the coordination of multiple references to the inner driver, 
-/// in order to allow for interrupts to be set per timer resource. Each reference has a unique id
-/// and can create one interrupt each.
+/// in order to allow for interrupts to be set per timer resource. 
+/// 
+/// Each reference has a unique id and can create one interrupt each.
 /// In order to see the documentation of wrapper functions see [_TimerDriver]
 pub struct TimerDriver<'a> {
     inner: SharableRef<_TimerDriver<'a>>,
@@ -201,7 +202,7 @@ impl <'a>_TimerDriver<'a>{
         unsafe{
             let alarm_callback = move || {
                 interrupt_update_ref.new_update();
-                notifier.notify().unwrap();
+                notifier.notify();
             };
         
             self.driver.subscribe(alarm_callback).map_err(|_| TimerDriverError::SubscriptionError)
@@ -388,7 +389,7 @@ impl <'a>TimerDriver<'a>{
 
         let delay_id = self.id + MAX_CHILDREN;
         self.inner.deref_mut().interrupt_after(delay_id, mili_secs as u64 * 1000, move ||{
-            notifier.notify().unwrap();
+            notifier.notify();
         });
         self.inner.deref_mut().enable(delay_id).unwrap();
 

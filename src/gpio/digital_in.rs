@@ -239,7 +239,7 @@ impl <'a>_DigitalIn<'a> {
                 let notif = notifier.clone();
                 let callback = move || {
                     func();
-                    notif.notify().unwrap()
+                    notif.notify();
                 };
                 unsafe {
                     self.pin_driver.subscribe(callback).map_err(map_enable_disable_errors)?;

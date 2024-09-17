@@ -14,6 +14,7 @@ use sharable_reference_macro::sharable_reference_wrapper;
 
 use super::{BleError, BleId, Characteristic, ConnectionMode, DiscoverableMode, Service};
 
+type ConnCallback<'a> = dyn FnMut(&mut BleServer<'a>, &ConnectionInformation) + 'a;
 // TODO: How do we document this?
 pub struct _BleServer<'a> {
     advertising_name: String,
@@ -38,7 +39,7 @@ pub struct BleServer<'a>{
 
 /// Wrapper to handle user connection and disconnections callbacks in a simpler way
 struct ConnectionCallback<'a>{
-    callback: Box<dyn FnMut(&mut BleServer<'a>, &ConnectionInformation) + 'a>,
+    callback: Box<ConnCallback<'a>>,
     info_queue: ISRQueue<ConnectionInformation>,
     notifier: Notifier
 }
@@ -210,7 +211,7 @@ impl <'a>_BleServer<'a> {
         user_on_connection.set_callback(handler);
         
         self.ble_server.on_connect(move |_, info| {
-            notifier_ref.notify().unwrap();
+            notifier_ref.notify();
             _ = con_info_ref.send_timeout(ConnectionInformation::from_bleconn_desc(info, true, Ok(())), 1_000_000); //
         });
         self
@@ -233,7 +234,7 @@ impl <'a>_BleServer<'a> {
         user_on_disconnection.set_callback(handler);
         
         self.ble_server.on_disconnect(move |info, res| {
-            notifier_ref.notify().unwrap();
+            notifier_ref.notify();
             _ = con_info_ref.send_timeout(ConnectionInformation::from_bleconn_desc(info, false,res), 1_000_000);
         });
         self

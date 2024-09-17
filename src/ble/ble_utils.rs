@@ -90,11 +90,11 @@ impl BleError {
 /// * `Non-Discoverable Mode`: The device does not advertise itself. Other devices will connect only if they know the specific address.
 /// * `Limited Discoverable Mode`: The device does the advertisement during a limited amount of time.
 /// * `General Discoverable Mode`: The advertisment is done continuously, so any other device can see it in any moment.
-/// Both Limited and General Discoverable Mode have min_interval and max_interval:
+///   Both Limited and General Discoverable Mode have min_interval and max_interval:
 /// * `min_interval`: The minimum advertising interval, time between advertisememts. This value 
-/// must range between 20ms and 10240ms in 0.625ms units.
+///   must range between 20ms and 10240ms in 0.625ms units.
 /// * `max_interval`: The maximum advertising intervaltime between advertisememts. TThis value 
-/// must range between 20ms and 10240ms in 0.625ms units.
+///   must range between 20ms and 10240ms in 0.625ms units.
 pub enum DiscoverableMode {
     NonDiscoverable,
     LimitedDiscoverable(u16, u16), // TODO: ADD support
@@ -770,7 +770,7 @@ impl _RemoteCharacteristic{
         }
         if let Some(notifier) = self.notifier.take(){
             self.characteristic.on_notify(move |bytes| {
-                notifier.notify().unwrap();
+                notifier.notify();
                 queue.send(bytes.to_vec())
             });
         }
@@ -832,15 +832,15 @@ impl From<&mut BLERemoteDescriptor> for RemoteDescriptor{
 /// which help determine the level of security and the key
 /// generation method for pairing:
 /// - `DisplayOnly`: It is capable of displaying information on a 
-/// screen but cannot receive inputs.
+///    screen but cannot receive inputs.
 /// - `DisplayYesNo`: It can display information and/or yes/no questions, 
-/// allowing for limited interaction.
+///    allowing for limited interaction.
 /// - `KeyboardOnly`: It can receive input through a keyboard 
-/// (e.g., entering a PIN during pairing).
+///    (e.g., entering a PIN during pairing).
 /// - `NoInputNoOutput`: It has no means to display information or 
-/// receive input from, for example, keyboards or buttons.
+///    receive input from, for example, keyboards or buttons.
 /// - `KeyboardDisplay`: It can receive input through a keyboard and it 
-/// is capable of displaying information.
+///    is capable of displaying information.
 pub enum IOCapabilities {
     DisplayOnly,
     DisplayYesNo,

@@ -268,7 +268,7 @@ impl BleClient{
     /// - `BleError::Disconnected`: if there is no connection stablished to go look for a service
     /// - `BleError::ServiceNotFound`: if the device does not have a service of the specified id
     /// - `BleError::CharacteristicNotFound`: if the devices's service does not have a characteristic of the 
-    /// specified id
+    ///    specified id
     /// - `BleError::Code`: on other errors
     pub fn get_characteristic(&mut self, service_id: &BleId, characteristic_id: &BleId)-> Result<RemoteCharacteristic, BleError>{
         block_on(self.get_characteristic_async(service_id, characteristic_id))

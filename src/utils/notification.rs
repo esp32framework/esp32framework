@@ -49,12 +49,7 @@ impl From<&Notification> for Notifier{
 }
 
 impl Notifier{
-    pub fn notify(&self)-> Result<(), NotificationError>{
-        if self.notif.notify_lsb(){
-            Ok(())
-        }else {
-            return Ok(());
-            Err(NotificationError::NoOneToNotify)
-        }
+    pub fn notify(&self)-> bool{
+        self.notif.notify_lsb()
     }
 }

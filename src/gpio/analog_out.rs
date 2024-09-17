@@ -633,7 +633,7 @@ impl<'a> AnalogOut<'a> {
     /// 
     /// # Errors
     /// - AnalogOutError::
-    /// !TODO : errores???
+    ///   !TODO : errores???
     /// 
     pub fn default(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>) -> Result<AnalogOut<'a>, AnalogOutError>{
         Ok(AnalogOut{inner: Rc::new(RefCell::from(_AnalogOut::default(

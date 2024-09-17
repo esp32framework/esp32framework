@@ -1,3 +1,5 @@
+#![allow(clippy::await_holding_refcell_ref)]
+
 mod microcontroller_src;
 pub mod gpio;
 pub mod utils;
