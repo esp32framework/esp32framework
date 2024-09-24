@@ -136,7 +136,7 @@ impl <'a>_DigitalIn<'a> {
     /// # Panics
     /// 
     /// When setting Down the pull fails
-    pub fn new(timer_driver: TimerDriver<'a>, per: Peripheral, notifier: Option<Notifier>) -> Result<_DigitalIn, DigitalInError> { 
+    pub fn new(timer_driver: TimerDriver<'a>, per: Peripheral, notifier: Option<Notifier>) -> Result<_DigitalIn<'a>, DigitalInError> { 
         let gpio = per.into_any_io_pin().map_err(|_| DigitalInError::InvalidPeripheral)?;
         let pin_driver = PinDriver::input(gpio).map_err(|_| DigitalInError::CannotSetPinAsInput)?;
 
@@ -310,7 +310,7 @@ impl <'a>_DigitalIn<'a> {
     /// # Returns
     /// 
     /// A `Result` indicating success or a `DigitalInError` if an error occurs while setting up the interrupt.
-    pub fn trigger_on_interrupt_first_n_times(&mut self, amount_of_times: usize , user_callback: fn()->(), interrupt_type: InterruptType) -> Result<(), DigitalInError> {
+    pub fn trigger_on_interrupt_first_n_times<F: FnMut() + 'static>(&mut self, amount_of_times: usize , user_callback: F, interrupt_type: InterruptType) -> Result<(), DigitalInError> {
         if amount_of_times == 0 {
             return Ok(())
         }
