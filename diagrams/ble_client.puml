@@ -84,5 +84,5 @@ RemoteCharacteristic *-- RemoteCharacteristicUpdater
 RemoteCharacteristic *-- _RemoteCharacteristic
 _RemoteCharacteristic -down-> Notifier
 _RemoteCharacteristic -down-> RemoteDescriptor
-
+_BleClient --> Notifier
 @enduml

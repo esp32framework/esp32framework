@@ -1,0 +1,76 @@
+@startuml Microcontroller ble
+
+class Microcontroller {
+    + peripherals: Peripherals
+    + timer_drivers: Vec<TimerDriver>
+    + interrupt_drivers: Vec<InterruptDriver>
+    + adc_driver: SharableAdcDriver
+    + notification: Notification
+    + event_loop: EspSystemEventLoop
+    + get_timer_driver() : TimerDriver
+    + set_pin_as_digital_in(usize) : DigitalIn
+    + set_pin_as_digital_out(usize) : DigitalOut
+    + start_adc_driver()
+    + set_pin_as_analog_in_low_atten(usize): AnalogIn
+    + set_pin_as_analog_in_medium_atten(usize): AnalogIn
+    + set_pin_as_analog_in_high_atten(usize): AnalogIn
+    + set_pin_as_analog_in_no_atten(usize): AnalogIn
+    + set_pin_as_analog_out(usize, u32, u32): AnalogOut
+    + set_pin_as_default_analog_out(usize): AnalogOut
+    + set_pin_as_analog_in_pwm(usize, u32): AnalogInPwm
+    + set_pin_as_default_analog_in_pwm(usize): AnalogInPwm
+    + set_pins_for_i2c_master(usize,usize): I2CMaster
+    + set_pins_for_i2c_slave(usize,usize,u8): I2CSlave
+    + set_pins_for_default_uart(usize,usize,usize): UART
+    + set_pins_for_uart(usize,usize,usize,u32,Parity,Stopbit): UART
+    - take_ble_device(): BLEDevice
+    + ble_beacon(String, &Vec<Service>): BleBeacon
+    + ble_server(String, &Vec<Service>): BleServer
+    - config_bluetooth_security(&mut BLEDevice, Security): 
+    + ble_secure_server(String, &Vec<Service>, Security): BleServer
+    + ble_client(): BleClient
+    - wait_for_updates_indefinitly()
+    - wait_for_updates_until()
+    + wait_for_updates()
+    + update(DigitalIn,DigitalOut): void
+    + sleep(u32): void
+    + wait_for_updates_until_finished(SharableRef<bool>)
+    + block_on(Future)
+    + get_wifi_driver(): WifiDriver
+}
+
+class BleBeacon{
+    - advertising_name: String,
+    - ble_device: &'a mut BLEDevice,
+    - services: SharableRef<HashMap<BleId,Service>>,
+    - advertisement: SharableRef<BLEAdvertisementData>,
+    - timer_driver: TimerDriver<'a>,
+    - time_per_service: Duration,
+    - insert_service(&Service):
+    - update_advertisement(): Result<>
+    - reset_advertisement(): Result<>
+    - change_advertised_service_data(&BleId): Result<>
+    - stop_looping_data(): Result<>
+    + set_name(String):
+    + set_service(&Service): Result<>
+    + set_services(Vec<Service>): Result<>
+    + remove_service(&BleId): Result<>
+    + remove_services(Vec<BleId>): Result<>
+    + advertise_service_data(&BleId): Result<>
+    + set_time_per_service(Duration):
+    + advertise_all_service_data(): Result<>
+    + start(): Result<>
+    + stop(): Result<>
+}
+
+class BleClient {
+    + get_characteristic()
+    + get_all_characteristics()
+    + get_characteristic_async()
+    + get_all_characteristics_async()
+}
+
+
+
+
+@enduml
