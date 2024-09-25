@@ -1,0 +1,130 @@
+@startuml Microcontroller gpio
+
+class Microcontroller {
+    + peripherals: Peripherals
+    + timer_drivers: Vec<TimerDriver>
+    + interrupt_drivers: Vec<InterruptDriver>
+    + adc_driver: SharableAdcDriver
+    + notification: Notification
+    + event_loop: EspSystemEventLoop
+    + get_timer_driver() : TimerDriver
+    + set_pin_as_digital_in(usize) : DigitalIn
+    + set_pin_as_digital_out(usize) : DigitalOut
+    + start_adc_driver()
+    + set_pin_as_analog_in_low_atten(usize): AnalogIn
+    + set_pin_as_analog_in_medium_atten(usize): AnalogIn
+    + set_pin_as_analog_in_high_atten(usize): AnalogIn
+    + set_pin_as_analog_in_no_atten(usize): AnalogIn
+    + set_pin_as_analog_out(usize, u32, u32): AnalogOut
+    + set_pin_as_default_analog_out(usize): AnalogOut
+    + set_pin_as_analog_in_pwm(usize, u32): AnalogInPwm
+    + set_pin_as_default_analog_in_pwm(usize): AnalogInPwm
+    + set_pins_for_i2c_master(usize,usize): I2CMaster
+    + set_pins_for_i2c_slave(usize,usize,u8): I2CSlave
+    + set_pins_for_default_uart(usize,usize,usize): UART
+    + set_pins_for_uart(usize,usize,usize,u32,Parity,Stopbit): UART
+    - take_ble_device(): BLEDevice
+    + ble_beacon(String, &Vec<Service>): BleBeacon
+    + ble_server(String, &Vec<Service>): BleServer
+    - config_bluetooth_security(&mut BLEDevice, Security): 
+    + ble_secure_server(String, &Vec<Service>, Security): BleServer
+    + ble_client(): BleClient
+    - wait_for_updates_indefinitly()
+    - wait_for_updates_until()
+    + wait_for_updates()
+    + update(DigitalIn,DigitalOut): void
+    + sleep(u32): void
+    + wait_for_updates_until_finished(SharableRef<bool>)
+    + block_on(Future)
+    + get_wifi_driver(): WifiDriver
+}
+
+class DigitalIn{
+    + pin_driver: PinDriver<'a, AnyIOPin, Input>,
+    - timer_driver: TimerDriver<'a>,
+    - interrupt_type: Option<InterruptType>,
+    + interrupt_update_code: Arc<AtomicInterruptUpdateCode>,
+    - user_callback: Box<dyn FnMut()>,
+    - debounce_ms: Option<u64>,
+    - notifier: Option<Notifier>
+    - timer_reached(): Result<>
+    - _update_interrupt(): Result<>
+    + set_pull(): Result<>
+    + change_interrupt_type(): Result<>
+    + trigger_if_mantains_after(): Result<>
+    + subscribe_trigger(): Result<>
+    + _trigger_on_interrupt(): Result<>
+    + trigger_on_interrupt(): Result<>
+    + trigger_on_interrupt_first_n_times(): Result<>
+    + get_level(): Level
+    + is_high(): Bool
+    + is_low(): Bool
+    + set_debounce(): Result<>
+}
+
+class DigitalOut{
+    - pin_driver: PinDriver<AnyIOPin, Output>,
+    - timer_driver: TimerDriver<'a>,
+    - interrupt_update_code: Arc<AtomicInterruptUpdateCode>
+    +set_level(Level): Result<>
+    +get_level(): Result<>
+    +set_high(): Result<>
+    +set_low(): Result<>
+    +toggle(): Result<>
+    +blink(): Result<>
+    +_update_interrupt(): Result<>
+}
+
+class AnalogInPwm {
+    + digital_in: DigitalIn
+    + sampling: u32
+    + set_sampling(u32): void
+    + read(): f32
+    + read_percentage(): f32
+}
+
+class AnalogIn {
+    + adc_channel_driver: AnalogChannels
+    + adc_driver_ref: SharableAdcDriver
+    - new_channel()
+    + read(): Result<>
+    + read_raw(): Result<>
+    + smooth_read(u16): Result<>
+}
+
+class AnalogOut {
+    + driver: LedcDriver
+    + timer_driver: TimerDriver
+    + duty: Arc<AtomicU32>
+    + interrupt_update_code: Arc<AtomicInterruptUpdateCode>
+    + fixed_change_increasing: Arc<AtomicBool>
+    + fixed_change_type: FixedChangeType
+    + amount_of_cycles: Optional<u32>
+    - create_resolution(u32) -> Resolution
+    - create_pwm_driver(Peripheral, Peripheral, Peripheral, TimerConfig) -> Result<>
+    - turn_around()
+    - attempt_turn_around()
+    - reset()
+    - attempt_reset()
+    - change_duty_on_cycle()
+    - _update_interrupt()
+    + duty(): u32
+    + set_high_level_output_ratio(f32): Result<>
+    + start_changing_by_fixed_amount(FixedChangeType, u64, f32, f32): Result<>
+    + start_increasing(u32, f32, f32): Result<>
+    + start_decreasing(u32, f32, f32): Result<>
+    + start_increasing_bounce_back(u32, f32, f32, Option): Result<>
+    + start_decreasing_bounce_back(u32, f32, f32, Option): Result<>
+    + start_increasing_reset(u32, f32, f32, Option): Result<>
+    + start_decreasing_intensity_reset(u32, f32, f32, Option): Result<>
+    + update_interrupt(): Result<>
+}
+
+Microcontroller ..> DigitalOut: create
+Microcontroller ..> AnalogIn: create
+Microcontroller .left.> DigitalIn: create
+Microcontroller ..> AnalogInPwm: create
+Microcontroller .> AnalogOut: create
+AnalogInPwm "1" --> "1" DigitalIn
+
+@enduml

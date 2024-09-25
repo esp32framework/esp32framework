@@ -1,4 +1,4 @@
-@startuml
+@startuml analog
 class AnalogOut {
     - pin: Pin
     - resolution: usize

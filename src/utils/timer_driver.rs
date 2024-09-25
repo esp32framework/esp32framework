@@ -244,8 +244,8 @@ impl <'a>_TimerDriver<'a>{
         Ok(())
     }
     
-    /// Diactivates the timeInterrupt corresponding to "id".
-    fn diactivate(&mut self, id: u16){
+    /// Deactivates the timeInterrupt corresponding to "id".
+    fn deactivate(&mut self, id: u16){
         if let Some(interrupt) = self.interrupts.get_mut(&id){
             if interrupt.status == TimerInterruptStatus::Enabled{
                 interrupt.disable_previouse_alarms()
@@ -269,7 +269,7 @@ impl <'a>_TimerDriver<'a>{
             self.activate(id)?;
             self.set_lowest_alarm()?;
         }else{
-            self.diactivate(id);
+            self.deactivate(id);
         }
         
         if self.alarms.is_empty() || starting_len == 0{

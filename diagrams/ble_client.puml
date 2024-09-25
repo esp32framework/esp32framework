@@ -1,4 +1,4 @@
-@startuml Ble
+@startuml Ble client
 
 class BleClient {
     + get_characteristic()
