@@ -1,4 +1,4 @@
-@startuml Microcontroller i2c
+@startuml Microcontroller serial
 
 class Microcontroller {
     + peripherals: Peripherals
@@ -48,8 +48,15 @@ class I2CMaster{
 
 class I2CSlave{
     - driver: I2cSlaveDriver<'a>
-    + read([u8], u32) : Result<>
-    + write([u8], u32) : Result<>
+    + read([u8], u32): Result<>
+    + write([u8], u32): Result<>
+}
+
+class UART{
+    - driver: UartDriver<'a>
+    + write([u8]): Result<>
+    + read([u8]): Result<>
+    +read_with_timeout([u8], u32): Result<>
 }
 
 exception I2CError {
@@ -64,8 +71,19 @@ exception I2CError {
     ErrorInReadValue
 }
 
+exception UARTError{
+    InvalidPin,
+    InvalidUartNumber,
+    DriverError,
+    WriteError,
+    ReadError,
+    InvalidBaudrate
+}
+
 Microcontroller *-- I2CMaster
 Microcontroller *-- I2CSlave
+Microcontroller *-- UART
+UART --> UARTError
 I2CMaster --> I2CError
 I2CSlave --> I2CError
 
