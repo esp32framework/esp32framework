@@ -44,6 +44,7 @@ pub fn show_data(data_reader: &mut impl READER, operation_key: String) -> Result
 
 /// Reads "times" and returns the total sum of the values as an `f32` on success. Returns an error if the key is not found
 /// or if a value cannot be parsed to `f32`.
+/// 
 /// Note: Float values must use a dot as the decimal separator. Values with a comma are not supported.
 ///
 /// # Parameters
@@ -61,7 +62,7 @@ pub fn show_data(data_reader: &mut impl READER, operation_key: String) -> Result
 /// # Errors
 ///
 /// - `SerialError::ErrorInReadValue`: Thrown when the operation key is not found in any of the parsed data or 
-/// when it can not be parsed into a f32 value.
+///   when it can not be parsed into a f32 value.
 pub fn read_n_times_and_sum(data_reader: &mut impl READER, operation_key: String, times: usize, ms_between_reads: u32) -> Result<f32, SerialError> {
     let mut total = 0.0;
     for _ in 0..times {
@@ -75,8 +76,9 @@ pub fn read_n_times_and_sum(data_reader: &mut impl READER, operation_key: String
     Ok(total)
 }
 
-/// Reads "times" and returns the average of the values as an `f32` on success. Returns an error if the key is not found
-/// or if a value cannot be parsed to `f32`.
+/// Reads "times" and returns the average of the values as an `f32` on success. 
+/// 
+/// Returns an error if the key is not found or if a value cannot be parsed to `f32`.
 /// Note: Float values must use a dot as the decimal separator. Values with a comma are not supported.
 /// 
 /// # Parameters
@@ -94,7 +96,7 @@ pub fn read_n_times_and_sum(data_reader: &mut impl READER, operation_key: String
 /// # Errors
 ///
 /// - `SerialError::ErrorInReadValue`: Thrown when the operation key is not found in any of the parsed data or 
-/// when it can not be parsed into a f32 value.
+///   when it can not be parsed into a f32 value.
 pub fn read_n_times_and_avg(data_reader: &mut impl READER, operation_key: String, times: usize, ms_between_reads: u32) -> Result<f32, SerialError> {
     let mut total = 0.0;
     for _ in 0..times {
@@ -108,8 +110,10 @@ pub fn read_n_times_and_avg(data_reader: &mut impl READER, operation_key: String
     Ok(total / (times as f32))
 }
 
-/// Reads "times", collects the values as a `Vec<String>` and applies the provided closure to this vector. Returns the result
-/// of the closure on success. Returns an error if the key is not found or if any value cannot be read.
+/// Reads "times", collects the values as a `Vec<String>` and applies the provided closure to this vector. 
+/// 
+/// Returns the result of the closure on success. Returns an error if the key is not found or if any value 
+/// cannot be read.
 ///
 /// # Parameters
 ///
@@ -147,7 +151,9 @@ C: Fn(Vec<String>) -> T
 }
 
 /// Loops indefinitely, checking the condition for each read. If the condition is met, `execute_closure`
-/// is called with the parsed data. Returns an error if the key is not found or if there is an issue reading the data.
+/// is called with the parsed data. 
+/// 
+/// Returns an error if the key is not found or if there is an issue reading the data.
 /// Note: The function runs indefinitely, ensure that `condition_closure` eventually returns `true`.
 /// 
 /// # Parameters
@@ -184,8 +190,8 @@ C2: Fn(HashMap<String, String>),
     }
 }
 
-/// The function loops indefinitely, writting each time `operation_key` is found in the parsed data .Returns an error 
-/// if the write operation fails or if the data cannot be read.
+/// The function loops indefinitely, writting each time `operation_key` is found in the parsed data .
+/// 
 /// Note: The function runs indefinitely, ensure that `condition_closure` eventually returns `true`.
 /// 
 /// # Parameters

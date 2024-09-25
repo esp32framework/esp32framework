@@ -1,5 +1,5 @@
 //! Example of a ble client using an async aproach. The client will connect to a server that has a 
-//! characteristic of uuid 0x12345678. Once connected the client will read all characteristics interpreting
+//! service of uuid 0x12345678. Once connected the client will read all characteristics interpreting
 //! their value as an u32 and then multiplies them by a value. This value is obtained from the notifiable 
 //! characteristics of the service. Thanks to the async aproch we can have other tasks running concurrently
 //! to this main function. In this case there is a TimerDriver se to print 'Tic' every 2 seconds.
@@ -22,13 +22,13 @@ fn main(){
 fn get_characteristics(micro: &mut Microcontroller)-> Vec<RemoteCharacteristic>{
   let mut client = micro.ble_client();
   let service_id = BleId::FromUuid32(0x12345678);
+  println!("Attempting connection");
   client.connect_to_device_with_service(None, &service_id).unwrap();
   
   println!("Connected");
   micro.wait_for_updates(Some(2000));
   
-  client.get_all_characteristics(&service_id).unwrap()
-  
+  client.get_all_characteristics(&service_id).unwrap() 
 }
 
 fn set_notify_callback_for_characteristics(characteristics: &mut Vec<RemoteCharacteristic>)-> Receiver<u8>{
@@ -59,7 +59,7 @@ async fn main_loop<'a>(mut timer_driver: TimerDriver<'a>,mut characteristics: Ve
       let read = match characteristic.read_async().await {
         Ok(read) => get_number_from_bytes(read),
         Err(err) => match err{
-          BleError::CharacteristicIsNotReadable => continue,
+          BleError::CharacteristicNotReadable => continue,
           _ => Err(err).unwrap()
         }
       };
@@ -69,11 +69,11 @@ async fn main_loop<'a>(mut timer_driver: TimerDriver<'a>,mut characteristics: Ve
       }
       let new_value = read.wrapping_mul(mult as u32);
 
-      println!("Read value: {}, multipling by: {}, result: {}", read, mult, new_value);
+      println!("Characteristic: {:?} Read value: {}, multipling by: {}, result: {}", characteristic.id(), read, mult, new_value);
     
       if let Err(err) = characteristic.write_async(&new_value.to_be_bytes()).await{
         match err{
-          BleError::CharacteristicIsNotWritable => continue,
+          BleError::CharacteristicNotWritable => continue,
           _ => Err(err).unwrap()
         }
       }
@@ -83,10 +83,9 @@ async fn main_loop<'a>(mut timer_driver: TimerDriver<'a>,mut characteristics: Ve
 	}
 }
 
-
 fn get_number_from_bytes(bytes: Vec<u8>)->u32{
   let mut aux = vec![0,0,0,0];
   aux.extend(bytes);
-  let bytes = aux.last_chunk().unwrap();
-  u32::from_be_bytes(*bytes)
+  let bytes: [u8;4] = aux.split_off(aux.len() - 4).as_slice().try_into().unwrap();
+  u32::from_be_bytes(bytes)
 }

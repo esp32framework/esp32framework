@@ -1,6 +1,6 @@
 use esp_idf_svc::{hal::{ledc::*, peripheral, prelude::*}, sys::ESP_FAIL};
 use sharable_reference_macro::sharable_reference_wrapper;
-use crate::microcontroller_src::{interrupt_driver::InterruptDriver, peripherals::Peripheral};
+use crate::{microcontroller_src::{interrupt_driver::InterruptDriver, peripherals::Peripheral}, utils::auxiliary::{SharableRef, SharableRefExt}};
 use crate::utils::{esp32_framework_error::Esp32FrameworkError, timer_driver::{TimerDriver, TimerDriverError}};
 use std::{cell::RefCell, rc::Rc, sync::{Arc,atomic::{AtomicU32, Ordering, AtomicBool}}};
 
@@ -53,7 +53,7 @@ pub struct _AnalogOut<'a> {
 /// Wrapper of [_AnalogOut]
 #[derive(Clone)]
 pub struct AnalogOut<'a>{
-    inner: Rc<RefCell<_AnalogOut<'a>>>
+    inner: SharableRef<_AnalogOut<'a>>
 }
 
 /// Wrapper for simple use of an Arc<AtomicBool>
@@ -610,14 +610,14 @@ impl<'a> AnalogOut<'a> {
     /// 
     /// 
     pub fn new(peripheral_channel: Peripheral, timer: Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>, freq_hz: u32, resolution: u32)->Result<AnalogOut<'a>, AnalogOutError>{
-        Ok(AnalogOut{inner: Rc::new(RefCell::from(_AnalogOut::new(
+        Ok(AnalogOut{inner: SharableRef::new_sharable(_AnalogOut::new(
             peripheral_channel,
             timer, 
             gpio_pin, 
             timer_driver, 
             freq_hz,
             resolution
-        )?))})
+        )?)})
     }
 
     /// Creates a new _AnalogOut with a default frecuency of 1000Hz and a resolution of 8bits.
@@ -633,7 +633,7 @@ impl<'a> AnalogOut<'a> {
     /// 
     /// # Errors
     /// - AnalogOutError::
-    /// !TODO : errores???
+    ///   !TODO : errores???
     /// 
     pub fn default(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>) -> Result<AnalogOut<'a>, AnalogOutError>{
         Ok(AnalogOut{inner: Rc::new(RefCell::from(_AnalogOut::default(

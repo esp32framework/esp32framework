@@ -1,7 +1,6 @@
 use std::sync::{atomic::AtomicU32, Arc};
 use esp_idf_svc::{hal::delay::Delay, sys::esp_timer_get_time};
 use crate::gpio::{DigitalIn, DigitalOut};
-use esp_idf_svc::hal::task::notification::Notification;
 
 
 const SOUND_SPEED_M_S: f64 = 340.0;
@@ -11,14 +10,14 @@ const SOUND_SPEED_CM_US: f64 = SOUND_SPEED_M_S * 100.0 / 1_000_000.0;
 pub struct HCSR04<'a> {
     trig: DigitalOut<'a>,
     echo: DigitalIn<'a>,
-    echo_ans_time: Arc<AtomicU32> // TODO: We actually need an AtomicU64, but there are problems with the import
+    //echo_ans_time: Arc<AtomicU32> // TODO: We actually need an AtomicU64, but there are problems with the import
 }
 
 impl <'a>HCSR04<'a> {
 
     pub fn new(trig: DigitalOut<'a>, echo: DigitalIn<'a>) -> HCSR04<'a> {
-        let echo_ans_time = Arc::new(AtomicU32::new(0));
-        HCSR04 { trig, echo, echo_ans_time }
+        let _echo_ans_time = Arc::new(AtomicU32::new(0));
+        HCSR04 { trig, echo,} //echo_ans_time }
     }
 
     /// Returns the distance of the object in front of the sensor in centimeters
@@ -28,7 +27,7 @@ impl <'a>HCSR04<'a> {
     /// A f64 representing the distance of the object in front in centimeters
     pub fn get_distance(&mut self) -> f64 { // TODO: The polling on the whiles dont have sleeps. Need a way to use interrupts or other mechanism to release the CPU
         let delay = Delay::new_default();
-        let notification = Notification::new();
+        //let notification = Notification::new();
         /*
         let notifier = notification.notifier();
         // Callback to notify when the echo has been received

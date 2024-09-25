@@ -1,8 +1,8 @@
-#![feature(future_join)]
+#![allow(clippy::await_holding_refcell_ref)]
 
 mod microcontroller_src;
 pub mod gpio;
-mod utils;
+pub mod utils;
 pub mod serial;
 pub mod sensors;
 pub mod ble;
