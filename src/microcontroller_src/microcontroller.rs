@@ -445,7 +445,9 @@ impl <'a>Microcontroller<'a> {
         // TODO: The taking of the ble device from peripherals doesnt make any sense, if it returns None it still continues with inizialization
         self.peripherals.get_ble_device();
         let ble_device = BLEDevice::take();
-        BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() )
+        let ble_server = BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier());
+        self.interrupt_drivers.push(Box::new(ble_server.clone()));
+        ble_server
     }
 
     /// Configures the security settings for a BLE device.
@@ -487,7 +489,7 @@ impl <'a>Microcontroller<'a> {
         self.peripherals.get_ble_device();
         let ble_device = BLEDevice::take();
         self.config_bluetooth_security(ble_device,security_config);
-        let ble_server = BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() );
+        let ble_server = BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier());
         self.interrupt_drivers.push(Box::new(ble_server.clone()));
         ble_server
     }
@@ -551,7 +553,6 @@ impl <'a>Microcontroller<'a> {
         while !*timed_out.deref(){
             self.notification.blocking_wait();
             self.update();
-            println!("Updating");
         }
     }
 

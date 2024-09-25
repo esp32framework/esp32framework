@@ -19,7 +19,6 @@ fn main(){
     let mut buf: [u8;1024] = [0;1024];
     let mut client = wifi.get_https_client().unwrap();
     let header = HttpHeader::new(esp32framework::wifi::http::HttpHeaderType::Accept, "text/plain");
-    
     client.get(URI, vec![header]).unwrap();
 
     match client.wait_for_response(&mut buf) {
