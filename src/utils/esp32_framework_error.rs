@@ -7,7 +7,7 @@ use crate::{
         DigitalOutError,
     }, serial::{I2CError, UARTError},
     utils::timer_driver::TimerDriverError,
-    wifi::wifi::WifiError
+    wifi::WifiError
 };
 
 /// Represents various error conditions encountered in the ESP32 framework.
