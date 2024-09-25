@@ -8,7 +8,7 @@ use crate::microcontroller_src::{peripherals::*, interrupt_driver::InterruptDriv
 use crate::ble::{BleBeacon,BleServer,Service,Security, ble_client::BleClient};
 use crate::gpio::{AnalogIn, AnalogInPwm, DigitalIn, DigitalOut,  AnalogOut};
 use crate::serial::{Parity, StopBit, UART, I2CMaster, I2CSlave};
-use crate::wifi::wifi::WifiDriver;
+use crate::wifi::WifiDriver;
 use crate::utils::{timer_driver::TimerDriver, auxiliary::{SharableRef, SharableRefExt}, notification::{Notification, Notifier}};
 use oneshot::AdcDriver;
 
@@ -604,7 +604,6 @@ impl<'a> Default for Microcontroller<'a> {
 async fn wrap_user_future<F: Future>(notifier: Notifier, mut finished: SharableRef<bool>, fut: F)-> F::Output{
     let res = fut.await;
     *finished.deref_mut() = true;
-    println!("FIN DE ASYNC");
     notifier.notify();
     res
 }

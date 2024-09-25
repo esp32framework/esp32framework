@@ -1,6 +1,7 @@
 //! Example on how to connect to wifi as a client and then using a HttpClient to perform an 
 //! HTTP GET request to the website http://ifconfig.net/ and then read the answer that 
 //! should contain the ip address of the device.
+//! Note: Change SSID & PASSWORD values before running the example.
 
 use esp32framework::{wifi::http::{Http, HttpHeader}, Microcontroller};
 
@@ -33,8 +34,6 @@ fn main(){
         Err(e) => println!("Error on read: {:?}", e),
     }
  
-    loop {
-        println!("End of example");
-        micro.sleep(1000);
-    }
+    println!("End of example");
+    micro.wait_for_updates(None);
 }

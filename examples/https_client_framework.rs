@@ -33,8 +33,6 @@ fn main(){
         Err(e) => println!("Error on read: {:?}", e),
     }
  
-    loop {
-        println!("End of example");
-        micro.sleep(1000);
-    }
+    println!("End of example");
+    micro.wait_for_updates(None);
 }

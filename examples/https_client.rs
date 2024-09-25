@@ -61,8 +61,6 @@ fn main() {
         Err(_) => println!("Error in parse"),
     };
 
-    loop {
-        println!("End of example");
-        FreeRtos::delay_ms(1000);
-    }
+    println!("End of example");
+    FreeRtos::delay_ms(u32::MAX);
 }

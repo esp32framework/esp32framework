@@ -1,39 +1,19 @@
-//! Example on how to connect to wifi as a client and then using a HttpClient to perform an 
-//! HTTP GET request to the website http://ifconfig.net/ and then read the answer that 
-//! should contain the ip address of the device.
-
-use esp32framework::{wifi::http::{Http, HttpHeader}, Microcontroller};
-
-const SSID: &str = "WIFI_SSID";
-const PASSWORD: &str = "WIFI_PASS";
-const URI: &str = "https://dog.ceo/api/breeds/image/random";
+use esp32framework::sensors::HCSR04;
+use esp32framework::Microcontroller;
 
 fn main(){
+
     let mut micro = Microcontroller::new();
+    let echo = micro.set_pin_as_digital_in(6);
+    let trig = micro.set_pin_as_digital_out(5);
+    let mut sensor = HCSR04::new(trig, echo);
+    
 
-    // WIFI connection
-    let mut wifi = micro.get_wifi_driver();
-    micro.block_on(wifi.connect(SSID, Some(PASSWORD.to_string()))).unwrap();
-
-    // HTTP
-    let mut buf: [u8;1024] = [0;1024];
-    let mut client = wifi.get_https_client().unwrap();
-    let header = HttpHeader::new(esp32framework::wifi::http::HttpHeaderType::Accept, "text/plain");
-    client.get(URI, vec![header]).unwrap();
-
-    match client.wait_for_response(&mut buf) {
-        Ok(size) =>  {
-        let data = std::str::from_utf8(&buf[0..size]);
-        match data {
-            Ok(res) => println!("The answer was: {:?}", res),
-            Err(_) => println!("Error in parse"),
-        };
-        },
-        Err(e) => println!("Error on read: {:?}", e),
-    }
- 
+    // let delay = Delay::new_default();
+    
     loop {
-        println!("End of example");
+        let distance = sensor.get_distance();
+        println!("{:?} cm", distance);
         micro.sleep(1000);
     }
 }
