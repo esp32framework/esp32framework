@@ -180,7 +180,8 @@ impl _RemoteCharacteristic{
         self.characteristic.write_value(data, !self.is_writable_no_resp()).await.map_err(BleError::from_characteristic_context)
     }
     
-    /// Attempts to write the characteristic value
+    /// Attempts to write the characteristic value. The write will wait for a response or not depending if the characterisitc 
+    /// [Self::is_writable_no_resp], or not.
     /// 
     /// # Returns
     /// 
