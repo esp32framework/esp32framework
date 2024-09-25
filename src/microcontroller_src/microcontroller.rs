@@ -445,7 +445,10 @@ impl <'a>Microcontroller<'a> {
     /// constraints or incorrect configuration of the BLE device.
     pub fn ble_server(&mut self, advertising_name: String, services: &Vec<Service>)-> BleServer<'a>{
         let ble_device = self.take_ble_device();
-        BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() ).unwrap()
+
+        let ble_server = BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() ).unwrap();
+        self.interrupt_drivers.push(Box::new(ble_server.clone()));
+        ble_server
     }
 
     /// Configures the security settings for a BLE device.

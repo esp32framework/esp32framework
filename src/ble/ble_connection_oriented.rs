@@ -258,7 +258,9 @@ impl <'a>_BleServer<'a> {
     /// A `Result` with Ok if the configuration of connection settings completed successfully, or an `BleError` if it fails.
     pub fn set_connection_settings(&mut self, info: &ConnectionInformation, min_interval: u16, max_interval: u16, latency: u16, timeout: u16) -> Result<(), BleError>{
         self.ble_server.update_conn_params(info.conn_handle, min_interval, max_interval, latency, timeout).map_err(BleError::from) 
-    } // TODO: This func doesnt tell which errors it can return, so i can put it in the documentation
+    } 
+    // TODO: This func doesnt tell which errors it can return, so i can put it in the documentation. Also  though the docs says the intervals
+    // need to be between 7.5 and 4000 i dont see any 
 
     /// Set the advertising time parameters.
     /// 

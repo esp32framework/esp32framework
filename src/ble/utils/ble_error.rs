@@ -36,7 +36,8 @@ pub enum BleError{
     DescriptorNotReadable,
     CharacteristicNotReadable,
     CanOnlyBeOneBleDriver,
-    Disconnected
+    Disconnected,
+    CouldNotConnectToDevice
 }
 
 impl From<BLEError> for BleError {
@@ -53,8 +54,10 @@ impl From<BLEError> for BleError {
     fn from(value: BLEError) -> Self {
         match value.code() {
             esp_idf_svc::sys::BLE_HS_EMSGSIZE => BleError::ServiceDoesNotFit,
+            esp_idf_svc::sys::BLE_HS_EINVAL => BleError::InvalidParameters,
             esp_idf_svc::sys::BLE_HS_EDONE => BleError::AlreadyConnected,
             esp_idf_svc::sys::BLE_HS_ENOTCONN  => BleError::DeviceNotFound,
+            esp_idf_svc::sys::BLE_HS_ETIMEOUT  => BleError::TimeOut,
             ATTRIBUTE_CANNOT_BE_READ => BleError::NotReadable,
             ATTRIBUTE_CANNOT_BE_WRITTEN => BleError::NotWritable,
             esp_idf_svc::sys::BLE_HS_CONN_HANDLE_NONE => BleError::NotFound,
@@ -89,6 +92,32 @@ impl BleError {
     /// The new BleError
     pub fn from_characteristic_context(err: BLEError) -> Self{
         Self::from(err).characteristic_context()
+    }
+
+    /// Creates a more specif BleError from a BLEError, taking into acount its in a connection context
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: The BLEError to transform
+    /// 
+    /// # Returns
+    /// 
+    /// The new BleError
+    pub fn from_connection_context(err: BLEError)-> Self{
+        Self::from(err).connection_params_context()
+    }
+
+    /// Creates a more specif BleError from a BLEError, taking into acount its in a connection_params context
+    /// 
+    /// # Arguments
+    /// 
+    /// - `value`: The BLEError to transform
+    /// 
+    /// # Returns
+    /// 
+    /// The new BleError
+    pub fn from_connection_params_context(err: BLEError)-> Self{
+        Self::from(err).connection_context()
     }
 
     /// Creates a more specif BleError from a BLEError, taking into acount its in a descriptors context
@@ -131,6 +160,23 @@ impl BleError {
             BleError::DeviceNotFound => BleError::Disconnected,
             BleError::NotReadable => BleError::DescriptorNotReadable,
             BleError::NotWritable => BleError::DescriptorNotWritable,
+            _ => self
+        }
+    }
+
+    /// Makes a BleError more specific in the context of descriptors
+    fn connection_context(self)-> Self{
+        match self{
+            BleError::TimeOut => BleError::CouldNotConnectToDevice,
+            BleError::DeviceNotFound => BleError::Disconnected,
+            _ => self
+        }
+    }
+
+    /// Makes a BleError more specific in the context of descriptors
+    fn connection_params_context(self)-> Self{
+        match self{
+            BleError::DeviceNotFound => BleError::Disconnected,
             _ => self
         }
     }
