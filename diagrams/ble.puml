@@ -1,0 +1,88 @@
+@startuml Ble
+
+class BleClient {
+    + get_characteristic()
+    + get_all_characteristics()
+    + get_characteristic_async()
+    + get_all_characteristics_async()
+}
+
+class _BleClient{
+    - ble_client: BLEClient,
+    - ble_scan: &'static mut BLEScan,
+    - connected: bool,
+    - time_between_scans: u16,
+    - notifier: Notifier,
+    - _get_characteristic_async()
+    - _get_all_characteristics_async()
+    - _start_scan()
+    - is_connected()
+    + connect_to_device()
+    + connect_to_device_with_service()
+    + connect_to_device_of_name()
+    + connect_to_device_async()
+    + connect_to_device_with_service_async()
+    + connect_to_device_of_name_async()
+    + get_all_service_ids()
+    + get_all_service_ids_async()
+    + disconnect()
+}
+
+class BleClientUpdater{
+    + add_characteristic()
+    
+}
+
+class RemoteCharacteristic{
+    - duplicate()
+    + on_notify()
+    + execute_if_notified()
+}
+
+class _RemoteCharacteristic{
+    + characteristic: BLERemoteCharacteristic
+    + id()
+    + is_readable()
+    + is_writable()
+    + is_notifiable()
+    + is_broadcastable()
+    + is_writable_no_resp()
+    + read_async()
+    + read()
+    + write_async()
+    + write()
+    + set_notification_on_notify()
+    + get_descriptor()
+    + get_descriptor_async()
+    + get_all_descriptors()
+    + get_all_descriptors_async()
+}
+
+class Notifier{
+    + notify()
+}
+class RemoteCharacteristicUpdater{
+    + notify_callback
+    + notify_queue
+    + execute_if_notified()
+    + get_queue()
+}
+
+class RemoteDescriptor{
+    + descriptor: BLERemoteDescriptor
+    + id()
+    + read_async()
+    + read()
+    + write_async()
+    + write()
+}
+
+BleClient *-- _BleClient 
+BleClient *- BleClientUpdater
+BleClientUpdater *- RemoteCharacteristic
+RemoteCharacteristic *-- RemoteCharacteristicUpdater
+RemoteCharacteristic *-- _RemoteCharacteristic
+_RemoteCharacteristic -down-> Notifier
+_RemoteCharacteristic -down-> RemoteDescriptor
+
+@enduml
