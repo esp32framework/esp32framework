@@ -1,5 +1,5 @@
 use std::{
-    cell::RefCell, collections::{BinaryHeap, HashMap}, num::NonZeroU32, rc::Rc, sync::{
+    collections::{BinaryHeap, HashMap}, sync::{
         atomic::{AtomicBool, Ordering},
         Arc
     }
@@ -10,17 +10,18 @@ use crate::{microcontroller_src::interrupt_driver::InterruptDriver, utils::timer
 use crate::microcontroller_src::peripherals::Peripheral;
 use sharable_reference_macro::sharable_reference_wrapper;
 
-use super::{auxiliary::SharableRefExt, esp32_framework_error::Esp32FrameworkError, notification::{self, Notification, Notifier}};
+use super::{auxiliary::{SharableRef, SharableRefExt}, esp32_framework_error::Esp32FrameworkError, notification::{Notification, Notifier}};
 
 const MICRO_IN_SEC: u64 = 1000000;
 const MAX_CHILDREN: u16 = u8::MAX as u16;
 
 /// Wrapper of _TimerDriver, handling the coordination of multiple references to the inner driver, 
-/// in order to allow for interrupts to be set per timer resource. Each reference has a unique id
-/// and can create one interrupt each.
+/// in order to allow for interrupts to be set per timer resource. 
+/// 
+/// Each reference has a unique id and can create one interrupt each.
 /// In order to see the documentation of wrapper functions see [_TimerDriver]
 pub struct TimerDriver<'a> {
-    inner: Rc<RefCell<_TimerDriver<'a>>>,
+    inner: SharableRef<_TimerDriver<'a>>,
     id: u16,
     next_child: u16,
 }
@@ -201,7 +202,7 @@ impl <'a>_TimerDriver<'a>{
         unsafe{
             let alarm_callback = move || {
                 interrupt_update_ref.new_update();
-                notifier.notify().unwrap();
+                notifier.notify();
             };
         
             self.driver.subscribe(alarm_callback).map_err(|_| TimerDriverError::SubscriptionError)
@@ -358,7 +359,7 @@ impl <'a> InterruptDriver for _TimerDriver<'a>{
 impl <'a>TimerDriver<'a>{
     pub fn new(timer: Peripheral, notifier: Notifier) -> Result<TimerDriver<'a>, TimerDriverError> {
         Ok(TimerDriver{
-            inner: Rc::new(RefCell::new(_TimerDriver::new(timer, notifier)?)),
+            inner: SharableRef::new_sharable(_TimerDriver::new(timer, notifier)?),
             id: 0,
             next_child: 1,
         })
@@ -388,7 +389,7 @@ impl <'a>TimerDriver<'a>{
 
         let delay_id = self.id + MAX_CHILDREN;
         self.inner.deref_mut().interrupt_after(delay_id, mili_secs as u64 * 1000, move ||{
-            notifier.notify().unwrap();
+            notifier.notify();
         });
         self.inner.deref_mut().enable(delay_id).unwrap();
 

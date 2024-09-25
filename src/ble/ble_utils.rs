@@ -1154,3 +1154,4 @@ impl Descriptor {
         self.toggle(value, DescriptorProperties::WRITE_AUTHOR)
     }
 }
+

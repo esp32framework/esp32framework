@@ -1,5 +1,5 @@
-use std::{cell::{Ref, RefCell, RefMut}, ops::Deref, sync::Arc, rc::Rc};
-use esp_idf_svc::{hal::{delay::BLOCK, task::queue::Queue}, sys::{TickType_t,EspError, configTICK_RATE_HZ}};
+use std::{cell::{Ref, RefCell, RefMut}, sync::Arc, rc::Rc};
+use esp_idf_svc::{hal::{delay::BLOCK, task::queue::Queue}, sys::configTICK_RATE_HZ};
 
 pub type SharableRef<T> = Rc<RefCell<T>>;
 
@@ -105,7 +105,7 @@ impl ISRByteArrayQueue{
     ///
     /// A new `ISRByteArrayQueue` instance.
     pub fn new(size: usize)-> Self{
-        Self { q: ISRQueue::new(size * 2^5) }
+        Self { q: ISRQueue::new(size * 32) }
     }
 }
 
@@ -223,5 +223,5 @@ pub trait ISRQueueTrait<T>{
 ///
 /// The converted duration in ticks using a u32 value.
 pub fn micro_to_ticks(time_us: u32) -> u32 {
-    ((configTICK_RATE_HZ as u64) * (time_us as u64) / (1_000_000 as u64)) as u32
+    ((configTICK_RATE_HZ as u64) * (time_us as u64) / 1_000_000_u64) as u32
 }
