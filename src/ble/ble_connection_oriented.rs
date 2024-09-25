@@ -212,7 +212,7 @@ impl <'a>_BleServer<'a> {
         
         self.ble_server.on_connect(move |_, info| {
             notifier_ref.notify();
-            _ = con_info_ref.send_timeout(ConnectionInformation::from_bleconn_desc(info, true, Ok(())), 1_000_000); //
+            _ = con_info_ref.send_timeout(ConnectionInformation::from_bleconn_desc(info, true, Ok(())), 1_000_000);
         });
         self
     }
@@ -407,7 +407,6 @@ impl <'a>_BleServer<'a> {
                     // Create a new characteristic
                     match NimbleProperties::from_bits(characteristic.properties.to_le()) {
                         Some(properties) => {
-
                             let charac = service.lock(). create_characteristic(
                                 characteristic.id.to_uuid(),
                                 properties,
@@ -457,11 +456,11 @@ impl <'a>_BleServer<'a> {
         let server_characteristic = task::block_on(async {
             locked_service.get_characteristic(characteristic.id.to_uuid()).await
         });
-
         if let Some(server_characteristic) = server_characteristic {
             let mut res_characteristic = server_characteristic.lock();
             res_characteristic.set_value(&characteristic.data);
             if notify {
+
                 res_characteristic.notify();
             }
             return Ok(());
@@ -489,7 +488,7 @@ impl <'a>_BleServer<'a> {
         let server_service = task::block_on(async {
             self.ble_server.get_service(service_id.to_uuid()).await
         });
-
+        // TODO: Raise error if char is not notifiable
         if let Some(service) = server_service {
             self.try_to_update_characteristic(service, characteristic, true)?;
             return Ok(());

@@ -1,13 +1,13 @@
 use crate::{
-    utils::timer_driver::TimerDriverError,
-    gpio::{
+    ble::BleError, gpio::{
         AnalogInError,
         AnalogInPwmError,
         AnalogOutError,
         DigitalInError,
         DigitalOutError,
-
-    }
+    }, serial::{I2CError, UARTError},
+    utils::timer_driver::TimerDriverError,
+    wifi::wifi::WifiError
 };
 
 /// Represents various error conditions encountered in the ESP32 framework.
@@ -18,5 +18,9 @@ pub enum Esp32FrameworkError{
     AnalogOut(AnalogOutError),
     DigitalIn(DigitalInError),
     DigitalOut(DigitalOutError),
-    TimerDriver(TimerDriverError)
+    TimerDriver(TimerDriverError),
+    I2c(I2CError),
+    Uart(UARTError),
+    Ble(BleError),
+    Wifi(WifiError),
 }

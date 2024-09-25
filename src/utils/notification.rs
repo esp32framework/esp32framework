@@ -30,7 +30,6 @@ impl Notification{
 
     pub async fn wait(&self){
         self.notif.wait().await;
-        println!("Recibi notif");
     }
 
     pub fn blocking_wait(&self){

@@ -6,3 +6,6 @@
 
 - En el get_temperature del DS3231 lo leido esta en complemento a 2, entonces hay que aplicarle eso para conseguir el decimal. Lo que no se es si tambien esos numeros en complemento a 2 tambien estaban con BCD. Por ahora solo se le saca el complemento a 2. Habria quee leer la docu para ver si no vienen en bcd tambien
 - En la aprte del trait READER de i2c se devuelve un hashmap<String, String>. Lo que se puede hacer es definir un type "Clave" y un type "Valor" y que pase a devolver un hashmap<Clave, Valor>.
+
+
+- COn el peripherals nuestro, se hace un take y se lo pasa a las funciones para quue lo usen. SI ese peripheral ya fue agarrado, devuelve None y se le pasa el None a la inicializacion. En este caso, cuando llega el None, se devuelve el error InvalidPeripheral lo cual no se si esta muy bueno ya que no indicaa que ua fue toamdo anteriormente. Capaz habrai que crear un nuevo error que indique de mejor manera eso

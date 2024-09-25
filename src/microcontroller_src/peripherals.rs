@@ -28,6 +28,7 @@ pub enum Peripheral{
     I2C,
     Uart(u8),
     BleDevice,
+    Modem,
     #[default]
     None
 }
@@ -85,7 +86,8 @@ pub struct Peripherals {
     adc: Peripheral,
     i2c: Peripheral,
     uart: [Peripheral; UART_COUNT],
-    ble_device: Peripheral
+    ble_device: Peripheral,
+    modem: Peripheral
 }
 
 impl Peripherals {
@@ -98,6 +100,7 @@ impl Peripherals {
         let i2c: Peripheral = Peripheral::I2C;
         let uart: [Peripheral; UART_COUNT] = [Peripheral::Uart(0), Peripheral::Uart(1)];
         let ble_device = Peripheral::BleDevice;
+        let modem = Peripheral::Modem;
         Peripherals {
             pins,
             timers,
@@ -106,7 +109,8 @@ impl Peripherals {
             adc,
             i2c,
             uart,
-            ble_device
+            ble_device,
+            modem
         }
     }
 
@@ -165,5 +169,9 @@ impl Peripherals {
 
     pub fn get_ble_device(&mut self)-> Peripheral{
         self.ble_device.take()
+    }
+
+    pub fn get_modem(&mut self) -> Peripheral {
+        self.modem.take()
     }
 }

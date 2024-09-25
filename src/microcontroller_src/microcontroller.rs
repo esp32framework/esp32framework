@@ -1,12 +1,14 @@
-use std::{future::Future, rc::Rc};
+use esp_idf_svc::eventloop::EspSystemEventLoop;
+use std::rc::Rc;
 use esp32_nimble::{enums::AuthReq, BLEDevice};
 use esp_idf_svc::hal::{adc::*, delay::FreeRtos, task::block_on, i2c};
-use futures::future::join;
+use futures::future::{join, Future};
 use crate::ble::BleError;
 use crate::microcontroller_src::{peripherals::*, interrupt_driver::InterruptDriver};
 use crate::ble::{BleBeacon,BleServer,Service,Security, ble_client::BleClient};
 use crate::gpio::{AnalogIn, AnalogInPwm, DigitalIn, DigitalOut,  AnalogOut};
 use crate::serial::{Parity, StopBit, UART, I2CMaster, I2CSlave};
+use crate::wifi::wifi::WifiDriver;
 use crate::utils::{timer_driver::TimerDriver, auxiliary::{SharableRef, SharableRefExt}, notification::{Notification, Notifier}};
 use oneshot::AdcDriver;
 
@@ -27,6 +29,7 @@ pub struct Microcontroller<'a> {
     interrupt_drivers: Vec<Box<dyn InterruptDriver + 'a>>,
     adc_driver: Option<SharableAdcDriver<'a>>,
     notification: Notification,
+    event_loop: EspSystemEventLoop,
 }
 
 impl <'a>Microcontroller<'a> {
@@ -46,6 +49,7 @@ impl <'a>Microcontroller<'a> {
             interrupt_drivers: Vec::new(),
             adc_driver: None,
             notification: Notification::new(),
+            event_loop: EspSystemEventLoop::take().unwrap(),
         }
     }
 
@@ -64,7 +68,7 @@ impl <'a>Microcontroller<'a> {
         let mut timer_driver = if self.timer_drivers.len() < 2{
             let timer = self.peripherals.get_timer(self.timer_drivers.len());
             TimerDriver::new(timer, self.notification.notifier()).unwrap()
-        }else{
+        } else {
             self.timer_drivers.swap_remove(0)
         };
 
@@ -544,7 +548,6 @@ impl <'a>Microcontroller<'a> {
 
         while !*timed_out.deref(){
             self.notification.blocking_wait();
-            println!("Updating");
             self.update();
         }
     }
@@ -580,6 +583,15 @@ impl <'a>Microcontroller<'a> {
         let finished = SharableRef::new_sharable(false);
         let fut = wrap_user_future(self.notification.notifier(), finished.clone(), fut);
         block_on(join(fut, self.wait_for_updates_until_finished(finished))).0
+    }
+    
+    
+    ///TODO: Docu of default space of nvs
+    pub fn get_wifi_driver(&mut self) -> WifiDriver<'a>{
+        match self.peripherals.get_modem() {
+            Peripheral::Modem => WifiDriver::new(self.event_loop.clone()).unwrap(),
+            _ => panic!("No modem available"),
+        }
     }
 }
 
