@@ -11,7 +11,8 @@ pub enum WifiError {
     WifiNotInitialized,
     InformationError,
     DnsNotFound,
-    HttpError
+    HttpError,
+    NvsAlreadyTaken
 }
 
 /// Abstraction of the driver that controls the wifi. It simplifies
@@ -23,17 +24,32 @@ pub struct WifiDriver<'a> {
 impl <'a>WifiDriver<'a> {
     
     ///TODO: Docu with Default value of nvs!
-    pub fn new(event_loop: EspSystemEventLoop) -> Self {
+    /// Creates a new WifiDriver.
+    ///
+    /// # Arguments
+    ///
+    /// - `event_loop`: Microcontroller's event loop.
+    ///
+    /// # Returns
+    /// 
+    /// A `Result` containing the new `WifiDriver` instance, or an `WifiError` if the
+    /// initialization fails.
+    ///
+    /// # Errors
+    ///
+    /// - `WifiError::NvsAlreadyTaken`: If the NVS Default Partition was already taken.
+    /// - `WifiError::StartingError`: If there is an error initializing the driver.
+    pub fn new(event_loop: EspSystemEventLoop) -> Result<Self, WifiError> {
         let modem = unsafe { modem::Modem::new() };
-        let nvs = EspDefaultNvsPartition::take().unwrap();
-        let timer_service = EspTaskTimerService::new().unwrap();
-        WifiDriver {
+        let nvs = EspDefaultNvsPartition::take().map_err(|_| WifiError::NvsAlreadyTaken)?;
+        let timer_service = EspTaskTimerService::new().map_err(|_| WifiError::StartingError)?;
+        Ok(WifiDriver {
             controller: AsyncWifi::wrap(
-                EspWifi::new(modem, event_loop.clone(), Some(nvs)).unwrap(),
+                EspWifi::new(modem, event_loop.clone(), Some(nvs)).map_err(|_| WifiError::StartingError)?,
                 event_loop.clone(),
                 timer_service,
-            ).unwrap()
-        }
+            ).map_err(|_| WifiError::StartingError)?
+        })
     }
 
     /// Connects to the desired wifi network. 

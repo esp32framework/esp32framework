@@ -581,9 +581,9 @@ impl <'a>Microcontroller<'a> {
     
     
     ///TODO: Docu of default space of nvs
-    pub fn get_wifi_driver(&mut self) -> WifiDriver<'a> {
+    pub fn get_wifi_driver(&mut self) -> WifiDriver<'a>{
         match self.peripherals.get_modem() {
-            Peripheral::Modem => WifiDriver::new(self.event_loop.clone()),
+            Peripheral::Modem => WifiDriver::new(self.event_loop.clone()).unwrap(),
             _ => panic!("No modem available"),
         }
     }
