@@ -1,5 +1,5 @@
 //! Example of a ble client using an async aproach. The client will connect to a server that has a 
-//! service of uuid 0x12345678. Once connected the client will read all characteristics interpreting
+//! service of uuid 0x5678. Once connected the client will read all characteristics interpreting
 //! their value as an u32 and then multiplies them by a value. This value is obtained from the notifiable 
 //! characteristics of the service. Thanks to the async aproch we can have other tasks running concurrently
 //! to this main function. In this case there is a TimerDriver se to print 'Tic' every 2 seconds.
@@ -21,7 +21,7 @@ fn main(){
 
 fn get_characteristics(micro: &mut Microcontroller)-> Vec<RemoteCharacteristic>{
   let mut client = micro.ble_client();
-  let service_id = BleId::FromUuid32(0x12345678);
+  let service_id = BleId::FromUuid16(0x5678);
   println!("Attempting connection");
   client.connect_to_device_with_service(None, &service_id).unwrap();
   
