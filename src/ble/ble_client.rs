@@ -54,7 +54,8 @@ impl _BleClient{
         _BleClient{ble_client: BLEClient::new(), ble_scan: ble_device.get_scan(), connected: false,time_between_scans: MS_BETWEEN_SCANS, notifier}
     }
 
-    /// Blocking method that attempts to connect to a device that fullfills a condition, for a specified ammount of time or indefinitly.
+    /// Blocking method that attempts to find a device that fullfills a condition, for a specified 
+    /// ammount of time or indefinitly. Once found it will attempt to connect 
     /// 
     /// # Arguments
     /// 
@@ -74,19 +75,19 @@ impl _BleClient{
     /// - `BleError::TimeOut`: if didnt find any device that meets condition in `timeout`
     /// - `BleError::DeviceNotFound`: if device that was found that meets condition, desapeared when trying to connect to it
     /// - `BleError::Code`: on other errors
-    // TODO: I dont know which errors aree posible here
     pub fn connect_to_device<C: Fn(&BleAdvertisedDevice) -> bool + Send + Sync>(&mut self, timeout: Option<Duration>, condition: C)->Result<(), BleError>{
         block_on(self.connect_to_device_async(timeout, condition))
     }
 
-    /// Blocking method that attempts to connect to a device that advertises a given Service, for a specified ammount of time or indefinitly.
+    /// Blocking method that attempts to find a device that advertises a given Service, for a specified 
+    /// ammount of time or indefinitly. Once found it will attempt to connect
     /// 
     /// # Arguments
     /// 
     /// - `timeout`: A duration in which the client will attempt to connect to a device that fullfills the condition. If it is None then 
     /// the client will attempt to connect indefinitly
     /// - `service_id`: A [&BleId] that a advertising devise must advertise in order for the client to connect to it
-    
+    ///
     /// # Returns
     /// Same return type as [Self::connect_to_device]
     /// 
@@ -96,14 +97,15 @@ impl _BleClient{
         block_on(self.connect_to_device_with_service_async(timeout, service_id))
     }
 
-    /// Blocking method that attempts to connect to a device of a given name, for a specified ammount of time or indefinitly.
+    /// /// Blocking method that attempts to find a device of a given name, for a specified 
+    /// ammount of time or indefinitly. Once found it will attempt to connect
     /// 
     /// # Arguments
     /// 
     /// - `timeout`: A duration in which the client will attempt to connect to a device that fullfills the condition. If it is None then 
     /// the client will attempt to connect indefinitly
     /// - `name`: A name that a advertising devise must have in order for the client to connect to it
-    
+    ///
     /// # Returns
     /// Same return type as [Self::connect_to_device]
     /// 
@@ -120,19 +122,15 @@ impl _BleClient{
             Some(timeout) => timeout.as_millis().min(i32::MAX as u128) as i32,
             None => BLOCK,
         };
-        
-        println!("Started Scan");
 
         let device = self.ble_scan.find_device(timeout, |adv| {
             let adv = BleAdvertisedDevice::from(adv);
             condition(&adv)
         }).await?;
 
-        println!("found device");
-
         match device{
             Some(device) => self.ble_client.connect(device.addr()).await
-            .map_err(BleError::from_connection_context) , // no lo encuentra, ya esta conectado. TODO, capas si se intenta connectar y falla volver a intentar
+            .map_err(BleError::from_connection_context),
             None => Err(BleError::DeviceNotFound)
         }?;
         self.connected = true;
@@ -142,7 +140,6 @@ impl _BleClient{
     /// Non blocking async version of [Self::connect_to_device_with_service]
     pub async fn connect_to_device_with_service_async(&mut self, timeout: Option<Duration>, service: &BleId)->Result<(), BleError>{
         self.connect_to_device_async(timeout, |adv| {
-            println!("EL que publicta tiene los servicios: {:?}", adv.get_service_uuids());
             adv.is_advertising_service(service)
         }).await
     }
@@ -150,7 +147,6 @@ impl _BleClient{
     /// Non blocking async version of [Self::connect_to_device_of_name]
     pub async fn connect_to_device_of_name_async(&mut self, timeout: Option<Duration>, name: String)->Result<(), BleError>{
         self.connect_to_device_async(timeout, |adv| {
-            println!("El que publica tiene el nombre: {}", adv.name());
             adv.name() == name
         }).await
     }

@@ -1,7 +1,7 @@
 use esp_idf_svc::eventloop::EspSystemEventLoop;
 use std::rc::Rc;
 use esp32_nimble::{enums::AuthReq, BLEDevice};
-use esp_idf_svc::hal::{adc::*, delay::FreeRtos, task::block_on, i2c};
+use esp_idf_svc::hal::{adc::*, delay::FreeRtos, task::block_on};
 use futures::future::{join, Future};
 use crate::ble::BleError;
 use crate::microcontroller_src::{peripherals::*, interrupt_driver::InterruptDriver};
@@ -131,7 +131,6 @@ impl <'a>Microcontroller<'a> {
         }
     }
 
-    // TODO: simplificar instanciacion analog in
     /// Sets pin as analog input with attenuation set to 2.5dB
     /// 
     /// # Arguments
@@ -214,7 +213,8 @@ impl <'a>Microcontroller<'a> {
     ///
     /// - `pin_num`: The number of the pin on the microcontroller to configure as an analog input.
     /// - `freq_hz`: An u32 representing the desired frequency in hertz
-    /// - `resolution`: AN u32 representing the desired resolution. Value needs to be between 0 and 13, inclusive
+    /// - `resolution`: An u32 that represents the amount of bits in the desired output resolution. if 0 its set to 1 bit, >= 14 
+    ///     14 bits of resolution are set  
     ///
     /// # Returns
     ///
@@ -268,7 +268,7 @@ impl <'a>Microcontroller<'a> {
     /// This function will panic if the `AnalogInPwm` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration. 
     pub fn set_pin_as_analog_in_pwm(&mut self, pin_num: usize, freq_hz: u32) -> AnalogInPwm<'a> {
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
-        let timer_driver = self.get_timer_driver();            // TODO: Add a better error. If there is no timers a text should sayy this
+        let timer_driver = self.get_timer_driver();
         AnalogInPwm::new(timer_driver, pin_peripheral, freq_hz).unwrap()
     }
     
@@ -310,14 +310,7 @@ impl <'a>Microcontroller<'a> {
         let sda_peripheral = self.peripherals.get_digital_pin(sda_pin);
         let scl_peripheral = self.peripherals.get_digital_pin(scl_pin);
 
-        match self.peripherals.get_i2c(){
-            Peripheral::I2C => {
-                I2CMaster::new(sda_peripheral, scl_peripheral, unsafe{i2c::I2C0::new()}).unwrap()
-            }
-            _ => {
-                panic!("I2C Driver already taken!"); //TODO: not panic, return err
-            },
-        }
+        I2CMaster::new(sda_peripheral, scl_peripheral, self.peripherals.get_i2c()).unwrap()
     }
 
     /// Configures the specified pins for I2C slave mode and sets the slave address.
@@ -339,15 +332,8 @@ impl <'a>Microcontroller<'a> {
     pub fn set_pins_for_i2c_slave(&mut self, sda_pin: usize, scl_pin: usize, slave_addr: u8) -> I2CSlave<'a> {
         let sda_peripheral = self.peripherals.get_digital_pin(sda_pin);
         let scl_peripheral = self.peripherals.get_digital_pin(scl_pin);
-
-        match self.peripherals.get_i2c(){
-            Peripheral::I2C => {
-                I2CSlave::new(sda_peripheral, scl_peripheral, unsafe{i2c::I2C0::new()}, slave_addr).unwrap()
-            }
-            _ => {
-                panic!("I2C Driver already taken!");
-            },
-        }
+        
+        I2CSlave::new(sda_peripheral, scl_peripheral, self.peripherals.get_i2c(), slave_addr).unwrap()
     }
 
     /// Configures the specified pins for a default UART configuration.
@@ -485,7 +471,6 @@ impl <'a>Microcontroller<'a> {
     ///
     /// This function will panic if the `BleServer` instance cannot be created, or if the security settings cannot be applied,
     /// which might happen due to hardware constraints or incorrect configuration of the BLE device.
-    // TODO &VEc<Services>
     pub fn ble_secure_server(&mut self, advertising_name: String, services: &Vec<Service>, security_config: Security)-> BleServer<'a>{
         let ble_device = self.take_ble_device();
         self.config_bluetooth_security(ble_device,security_config);
@@ -572,15 +557,6 @@ impl <'a>Microcontroller<'a> {
             self.update();
         }
     }
-
-    /*
-    pub fn block_on2<F: Future, G: Future>(&mut self, fut1:F, fut2:G)-> (F::Output, G::Output){
-        let finished = SharableRef::new_sharable(false);
-        //let fut = wrap_user_future(self.notification.notifier(), finished.clone(), fut);
-        let res = block_on(join(fut1, fut2, self.wait_for_updates_until_finished(finished)));
-        (res.0, res.1)
-    }
-    */
 
     pub fn block_on<F: Future>(&mut self, fut: F)-> F::Output{
         let finished = SharableRef::new_sharable(false);

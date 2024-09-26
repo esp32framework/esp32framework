@@ -126,8 +126,6 @@ impl <'a> AnalogIn<'a> {
         Ok(read_value)
     }
     
-    //TODO: max_in_time, min_in_time, bigger_than, lower_than
-
     /// Returns the raw value read from an analog pin. 
     /// The value returned is not attenuated, so its ranges is [0, 4095].
     /// 

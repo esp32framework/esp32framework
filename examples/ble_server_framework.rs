@@ -38,8 +38,8 @@ fn main() {
 	let mut micro = Microcontroller::new();
 
 	// Security configuration
-	let phone_capabilities = IOCapabilities::KeyboardDisplay;
-	let security = Security::new(001234,phone_capabilities);
+	let phone_capabilities = IOCapabilities::DisplayOnly;
+	let security = Security::new(001234,phone_capabilities).unwrap();
 
 	let characteristics: Vec<Characteristic> = set_up_characteristics();
 	let mut notifiable_characteristic = characteristics[0].clone();
