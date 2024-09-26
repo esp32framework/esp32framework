@@ -53,12 +53,12 @@ impl _BleClient{
         _BleClient{ble_client: BLEClient::new(), ble_scan: ble_device.get_scan(), connected: false,time_between_scans: 100, notifier}
     }
 
-    /// Blocking method that attempts to connect to a device that fullfills a condition, for a specified ammount of time or indefinitly.
+    /// Blocking method that attempts to connect to a device that fullfills a condition, for a specified ammount of time or indefinitely.
     /// 
     /// # Arguments
     /// 
     /// - `timeout`: A duration in which the client will attempt to connect to a device that fullfills the condition. If it is None then 
-    /// the client will attempt to connect indefinitly
+    /// the client will attempt to connect indefinitely
     /// - `condition`: A closure that receives a [&BleAdvertisedDevice], and returns a bool. The client will connect to any device where applying
     /// this clossure returns true. This way the client can connect to any device that advertises itslef in a certain way.
     /// 
@@ -78,12 +78,12 @@ impl _BleClient{
         block_on(self.connect_to_device_async(timeout, condition))
     }
 
-    /// Blocking method that attempts to connect to a device that advertises a given Service, for a specified ammount of time or indefinitly.
+    /// Blocking method that attempts to connect to a device that advertises a given Service, for a specified ammount of time or indefinitely.
     /// 
     /// # Arguments
     /// 
     /// - `timeout`: A duration in which the client will attempt to connect to a device that fullfills the condition. If it is None then 
-    /// the client will attempt to connect indefinitly
+    /// the client will attempt to connect indefinitely
     /// - `service_id`: A [&BleId] that a advertising devise must advertise in order for the client to connect to it
     
     /// # Returns
@@ -95,12 +95,12 @@ impl _BleClient{
         block_on(self.connect_to_device_with_service_async(timeout, service_id))
     }
 
-    /// Blocking method that attempts to connect to a device of a given name, for a specified ammount of time or indefinitly.
+    /// Blocking method that attempts to connect to a device of a given name, for a specified ammount of time or indefinitely.
     /// 
     /// # Arguments
     /// 
     /// - `timeout`: A duration in which the client will attempt to connect to a device that fullfills the condition. If it is None then 
-    /// the client will attempt to connect indefinitly
+    /// the client will attempt to connect indefinitely
     /// - `name`: A name that a advertising devise must have in order for the client to connect to it
     
     /// # Returns

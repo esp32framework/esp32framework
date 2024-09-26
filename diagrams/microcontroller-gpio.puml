@@ -29,7 +29,7 @@ class Microcontroller {
     - config_bluetooth_security(&mut BLEDevice, Security): 
     + ble_secure_server(String, &Vec<Service>, Security): BleServer
     + ble_client(): BleClient
-    - wait_for_updates_indefinitly()
+    - wait_for_updates_indefinitely()
     - wait_for_updates_until()
     + wait_for_updates()
     + update(DigitalIn,DigitalOut): void

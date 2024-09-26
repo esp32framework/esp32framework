@@ -507,7 +507,7 @@ impl <'a>Microcontroller<'a> {
         }
     }
     
-    fn wait_for_updates_indefinitly(&mut self){
+    fn wait_for_updates_indefinitely(&mut self){
         loop{
             self.notification.blocking_wait();
             self.update();
@@ -554,7 +554,7 @@ impl <'a>Microcontroller<'a> {
     pub fn wait_for_updates(&mut self, miliseconds:Option<u32>){
         match miliseconds{
             Some(milis) => self.wait_for_updates_until(milis),
-            None => self.wait_for_updates_indefinitly(),
+            None => self.wait_for_updates_indefinitely(),
         }
     }
 
