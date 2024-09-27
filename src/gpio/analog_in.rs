@@ -181,10 +181,11 @@ impl <'a> AnalogIn<'a> {
         let mut smooth_val: u64 = 0;
         let duration = Duration::from_millis(ms as u64);
         let starting_time  = Instant::now();
-        let amount_of_samples = 0;
+        let mut amount_of_samples = 0;
         while starting_time.elapsed() < duration{
             let read_val = self.read()?;
             smooth_val += read_val as u64;
+            amount_of_samples += 1;
         }
         let result = smooth_val / amount_of_samples as u64;
         Ok(result as u16)
