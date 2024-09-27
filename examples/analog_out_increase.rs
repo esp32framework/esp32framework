@@ -15,7 +15,7 @@ fn get_next_red_level(led: &LedcDriver , increasing: &mut bool, change_ratio: f3
     let duty_step = duty_from_high_ratio(led.get_max_duty(), change_ratio).max(1);
     if current_duty_level >= led.get_max_duty(){
         *increasing = false;
-    }else if current_duty_level <= 0{
+    }else if current_duty_level == 0{
         *increasing = true;
     }
     if *increasing{

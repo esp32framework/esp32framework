@@ -43,17 +43,17 @@ fn main() {
     let all_data: Vec<[u8;2]> = [data1.clone(), data2.clone()].concat();
     
     println!("Advertising services 1 and 2");
-    let mut advertisement = set_advertisement_services(&ble_advertising,&services1);
+    let mut advertisement = set_advertisement_services(ble_advertising,&services1);
     ble_advertising.lock().start().unwrap();
     loop_services(ble_advertising, &mut advertisement, &services1, &data1, 10);
     
     println!("Advertising services 1, 2, 4 and 8");
-    let mut advertisement = set_advertisement_services(&ble_advertising,&all_services);
+    let mut advertisement = set_advertisement_services(ble_advertising,&all_services);
     ble_advertising.lock().start().unwrap();
     loop_services(ble_advertising, &mut advertisement, &all_services, &all_data, 10);
     
     println!("Advertising services 4 and 8");
-    let mut advertisement = set_advertisement_services(&ble_advertising,&services2);
+    let mut advertisement = set_advertisement_services(ble_advertising,&services2);
     ble_advertising.lock().start().unwrap();
     loop_services(ble_advertising, &mut advertisement, &services2, &data2, 10);
 

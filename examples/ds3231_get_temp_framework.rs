@@ -1,7 +1,7 @@
 //! Example using pin GPIO5 (sda) and GPIO6 (scl) with i2c to communicate
 //! with a ds3231 sensor. Then it will ask the sensor temperature and print it every second.
 
-use esp32framework::{Microcontroller, sensors::{Alarm1Rate, DateTime, DS3231},serial::READER};
+use esp32framework::{Microcontroller, sensors::DS3231};
 
 fn main() {
     let mut micro = Microcontroller::new();

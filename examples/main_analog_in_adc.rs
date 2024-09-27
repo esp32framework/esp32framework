@@ -11,15 +11,15 @@
 // mod peripherals;
 // mod error_text_parser;
 use esp32framework::Microcontroller;
-use std::thread;
-use std::time::Duration;
+//use std::thread;
+//use std::time::Duration;
 
 // use esp_idf_svc::hal::adc::config::Config;
-use esp_idf_svc::hal::adc::*;
+//use esp_idf_svc::hal::adc::*;
 use esp_idf_svc::hal::delay::FreeRtos;
-use esp_idf_svc::hal::gpio::*;
+//use esp_idf_svc::hal::gpio::*;
 //use esp_idf_svc::hal::peripherals;
-use esp_idf_svc::hal::peripherals::Peripherals;
+//use esp_idf_svc::hal::peripherals::Peripherals;
 // use microcontroller::Microcontroller;
 
 /// Main for analog in with esp hal

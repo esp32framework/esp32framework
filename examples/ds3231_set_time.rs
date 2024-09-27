@@ -18,7 +18,7 @@ enum DS3231RegDir {
     Year,
 }
 
-enum DAY {
+enum Day {
     Sun = 1,
     Mon = 2,
     Tues = 3,
@@ -107,7 +107,7 @@ fn main() {
         sec: 0,
         min: 21,
         hrs: 11,
-        day: DAY::Sun as u8,
+        day: Day::Sun as u8,
         date: 21,
         month: 7,
         yr: 24,

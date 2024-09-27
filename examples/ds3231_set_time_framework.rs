@@ -2,7 +2,7 @@
 //! a date and time in a ds3231 sensor. Then it will ask the sensor
 //! for the time and print it in the screen.
 
-use esp32framework::{sensors::{DateTime, DateTimeComponent, DS3231}, serial::READER, Microcontroller};
+use esp32framework::{sensors::{DateTime, DS3231}, serial::READER, Microcontroller};
 
 fn main() {
 
