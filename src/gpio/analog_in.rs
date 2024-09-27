@@ -57,7 +57,7 @@ impl <'a> AnalogIn<'a> {
     /// - `AnalogInError::InvalidPin`: If the pin Peripheral is not valid
     pub fn new(pin: Peripheral, adc_driver: SharableAdcDriver<'a>, attenuation: adc_atten_t) -> Result<Self, AnalogInError> {
         Ok(AnalogIn {
-            adc_channel_driver: AnalogIn::new_channel(pin,adc_driver,attenuation)?
+            adc_channel_driver: AnalogIn::new_channel(pin,adc_driver, attenuation)?
         })
     }
 

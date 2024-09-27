@@ -44,7 +44,6 @@ fn main() {
 
     loop {
         let red_level = get_next_red_level(&red_pwm, &mut increasing, 0.05);
-        println!("Seteo duty en: {}", red_level);
         red_pwm.set_duty(red_level).unwrap();
         thread::sleep(Duration::from_millis(100));
     }
