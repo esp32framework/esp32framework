@@ -2,7 +2,7 @@
 //! of the colours Red of a RGB led. The intensity should "bounce" when it reaches
 //! the maximum and minimum level.
 
-use std::sync::Arc;
+use std::rc::Rc;
 use std::{thread,cmp,time::Duration};
 use esp_idf_svc::hal::{ledc::*,peripherals::Peripherals,prelude::*};
 
@@ -32,7 +32,7 @@ fn main() {
     esp_idf_svc::sys::link_patches();
     let peripherals = Peripherals::take().unwrap();
     let config = config::TimerConfig::new().frequency(1.kHz().into());
-    let timer = Arc::new(LedcTimerDriver::new(peripherals.ledc.timer0, &config).unwrap());
+    let timer = Rc::new(LedcTimerDriver::new(peripherals.ledc.timer0, &config).unwrap());
     let mut increasing: bool = true;
     
     let mut red_pwm = LedcDriver::new(

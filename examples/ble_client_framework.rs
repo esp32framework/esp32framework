@@ -52,7 +52,7 @@ fn set_periodical_timer_driver_interrupts<'a>(micro: &mut Microcontroller<'a>, m
   timer_driver
 }
 
-async fn main_loop<'a>(mut timer_driver: TimerDriver<'a>,mut characteristics: Vec<RemoteCharacteristic>, receiver: Receiver<u8>){
+async fn main_loop(mut timer_driver: TimerDriver<'_>,mut characteristics: Vec<RemoteCharacteristic>, receiver: Receiver<u8>){
   let mut mult = 2;
   loop{
     for characteristic in characteristics.iter_mut(){

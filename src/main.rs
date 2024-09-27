@@ -1,5 +1,4 @@
 use esp32framework::Microcontroller;
-use esp32_nimble::*;
 
 fn main(){
 

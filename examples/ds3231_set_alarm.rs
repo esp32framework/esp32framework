@@ -20,6 +20,7 @@ enum Ds3231RegDir {
     Year,
 }
 
+#[allow(dead_code)] // This flag is used so clippy does not bother. This happens because in the example only the Sun is contructed
 enum Day {
     Sun = 1,
     Mon = 2,
@@ -54,14 +55,14 @@ fn write_clock(clock: &mut I2cDriver, time: u8, addr: u8) {
         .unwrap();
 }
 
-fn set_time(clock: &mut I2cDriver, secs: u8, min: u8, hrs: u8, day: u8, date: u8, month: u8, year: u8) {
-    write_clock(clock, secs, Ds3231RegDir::Seconds as u8);
-    write_clock(clock, min, Ds3231RegDir::Minutes as u8);
-    write_clock(clock, hrs, Ds3231RegDir::Hours as u8);
-    write_clock(clock, day, Ds3231RegDir::Day as u8);
-    write_clock(clock, date, Ds3231RegDir::Date as u8);
-    write_clock(clock, month, Ds3231RegDir::Month as u8);
-    write_clock(clock, year, Ds3231RegDir::Year as u8);
+fn set_time(clock: &mut I2cDriver, date_time: DateTime) {
+    write_clock(clock, date_time.sec, Ds3231RegDir::Seconds as u8);
+    write_clock(clock, date_time.min, Ds3231RegDir::Minutes as u8);
+    write_clock(clock, date_time.hrs, Ds3231RegDir::Hours as u8);
+    write_clock(clock, date_time.day, Ds3231RegDir::Day as u8);
+    write_clock(clock, date_time.date, Ds3231RegDir::Date as u8);
+    write_clock(clock, date_time.month, Ds3231RegDir::Month as u8);
+    write_clock(clock, date_time.yr, Ds3231RegDir::Year as u8);
 }
 
 fn parse_read_data(data: [u8; 19] )-> HashMap<String, String>{
@@ -125,7 +126,7 @@ fn main() {
         yr: 24,
     };
     
-    set_time(&mut ds3231, start_dt.sec, start_dt.min, start_dt.hrs, start_dt.day, start_dt.date, start_dt.month, start_dt.yr);
+    set_time(&mut ds3231, start_dt);
 
     // Set the alarm at 11:22:05 on date 21.
     // The mask bit for the alarm rate is 0000.

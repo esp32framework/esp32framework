@@ -17,7 +17,7 @@ fn set_advertisement_services(ble_advertising: &Mutex<BLEAdvertising>, service_i
     advertisement
 }
 
-fn loop_services(ble_advertising: &Mutex<BLEAdvertising>, advertisement :&mut BLEAdvertisementData, services: &Vec<u16>, data: &Vec<[u8;2]>, i: usize){
+fn loop_services(ble_advertising: &Mutex<BLEAdvertising>, advertisement :&mut BLEAdvertisementData, services: &[u16], data: &Vec<[u8;2]>, i: usize){
     let mut services = services.iter().zip(data).cycle();
     for _ in 0..i{
         let (service, data) = services.next().unwrap();
