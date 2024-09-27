@@ -22,7 +22,6 @@ pub type SharableAdcDriver<'a> = Rc<AdcDriver<'a, ADC1>>;
 /// - `interrupt_drivers`: A vector of boxed `InterruptDriver` trait objects, representing the drivers responsible for handling hardware interrupts.
 /// - `adc_driver`: An optional shared instance of `SharableAdcDriver`, providing access to the ADC (Analog-to-Digital Converter) for analog input processing.
 /// - `notification`: An instance of `Notification`, used for managing notifications or signaling events within the microcontroller's operation.
-/// - `i2c_driver`: A shared instance of `SharableI2CDriver`, used for I2C communication with external devices connected to the microcontroller.
 pub struct Microcontroller<'a> {
     peripherals: Peripherals,
     timer_drivers: Vec<TimerDriver<'a>>,

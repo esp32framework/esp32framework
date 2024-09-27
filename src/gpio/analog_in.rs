@@ -1,4 +1,6 @@
 use std::rc::Rc;
+use std::time::Duration;
+use std::time::Instant;
 use esp_idf_svc::hal::adc::attenuation::adc_atten_t;
 use esp_idf_svc::hal::gpio::*;
 use esp_idf_svc::hal::adc::*;
@@ -166,12 +168,25 @@ impl <'a> AnalogIn<'a> {
     /// 
     /// - `AnalogInError::ErrorReading` : If the read operation fails
     pub fn smooth_read(&mut self, amount_of_samples: u16) -> Result<u16, AnalogInError> {
-        let mut smooth_val: u16 = 0;
+        let mut smooth_val: u32 = 0;
         for _ in 0..amount_of_samples {
             let read_val = self.read()?;
-            smooth_val += read_val;
+            smooth_val += read_val as u32;
         }
-        let result = smooth_val / amount_of_samples;
-        Ok(result)
+        let result = smooth_val / amount_of_samples as u32;
+        Ok(result as u16)
+    }
+
+    pub fn smooth_read_during(&mut self, ms: u16) -> Result<u16, AnalogInError>{
+        let mut smooth_val: u64 = 0;
+        let duration = Duration::from_millis(ms as u64);
+        let starting_time  = Instant::now();
+        let amount_of_samples = 0;
+        while starting_time.elapsed() < duration{
+            let read_val = self.read()?;
+            smooth_val += read_val as u64;
+        }
+        let result = smooth_val / amount_of_samples as u64;
+        Ok(result as u16)
     }
 }

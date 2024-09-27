@@ -1,12 +1,16 @@
-use std::u16;
-
 use esp32framework::Microcontroller;
 
 fn main(){
 
     let mut micro = Microcontroller::new();
-    let mut client = micro.ble_client();
-    client.connect_to_device_with_service(None, &esp32framework::ble::BleId::FromUuid32(0x12345678)).unwrap();
-    client.set_connection_settings(u16::MAX, 100, 10, 1000).unwrap();
+    let mut sound_in = micro.set_pin_as_analog_in_no_atten(5);
+    micro.wait_for_updates(Some(2000));
+    
+    for _ in 0..100{
+        let sound = sound_in.smooth_read(10).unwrap();
+        println!("in: #{sound}");
+        micro.wait_for_updates(Some(100));
+    }
+    println!("\n End of example");
     micro.wait_for_updates(None);
 }
