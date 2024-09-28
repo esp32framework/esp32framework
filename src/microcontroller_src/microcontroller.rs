@@ -1,16 +1,22 @@
-use esp_idf_svc::eventloop::EspSystemEventLoop;
+use esp_idf_svc::{eventloop::EspSystemEventLoop, hal::{adc::*, delay::FreeRtos, task::block_on}};
 use std::rc::Rc;
 use esp32_nimble::{enums::AuthReq, BLEDevice};
-use esp_idf_svc::hal::{adc::*, delay::FreeRtos, task::block_on};
 use futures::future::{join, Future};
-use crate::ble::BleError;
-use crate::microcontroller_src::{peripherals::*, interrupt_driver::InterruptDriver};
-use crate::ble::{BleBeacon,BleServer,Service,Security, ble_client::BleClient};
-use crate::gpio::{AnalogIn, AnalogInPwm, DigitalIn, DigitalOut,  AnalogOut};
-use crate::serial::{Parity, StopBit, UART, I2CMaster, I2CSlave};
-use crate::wifi::WifiDriver;
-use crate::utils::{timer_driver::TimerDriver, auxiliary::{SharableRef, SharableRefExt}, notification::{Notification, Notifier}};
+use crate::{
+    microcontroller_src::{peripherals::*, interrupt_driver::InterruptDriver},
+    ble::{BleBeacon,BleServer,Service,Security, ble_client::BleClient},
+    gpio::{AnalogIn, AnalogInPwm, DigitalIn, DigitalOut,  AnalogOut},
+    serial::{Parity, StopBit, UART, I2CMaster, I2CSlave},
+    wifi::WifiDriver,
+    utils::{
+        timer_driver::TimerDriver, 
+        auxiliary::{SharableRef, SharableRefExt}, 
+        notification::{Notification, Notifier}
+    },
+};
 use oneshot::AdcDriver;
+
+const TIMER_GROUPS: usize = 2;
 
 pub type SharableAdcDriver<'a> = Rc<AdcDriver<'a, ADC1>>;
 
@@ -64,7 +70,7 @@ impl <'a>Microcontroller<'a> {
     ///
     /// This function will panic if the `TimerDriver` cannot be created, which might happen due to hardware constraints.
     pub fn get_timer_driver(&mut self)-> TimerDriver<'a>{
-        let mut timer_driver = if self.timer_drivers.len() < 2{
+        let mut timer_driver = if self.timer_drivers.len() < TIMER_GROUPS{
             let timer = self.peripherals.get_timer(self.timer_drivers.len());
             TimerDriver::new(timer, self.notification.notifier()).unwrap()
         } else {
@@ -250,28 +256,8 @@ impl <'a>Microcontroller<'a> {
         self.interrupt_drivers.push(Box::new(anlg_out.clone()));
         anlg_out
     }
-
-    /// Sets pin as analog input of PWM signals, with desired frequency and resolution
-    /// 
-    /// # Arguments
-    ///
-    /// - `pin_num`: The number of the pin on the microcontroller to configure as an analog input.
-    /// - `freq_hz`: An u32 representing the desired frequency in hertz
-    ///
-    /// # Returns
-    ///
-    /// An `AnalogInPwm` instance that can be used to read analog inputs of PWM signals from the specified pin.
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if the `AnalogInPwm` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration. 
-    pub fn set_pin_as_analog_in_pwm(&mut self, pin_num: usize, freq_hz: u32) -> AnalogInPwm<'a> {
-        let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
-        let timer_driver = self.get_timer_driver();
-        AnalogInPwm::new(timer_driver, pin_peripheral, freq_hz).unwrap()
-    }
     
-    /// Sets pin as analog input of PWM signals, with default frequency of 1000 Hertz
+    /// Sets pin as analog input of PWM signals, with default signal frequency of 1000 Hertz
     /// 
     /// # Arguments
     ///
@@ -284,7 +270,7 @@ impl <'a>Microcontroller<'a> {
     /// # Panics
     ///
     /// This function will panic if the `AnalogInPwm` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration.
-    pub fn set_pin_as_default_analog_in_pwm(&mut self, pin_num: usize) -> AnalogInPwm<'a> {
+    pub fn set_pin_as_analog_in_pwm(&mut self, pin_num: usize) -> AnalogInPwm<'a> {
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
         let timer_driver = self.get_timer_driver();
         AnalogInPwm::default(timer_driver, pin_peripheral).unwrap()
@@ -336,6 +322,10 @@ impl <'a>Microcontroller<'a> {
     }
 
     /// Configures the specified pins for a default UART configuration.
+    /// The default configuration is:
+    /// - `baudrate`: 115_200 Hz.
+    /// - `parity`: None parity bit.
+    /// - `stopbit`: One stop bit.
     ///
     /// # Arguments
     ///
@@ -384,15 +374,6 @@ impl <'a>Microcontroller<'a> {
         UART::new(tx_peripheral, rx_peripheral, uart_peripheral, baudrate, parity, stopbit).unwrap()
     }
 
-    fn take_ble_device(&mut self)->&'static mut BLEDevice{
-        match self.peripherals.get_ble_device(){
-            Peripheral::BleDevice => {
-                BLEDevice::take()
-            },
-            _ => panic!("{:?}", BleError::CanOnlyBeOneBleDriver),
-        }
-    }
-
     /// Configures the BLE device as a beacon that will advertise the specified name and services.
     ///
     /// # Arguments
@@ -409,7 +390,8 @@ impl <'a>Microcontroller<'a> {
     /// This function will panic if the `BleBeacon` instance cannot be created, which might happen due to hardware 
     /// constraints or incorrect configuration of the BLE device.
     pub fn ble_beacon(&mut self, advertising_name: String, services: &Vec<Service>)-> BleBeacon<'a>{
-        let ble_device = self.take_ble_device();
+        let ble_device = self.peripherals.get_ble_peripheral().into_ble_device().unwrap();
+
         BleBeacon::new(ble_device, self.get_timer_driver(), advertising_name, services).unwrap()
     }
     
@@ -429,8 +411,7 @@ impl <'a>Microcontroller<'a> {
     /// This function will panic if the `BleServer` instance cannot be created, which might happen due to hardware
     /// constraints or incorrect configuration of the BLE device.
     pub fn ble_server(&mut self, advertising_name: String, services: &Vec<Service>)-> BleServer<'a>{
-        let ble_device = self.take_ble_device();
-
+        let ble_device = self.peripherals.get_ble_peripheral().into_ble_device().unwrap();
         let ble_server = BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() ).unwrap();
         self.interrupt_drivers.push(Box::new(ble_server.clone()));
         ble_server
@@ -453,7 +434,8 @@ impl <'a>Microcontroller<'a> {
         .set_io_cap(security_config.io_capabilities.get_code())
         .resolve_rpa();
     }
-
+    
+    
     /// Configures a secure BLE server with the specified name, services, and security settings.
     ///
     /// # Arguments
@@ -471,7 +453,7 @@ impl <'a>Microcontroller<'a> {
     /// This function will panic if the `BleServer` instance cannot be created, or if the security settings cannot be applied,
     /// which might happen due to hardware constraints or incorrect configuration of the BLE device.
     pub fn ble_secure_server(&mut self, advertising_name: String, services: &Vec<Service>, security_config: Security)-> BleServer<'a>{
-        let ble_device = self.take_ble_device();
+        let ble_device = self.peripherals.get_ble_peripheral().into_ble_device().unwrap();
         self.config_bluetooth_security(ble_device,security_config);
         let ble_server = BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() ).unwrap();
         self.interrupt_drivers.push(Box::new(ble_server.clone()));
@@ -479,10 +461,18 @@ impl <'a>Microcontroller<'a> {
     }
 
     pub fn ble_client(&mut self)-> BleClient{
-        let ble_device = self.take_ble_device();
+        let ble_device = self.peripherals.get_ble_peripheral().into_ble_device().unwrap();
         let ble_client = BleClient::new(ble_device, self.notification.notifier());
         self.interrupt_drivers.push(Box::new(ble_client.clone()));
         ble_client
+    }
+    
+    ///TODO: Docu of default space of nvs
+    pub fn get_wifi_driver(&mut self) -> WifiDriver<'a>{
+        match self.peripherals.get_modem() {
+            Peripheral::Modem => WifiDriver::new(self.event_loop.clone()).unwrap(),
+            _ => panic!("No modem available"),
+        }
     }
 
     pub fn update(&mut self) {
@@ -501,22 +491,6 @@ impl <'a>Microcontroller<'a> {
             self.update();
         }
     }
-
-    /*
-    fn _wait_for_updates_until(&mut self, miliseconds:u32){
-        let starting_time = Instant::now();
-        let mut elapsed = Duration::from_millis(0);
-        let sleep_time = Duration::from_millis(miliseconds as u64);
-        
-        while elapsed < sleep_time{
-            let timeout = ((sleep_time - elapsed).as_millis() as f32 * TICKS_PER_MILLI) as u32;
-            if self.notification.wait(timeout).is_some(){
-                self.update();
-            }
-            elapsed = starting_time.elapsed();
-        }
-    }
-    */
 
     fn wait_for_updates_until(&mut self, miliseconds:u32){
         let timer_driver = match self.timer_drivers.first_mut(){
@@ -564,13 +538,6 @@ impl <'a>Microcontroller<'a> {
     }
     
     
-    ///TODO: Docu of default space of nvs
-    pub fn get_wifi_driver(&mut self) -> WifiDriver<'a>{
-        match self.peripherals.get_modem() {
-            Peripheral::Modem => WifiDriver::new(self.event_loop.clone()).unwrap(),
-            _ => panic!("No modem available"),
-        }
-    }
 }
 
 impl<'a> Default for Microcontroller<'a> {

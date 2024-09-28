@@ -1,7 +1,11 @@
 use esp32_nimble::{BLERemoteCharacteristic, BLERemoteDescriptor};
 use esp_idf_svc::hal::task::block_on;
 
-use crate::utils::{auxiliary::{ISRByteArrayQueue, ISRQueueTrait, SharableRef, SharableRefExt}, notification::Notifier};
+use crate::utils::{
+    isr_queues::{ISRByteArrayQueue, ISRQueueTrait},
+    auxiliary::{SharableRef, SharableRefExt}, 
+    notification::Notifier
+};
 
 use super::{BleError, BleId};
 

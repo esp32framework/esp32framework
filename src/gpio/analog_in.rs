@@ -1,15 +1,10 @@
-use std::rc::Rc;
-use std::time::Duration;
-use std::time::Instant;
-use esp_idf_svc::hal::adc::attenuation::adc_atten_t;
-use esp_idf_svc::hal::gpio::*;
-use esp_idf_svc::hal::adc::*;
-use oneshot::config::AdcChannelConfig;
-use oneshot::AdcChannelDriver;
-use oneshot::AdcDriver;
-
-use crate::microcontroller_src::microcontroller::SharableAdcDriver;
-use crate::microcontroller_src::peripherals::Peripheral;
+use std::{rc::Rc, time::Duration, time::Instant};
+use esp_idf_svc::hal::{gpio::*, adc::*, adc::attenuation::adc_atten_t};
+use oneshot::{config::AdcChannelConfig, AdcChannelDriver, AdcDriver};
+use crate::microcontroller_src::{
+    microcontroller::SharableAdcDriver, 
+    peripherals::{Peripheral, PeripheralError}
+};
 
 const MAX_DIGITAL_VAL: u16 = 4095;
 
@@ -18,7 +13,8 @@ const MAX_DIGITAL_VAL: u16 = 4095;
 pub enum AnalogInError{
     MissingAdcDriver,
     InvalidPin,
-    ErrorReading
+    ErrorReading,
+    InvalidPeripheral(PeripheralError)
 }
 
 /// Driver for receiving analog inputs from a particular pin
@@ -95,7 +91,8 @@ impl <'a> AnalogIn<'a> {
                 6 => AnalogChannels::Channel6(AdcChannelDriver::new(sharable_adc_driver, unsafe {Gpio6::new()}, &config).unwrap()),
                 _ => return Err(AnalogInError::InvalidPin),
             }
-            _ => return Err(AnalogInError::InvalidPin),
+            Peripheral::None => return Err(AnalogInError::InvalidPeripheral(PeripheralError::AlreadyTaken)),
+            _ => return Err(AnalogInError::InvalidPeripheral(PeripheralError::NotAPin)),
         };
         Ok(adc_channel_driver)
     }

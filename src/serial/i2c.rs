@@ -1,5 +1,14 @@
-use esp_idf_svc::{hal::{i2c::{I2cConfig, I2cDriver, I2cSlaveConfig, I2cSlaveDriver}, units::FromValueType}, sys::{ESP_ERR_INVALID_ARG, ESP_ERR_NO_MEM, ESP_ERR_TIMEOUT}};
-use crate::{microcontroller_src::peripherals::{Peripheral, PeripheralError}, utils::auxiliary::micro_to_ticks};
+use esp_idf_svc::{
+    hal::{
+        i2c::{I2cConfig, I2cDriver, I2cSlaveConfig, I2cSlaveDriver}, 
+        units::FromValueType
+    }, 
+    sys::{ESP_ERR_INVALID_ARG, ESP_ERR_NO_MEM, ESP_ERR_TIMEOUT}
+};
+use crate::{
+    microcontroller_src::peripherals::{Peripheral, PeripheralError}, 
+    utils::auxiliary::micro_to_ticks
+};
 
 
 const DEFAULT_BAUDRATE: u32 = 100;

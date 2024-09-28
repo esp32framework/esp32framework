@@ -1,5 +1,13 @@
-use esp_idf_svc::hal::{gpio::{Gpio0, Gpio1},delay::BLOCK, uart::{config, UartDriver, UART0, UART1}, units::Hertz};
-use crate::{microcontroller_src::peripherals::Peripheral, utils::auxiliary::micro_to_ticks};
+use esp_idf_svc::hal::{
+    gpio::{Gpio0, Gpio1},
+    delay::BLOCK, 
+    uart::{config, UartDriver, UART0, UART1}, 
+    units::Hertz
+};
+use crate::{
+    microcontroller_src::peripherals::{Peripheral, PeripheralError}, 
+    utils::auxiliary::micro_to_ticks
+};
 
 const DEFAULT_BAUDRATE: u32 = 115_200;
 
@@ -11,7 +19,8 @@ pub enum UARTError{
     DriverError,
     WriteError,
     ReadError,
-    InvalidBaudrate
+    InvalidBaudrate,
+    InvalidPeripheral(PeripheralError)
 }
 
 /// Represents the stop bit settings for UART communication.
@@ -56,8 +65,8 @@ impl <'a>UART<'a> {
     /// - `UARTError::InvalidUartNumber`: If an unsupported UART peripheral is selected.
     /// - `UARTError::DriverError`: If there is an error initializing the driver.
     pub fn new(tx: Peripheral, rx: Peripheral, uart_peripheral: Peripheral, baudrate: u32, parity: Parity, stopbit: StopBit) -> Result<UART<'a>, UARTError > {
-        let rx_peripheral = rx.into_any_io_pin().map_err(|_| UARTError::InvalidPin)?;
-        let tx_peripheral = tx.into_any_io_pin().map_err(|_| UARTError::InvalidPin)?;
+        let rx_peripheral = rx.into_any_io_pin().map_err(UARTError::InvalidPeripheral)?;
+        let tx_peripheral = tx.into_any_io_pin().map_err(UARTError::InvalidPeripheral)?;
         let config = set_config(baudrate, parity, stopbit)?;
 
         let driver = match uart_peripheral {

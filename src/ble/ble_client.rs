@@ -5,7 +5,14 @@ use esp_idf_svc::hal::task::block_on;
 const BLOCK: i32 = i32::MAX;
 const MS_BETWEEN_SCANS: u16 = 100;
 
-use crate::{ble::RemoteCharacteristic, utils::{auxiliary::{SharableRef, SharableRefExt}, esp32_framework_error::Esp32FrameworkError, notification::Notifier}, InterruptDriver};
+use crate::{
+    ble::RemoteCharacteristic, 
+    utils::{
+        auxiliary::{SharableRef, SharableRefExt}, 
+        esp32_framework_error::Esp32FrameworkError, notification::Notifier
+    }, 
+    InterruptDriver
+};
 
 use super::{BleAdvertisedDevice, BleError, BleId};
 

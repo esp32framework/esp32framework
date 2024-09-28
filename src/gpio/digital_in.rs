@@ -1,8 +1,16 @@
 use esp_idf_svc::hal::gpio::*;
 pub use esp_idf_svc::hal::gpio::InterruptType;
 use std::sync::{atomic::{AtomicU8, Ordering}, Arc};
-use crate::{microcontroller_src::{interrupt_driver::InterruptDriver, peripherals::Peripheral}, utils::auxiliary::{SharableRef, SharableRefExt}};
-use crate::utils::{esp32_framework_error::Esp32FrameworkError, notification::Notifier, timer_driver::{TimerDriver,TimerDriverError}, error_text_parser::map_enable_disable_errors};
+use crate::{
+    microcontroller_src::{interrupt_driver::InterruptDriver, peripherals::{Peripheral, PeripheralError}}, 
+    utils::{
+        auxiliary::{SharableRef, SharableRefExt}, 
+        esp32_framework_error::Esp32FrameworkError, 
+        notification::Notifier, 
+        timer_driver::{TimerDriver,TimerDriverError}, 
+        error_text_parser::map_enable_disable_errors
+    }
+};
 use sharable_reference_macro::sharable_reference_wrapper;
 
 type AtomicInterruptUpdateCode = AtomicU8;
@@ -14,7 +22,7 @@ pub enum DigitalInError {
     CannotSetPinAsInput,
     StateAlreadySet,
     InvalidPin,
-    InvalidPeripheral,
+    InvalidPeripheral(PeripheralError),
     NoInterruptTypeSet,
     CannotSetDebounceOnAnyEdgeInterruptType,
     TimerDriverError (TimerDriverError)
@@ -137,7 +145,7 @@ impl <'a>_DigitalIn<'a> {
     /// 
     /// When setting Down the pull fails
     pub fn new(timer_driver: TimerDriver<'a>, per: Peripheral, notifier: Option<Notifier>) -> Result<_DigitalIn<'a>, DigitalInError> { 
-        let gpio = per.into_any_io_pin().map_err(|_| DigitalInError::InvalidPeripheral)?;
+        let gpio = per.into_any_io_pin().map_err(DigitalInError::InvalidPeripheral)?;
         let pin_driver = PinDriver::input(gpio).map_err(|_| DigitalInError::CannotSetPinAsInput)?;
 
         let mut digital_in = _DigitalIn {

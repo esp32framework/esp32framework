@@ -1,12 +1,15 @@
 use esp_idf_svc::hal::gpio::*;
+use std::sync::{Arc,atomic::{AtomicU8, Ordering}};
+use crate::{
+    microcontroller_src::interrupt_driver::InterruptDriver,
+    utils::{
+        auxiliary::{SharableRef, SharableRefExt},
+        esp32_framework_error::Esp32FrameworkError,
+        timer_driver::{TimerDriver,TimerDriverError},
+    },
+    microcontroller_src::peripherals::{Peripheral, PeripheralError},    
+};
 use sharable_reference_macro::sharable_reference_wrapper;
-use std::sync::atomic::{AtomicU8, Ordering};
-use std::sync::Arc;
-use crate::microcontroller_src::interrupt_driver::InterruptDriver;
-use crate::utils::auxiliary::{SharableRef, SharableRefExt};
-use crate::utils::esp32_framework_error::Esp32FrameworkError;
-use crate::utils::timer_driver::{TimerDriver,TimerDriverError};
-use crate::microcontroller_src::peripherals::Peripheral;
 
 type AtomicInterruptUpdateCode = AtomicU8;
 
@@ -15,7 +18,7 @@ type AtomicInterruptUpdateCode = AtomicU8;
 pub enum DigitalOutError{
     CannotSetPinAsOutput,
     InvalidPin,
-    InvalidPeripheral,
+    InvalidPeripheral(PeripheralError),
     TimerDriverError(TimerDriverError)
 }
 
@@ -110,7 +113,7 @@ impl <'a>_DigitalOut<'a> {
     /// - `DigitalOutError::InvalidPeripheral`: If the peripheral cannot be converted into an AnyIOPin.
     /// - `DigitalOutError::CannotSetPinAsOutput`: If the pin cannot be set as an output.
     pub fn new(timer_driver: TimerDriver<'a>, per: Peripheral) -> Result<_DigitalOut<'a>, DigitalOutError>{
-        let gpio = per.into_any_io_pin().map_err(|_| DigitalOutError::InvalidPeripheral)?;
+        let gpio = per.into_any_io_pin().map_err(DigitalOutError::InvalidPeripheral)?;
         let pin_driver = PinDriver::output(gpio).map_err(|_| DigitalOutError::CannotSetPinAsOutput)?;
 
         Ok(_DigitalOut {

@@ -1,4 +1,5 @@
 use std::mem;
+use esp32_nimble::BLEDevice;
 use esp_idf_svc::hal::{gpio::*, i2c::I2C0};
 
 const PIN_COUNT: usize = 24;
@@ -16,6 +17,9 @@ const UART_BOUNDS: (usize, usize) = (0, 1);
 pub enum PeripheralError {
     NotAPin,
     NotAnI2CPeripheral,
+    NotABleDevicePeripheral,
+    NotAPwmTimer,
+    NotAPwmChannel,
     AlreadyTaken,
 }
 
@@ -81,6 +85,16 @@ impl Peripheral {
             Peripheral::I2C => Ok(unsafe{I2C0::new()}),
             Peripheral::None => Err(PeripheralError::AlreadyTaken),
             _ => Err(PeripheralError::NotAnI2CPeripheral)
+        }
+    }
+    
+    pub fn into_ble_device(self) -> Result<&'static mut BLEDevice, PeripheralError>{
+        match self{
+            Peripheral::BleDevice => {
+                Ok(BLEDevice::take())
+            },
+            Peripheral::None => Err(PeripheralError::AlreadyTaken),
+            _ => Err(PeripheralError::NotABleDevicePeripheral),
         }
     }
 }
@@ -178,7 +192,7 @@ impl Peripherals {
         Peripheral::None
     }
 
-    pub fn get_ble_device(&mut self)-> Peripheral{
+    pub fn get_ble_peripheral(&mut self)-> Peripheral{
         self.ble_device.take()
     }
 

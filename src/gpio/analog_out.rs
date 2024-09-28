@@ -1,7 +1,13 @@
 use esp_idf_svc::{hal::{ledc::*, peripheral, prelude::*}, sys::ESP_FAIL};
 use sharable_reference_macro::sharable_reference_wrapper;
-use crate::{microcontroller_src::{interrupt_driver::InterruptDriver, peripherals::Peripheral}, utils::auxiliary::{SharableRef, SharableRefExt}};
-use crate::utils::{esp32_framework_error::Esp32FrameworkError, timer_driver::{TimerDriver, TimerDriverError}};
+use crate::{
+    microcontroller_src::{interrupt_driver::InterruptDriver, peripherals::{Peripheral, PeripheralError}}, 
+    utils::{
+        auxiliary::{SharableRef, SharableRefExt},
+        esp32_framework_error::Esp32FrameworkError, 
+        timer_driver::{TimerDriver, TimerDriverError}
+    }
+};
 use std::{cell::RefCell, rc::Rc, sync::{Arc,atomic::{AtomicU32, Ordering, AtomicBool}}};
 
 /// Enums the different errors possible when working with the analog out
@@ -9,7 +15,7 @@ use std::{cell::RefCell, rc::Rc, sync::{Arc,atomic::{AtomicU32, Ordering, Atomic
 pub enum AnalogOutError{
     TooManyPWMOutputs,
     InvalidArg,
-    InvalidPeripheral,
+    InvalidPeripheral(PeripheralError),
     InvalidFrequencyOrDuty,
     ErrorSettingOutput,
     TimerDriverError(TimerDriverError)
@@ -161,9 +167,10 @@ impl <'a>_AnalogOut<'a> {
             Peripheral::PWMTimer(1) => _AnalogOut::create_pwm_driver(peripheral_channel, unsafe{TIMER1::new()}, gpio_pin, config),
             Peripheral::PWMTimer(2) => _AnalogOut::create_pwm_driver(peripheral_channel, unsafe{TIMER2::new()}, gpio_pin, config),
             Peripheral::PWMTimer(3) => _AnalogOut::create_pwm_driver(peripheral_channel, unsafe{TIMER3::new()}, gpio_pin, config),
-            _ => Err(AnalogOutError::InvalidPeripheral)?
+            Peripheral::None => Err(AnalogOutError::InvalidPeripheral(PeripheralError::AlreadyTaken)),
+            _ => Err(AnalogOutError::InvalidPeripheral(PeripheralError::NotAPwmTimer))?
         }?;
-            
+        
         Ok(_AnalogOut{driver: pwm_driver,
             timer_driver, 
             duty: Arc::new(AtomicU32::new(0)), 
@@ -254,14 +261,15 @@ impl <'a>_AnalogOut<'a> {
             _ => AnalogOutError::InvalidArg,
         })?;
 
-        let gpio = gpio_pin.into_any_io_pin().map_err(|_| AnalogOutError::InvalidPeripheral)?;
+        let gpio = gpio_pin.into_any_io_pin().map_err(AnalogOutError::InvalidPeripheral)?;
         
         match peripheral_channel {
             Peripheral::PWMChannel(0) => LedcDriver::new(unsafe {CHANNEL0::new()}, ledc_timer_driver, gpio),
             Peripheral::PWMChannel(1) => LedcDriver::new(unsafe {CHANNEL1::new()}, ledc_timer_driver, gpio),
             Peripheral::PWMChannel(2) => LedcDriver::new(unsafe {CHANNEL2::new()}, ledc_timer_driver, gpio),
             Peripheral::PWMChannel(3) => LedcDriver::new(unsafe {CHANNEL3::new()}, ledc_timer_driver, gpio),
-            _ => return Err(AnalogOutError::InvalidPeripheral),
+            Peripheral::None => return Err(AnalogOutError::InvalidPeripheral(PeripheralError::AlreadyTaken)),
+            _ => return Err(AnalogOutError::InvalidPeripheral(PeripheralError::NotAPwmChannel)),
         }.map_err(|_| AnalogOutError::InvalidArg)
     }
 

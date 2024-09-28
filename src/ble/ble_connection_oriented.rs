@@ -1,18 +1,29 @@
 use std::sync::Arc;
-use esp32_nimble::{BLEAddress, BLEService};
-use esp32_nimble::{utilities::mutex::Mutex, BLEAdvertisementData, BLEAdvertising, BLEConnDesc, BLEDevice, BLEError, BLEServer, NimbleProperties};
+use esp32_nimble::{
+    BLEAddress, 
+    BLEService, 
+    utilities::mutex::Mutex, 
+    BLEAdvertisementData, 
+    BLEAdvertising, 
+    BLEConnDesc, 
+    BLEDevice, 
+    BLEError, 
+    BLEServer, 
+    NimbleProperties
+};
 use esp_idf_svc::hal::task;
-
-
-use crate::utils::auxiliary::{ISRQueue, ISRQueueTrait};
-use crate::utils::auxiliary::SharableRef;
-use crate::utils::auxiliary::SharableRefExt;
-use crate::utils::esp32_framework_error::Esp32FrameworkError;
-use crate::utils::notification::Notifier;
-use crate::InterruptDriver;
+use crate::{
+    utils::{
+        auxiliary::{SharableRef, SharableRefExt},
+        esp32_framework_error::Esp32FrameworkError,
+        notification::Notifier,
+        isr_queues::{ISRQueue, ISRQueueTrait}
+    },
+    InterruptDriver
+};
 use sharable_reference_macro::sharable_reference_wrapper;
-
 use super::{BleError, BleId, Characteristic, ConnectionMode, DiscoverableMode, Service};
+
 
 type ConnCallback<'a> = dyn FnMut(&mut BleServer<'a>, &ConnectionInformation) + 'a;
 

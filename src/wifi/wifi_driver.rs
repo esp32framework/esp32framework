@@ -1,5 +1,11 @@
 use std::net::Ipv4Addr;
-use esp_idf_svc::{eventloop::EspSystemEventLoop, hal::modem::{self}, nvs::EspDefaultNvsPartition, timer::EspTaskTimerService, wifi::{AsyncWifi, AuthMethod, ClientConfiguration, Configuration, EspWifi}};
+use esp_idf_svc::{
+    eventloop::EspSystemEventLoop, 
+    hal::modem::{self}, 
+    nvs::EspDefaultNvsPartition, 
+    timer::EspTaskTimerService, 
+    wifi::{AsyncWifi, AuthMethod, ClientConfiguration, Configuration, EspWifi}
+};
 use super::http::{Http, HttpClient, HttpsClient};
 
 /// Error types related to WIFI operations.
