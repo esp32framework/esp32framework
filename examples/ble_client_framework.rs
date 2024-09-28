@@ -23,7 +23,9 @@ fn get_characteristics(micro: &mut Microcontroller)-> Vec<RemoteCharacteristic>{
   let mut client = micro.ble_client();
   let service_id = BleId::FromUuid32(0x12345678);
   println!("Attempting connection");
-  client.connect_to_device_with_service(None, &service_id).unwrap();
+  
+  let device = client.find_device_with_service(None, &service_id).unwrap();
+  client.connect_to_device(device).unwrap();
   
   println!("Connected");
   micro.wait_for_updates(Some(2000));

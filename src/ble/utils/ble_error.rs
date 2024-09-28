@@ -37,7 +37,8 @@ pub enum BleError{
     CharacteristicNotReadable,
     CanOnlyBeOneBleDriver,
     Disconnected,
-    CouldNotConnectToDevice
+    CouldNotConnectToDevice,
+    DeviceNotConnectable
 }
 
 impl From<BLEError> for BleError {
@@ -177,6 +178,7 @@ impl BleError {
     fn connection_params_context(self)-> Self{
         match self{
             BleError::DeviceNotFound => BleError::Disconnected,
+            BleError::TimeOut => BleError::ConnectionError,
             _ => self
         }
     }
