@@ -335,7 +335,7 @@ impl BleClient{
 }
 
 impl InterruptDriver for BleClient{
-    /// Updates all characteristics that have ben gotten
+    /// Updates all characteristics that have been gotten
     fn update_interrupt(&mut self)-> Result<(), Esp32FrameworkError> {
         for c in self.updater.deref_mut().remote_characteristics.values_mut(){
             c.execute_if_notified()

@@ -1,39 +1,47 @@
-//! Example using pin GPIO5 (sda) and GPIO6 (scl) with i2c to set 
-//! a date and time in a ds3231 sensor. Then it will ask the sensor
-//! for the time and print it in the screen.
 
-use esp32framework::{sensors::{DateTime, HourMode, DS3231}, serial::READER, Microcontroller};
+use std::time::{Duration, Instant};
+
+use esp_idf_svc::{hal::{adc::{attenuation, oneshot::{config::AdcChannelConfig, AdcChannelDriver, AdcDriver}, Resolution, ADC1}, delay::FreeRtos, gpio::Gpio5, prelude::Peripherals}, sys::EspError};
 
 fn main() {
 
-    let mut micro = Microcontroller::new();
-    let i2c = micro.set_pins_for_i2c_master(5,6);
-    let mut ds3231 = DS3231::new(i2c, HourMode::TwelveHourPM);
-
-    let date_time = DateTime {
-        second: 50,
-        minute: 59,
-        hour: 12,
-        week_day: 4,
-        date: 24,
-        month: 7,
-        year: 24,
-    };
-
-    ds3231.set_time(date_time).unwrap();
+    esp_idf_svc::sys::link_patches();
+    let peripherals = Peripherals::take().unwrap();
     
-    loop {
-        // Set reading address in zero to read seconds, minutes, hours, day, day number, month and year
-        let date_time = ds3231.read_and_parse();
+    let adc_driver = AdcDriver::new(peripherals.adc1).unwrap();
+    let mut config = AdcChannelConfig::new();
+    config.attenuation = attenuation::NONE;
+    config.resolution = Resolution::Resolution12Bit;
+    config.calibration = true;
+    
+    let pin = peripherals.pins.gpio5;
+    let mut sound_in = AdcChannelDriver::new(adc_driver, pin, &config).unwrap();
 
-        println!("{}, {}/{}/20{}, {:02}:{:02}:{:02}", date_time["dow"], date_time["day_number"],
-                                                      date_time["month"], date_time["year"], date_time["hrs"], 
-                                                      date_time["min"], date_time["secs"]);
-
-        let meridiem = ds3231.meridiem().unwrap();
-
-        println!("{:?}", meridiem);
-
-        micro.sleep(1000);
+    FreeRtos::delay_ms(2000);
+    let first_second = smooth_read_during(&mut sound_in, 1000).unwrap() as f32;
+    println!("Value of first second #{first_second}");
+    FreeRtos::delay_ms(2000);
+    
+    for _ in 0..10{
+        let sound = smooth_read_during(&mut sound_in, 1000).unwrap() as f32;
+        let louder = (sound - first_second)* 100.0 /first_second;
+        println!("sound in  is #{louder} % louder than first second" );
+        FreeRtos::delay_ms(100);
     }
+    println!("\n End of example");
+    FreeRtos::delay_ms(u32::MAX);
+}
+
+pub fn smooth_read_during(adc_driver : &mut AdcChannelDriver<'static, Gpio5, AdcDriver<'static, ADC1>>, ms: u16)-> Result<u16, EspError>{
+    let mut smooth_val: u64 = 0;
+    let duration = Duration::from_millis(ms as u64);
+    let starting_time  = Instant::now();
+    let mut amount_of_samples = 0;
+    while starting_time.elapsed() < duration{
+        let read_val = adc_driver.read()?;
+        smooth_val += read_val as u64;
+        amount_of_samples += 1;
+    }
+    let result = smooth_val / amount_of_samples as u64;
+    Ok(result as u16)
 }
