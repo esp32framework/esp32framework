@@ -2,9 +2,11 @@
 //! - Writable characteristic: Uses an id created from a String.
 //! - Readable characteristic: Uses a Standar characteristic uuid (BatteryLevel) to inform the level of the battery.
 //! - Notifiable characteristic: Uses an id created from a String to notify an integer value.
-//! Since this server is secure, the clients phone must complete a passkey ('001234') to get access to the information.
+//!    Since this server is secure, the clients phone must complete a passkey ('001234') to get access to the information.
 
 use esp32framework::{ble::{BleId, BleServer, Characteristic, IOCapabilities, Security, Service, StandarCharacteristicId, StandarServiceId}, Microcontroller};
+
+const PASSWORD: &str = "001234";
 
 fn set_up_characteristics() -> Vec<Characteristic> {
 	// IDs
@@ -38,8 +40,8 @@ fn main() {
 	let mut micro = Microcontroller::new();
 
 	// Security configuration
-	let phone_capabilities = IOCapabilities::KeyboardDisplay;
-	let security = Security::new(001234,phone_capabilities);
+	let phone_capabilities = IOCapabilities::DisplayOnly;
+	let security = Security::new(PASSWORD.parse::<u32>().unwrap(),phone_capabilities).unwrap();
 
 	let characteristics: Vec<Characteristic> = set_up_characteristics();
 	let mut notifiable_characteristic = characteristics[0].clone();

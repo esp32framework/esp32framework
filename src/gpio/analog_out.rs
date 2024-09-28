@@ -106,7 +106,6 @@ impl ChangeDutyUpdate{
 
 #[sharable_reference_wrapper]
 impl <'a>_AnalogOut<'a> {
-    //TODO: Dejar elegir al usuario low y high resolution, segun que timer
     
     /// Creates a new _AnalogOut from a pin number, frequency and resolution.
     /// 
@@ -117,7 +116,8 @@ impl <'a>_AnalogOut<'a> {
     /// - `gpio_pin`: A Peripheral capable of being transformed into an AnyIOPin
     /// - `timer_driver`: An instance of a TimerDriver
     /// - `freq_hz`: An u32 representing the frequency in hertz desired for the configuration of the PWMTimer
-    /// - `resolution`: An u32 representing the desired output resolution
+    /// - `resolution`: An u32 that represents the amount of bits in the desired output resolution. If 0 its set to 1 bit, >= 14 
+    ///     14 bits of resolution are set  
     /// 
     /// # Returns
     /// 
@@ -174,11 +174,6 @@ impl <'a>_AnalogOut<'a> {
         })
     }
 
-    // TODO remove this function
-    pub fn duty(&self)->u32{
-        self.duty.load(Ordering::SeqCst)
-    }
-
     /// Creates a new _AnalogOut with a default frecuency of 1000Hz and a resolution of 8bits.
     /// 
     /// # Arguments
@@ -206,7 +201,7 @@ impl <'a>_AnalogOut<'a> {
     /// 
     /// # Arguments
     /// 
-    /// - `resolution`: An u32 representing the desired resolution. Accpeted values go from 0 to 13
+    /// - `resolution`: An u32 representing the desired resolution. Accepted values go from 0 to 13
     /// 
     /// # Returns
     /// 
@@ -600,15 +595,17 @@ impl<'a> AnalogOut<'a> {
     /// - `gpio_pin`: The gpio pin from which the PWM signal will be output
     /// - `timer_driver`: The TimerDriver instance that will handle the interrupts
     /// - `freq_hz`: The frequency of the PWM signal
-    /// - `resolution`: The resolution of the PWM signal
+    /// - `resolution`: An u32 that represents the amount of bits in the desired output resolution. if 0 its set to 1 bit, >= 14 
+    ///     14 bits of resolution are set  
     /// 
     /// # Returns
     /// A result containing the AnalogOut instance or an AnalogOutError
     /// 
     /// # Errors
-    /// !TODO : cuando puede tirar error? y que error tira?
     /// 
-    /// 
+    /// - `AnalogOutError::InvalidPeripheral`: If any of the peripherals are not from the correct type
+    /// - `AnalogOutError::InvalidFrequencyOrDuty`: If the frequency or duty are not compatible
+    /// - `AnalogOutError::InvalidArg`: If any of the arguments are not of the correct type
     pub fn new(peripheral_channel: Peripheral, timer: Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>, freq_hz: u32, resolution: u32)->Result<AnalogOut<'a>, AnalogOutError>{
         Ok(AnalogOut{inner: SharableRef::new_sharable(_AnalogOut::new(
             peripheral_channel,
@@ -632,9 +629,10 @@ impl<'a> AnalogOut<'a> {
     /// A result containing the AnalogOut instance or an AnalogOutError
     /// 
     /// # Errors
-    /// - AnalogOutError::
-    ///   !TODO : errores???
     /// 
+    /// - `AnalogOutError::InvalidPeripheral`: If any of the peripherals are not from the correct type
+    /// - `AnalogOutError::InvalidFrequencyOrDuty`: If the frequency or duty are not compatible
+    /// - `AnalogOutError::InvalidArg`: If any of the arguments are not of the correct type
     pub fn default(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>) -> Result<AnalogOut<'a>, AnalogOutError>{
         Ok(AnalogOut{inner: Rc::new(RefCell::from(_AnalogOut::default(
             peripheral_channel, timer, gpio_pin, timer_driver)?))})

@@ -1,4 +1,7 @@
 use esp32_nimble::enums::{AuthReq, SecurityIOCap};
+use super::BleError;
+
+const MAX_PASKEY :u32 = 999999;
 
 /// Enums the device's input and output capabilities, 
 /// which help determine the level of security and the key
@@ -45,14 +48,14 @@ impl IOCapabilities {
 /// - `auth_mode`: An u8 representing the combination of authorization modes
 /// - `io_capabilities`: An IOCapabilities instance
 pub struct Security {
-    pub passkey: u32, // TODO: I think the passkey can only be 6 digits long. If so, add a step that checks this
+    pub passkey: u32,
     pub auth_mode: u8,
     pub io_capabilities: IOCapabilities,
 }
 
 impl Security {
 
-    /// Creates a Security with its passkey and I/O capabilities. 
+    /// Creates a Security with its passkey of a maximum of 6 digits and I/O capabilities. 
     /// 
     /// It has no authentication requirements, this need to be set separately
     /// 
@@ -64,8 +67,11 @@ impl Security {
     /// # Returns
     /// 
     /// A new Security instance
-    pub fn new(passkey: u32, io_capabilities: IOCapabilities) -> Self {
-        Security { passkey, auth_mode: 0, io_capabilities }
+    pub fn new(passkey: u32, io_capabilities: IOCapabilities) -> Result<Self, BleError> {
+        if passkey > MAX_PASKEY {
+            return Err(BleError::InvalidPasskey);
+        }
+        Ok(Security { passkey, auth_mode: 0, io_capabilities })
     }
 
     /// Adds or removes a authorization requirement to the security instance

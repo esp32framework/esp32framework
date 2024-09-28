@@ -59,7 +59,7 @@ impl <'a> AnalogIn<'a> {
     /// - `AnalogInError::InvalidPin`: If the pin Peripheral is not valid
     pub fn new(pin: Peripheral, adc_driver: SharableAdcDriver<'a>, attenuation: adc_atten_t) -> Result<Self, AnalogInError> {
         Ok(AnalogIn {
-            adc_channel_driver: AnalogIn::new_channel(pin,adc_driver,attenuation)?
+            adc_channel_driver: AnalogIn::new_channel(pin,adc_driver, attenuation)?
         })
     }
 
@@ -128,8 +128,6 @@ impl <'a> AnalogIn<'a> {
         Ok(read_value)
     }
     
-    //TODO: max_in_time, min_in_time, bigger_than, lower_than
-
     /// Returns the raw value read from an analog pin. 
     /// The value returned is not attenuated, so its ranges is [0, 4095].
     /// 

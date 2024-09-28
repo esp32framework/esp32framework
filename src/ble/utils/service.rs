@@ -61,6 +61,22 @@ impl Service {
         self.characteristics.push(characteristic);
         self
     }
+
+    /// Adds multiple characteristics to the service
+    /// 
+    /// # Arguments
+    /// 
+    /// - `characteristics`: A vector with all characterisitcs to add in the service
+    /// 
+    /// # Returns
+    /// 
+    /// The Service itself
+    pub fn add_characteristics(&mut self, characteristics: &Vec<Characteristic>) -> &mut Self {
+        for characteristic in characteristics{
+            self.characteristics.push(characteristic.clone());
+        }
+        self
+    }
 }
 
 /// Abstracion of the BLE characteristic. Contains:
@@ -68,7 +84,7 @@ impl Service {
 /// - `properties`: Properties especify how the clients will be able to interact with the characteristic.
 /// - `data`: The value that the clients will be able to see or write (depending on the properties).
 #[derive(Clone)]
-pub struct Characteristic{
+pub struct Characteristic {
     pub id: BleId,
     pub properties: u16,
     pub data: Vec<u8>,
@@ -314,6 +330,51 @@ impl Characteristic {
         self
     }
 
+    /// Verifies if the characteristic satisfies any of the properties set in the received flag
+    fn satisfies_at_least_one_property(&self, flag: NimbleProperties) -> bool {
+        (self.properties & flag.bits()) != 0
+    }
+    
+    /// Checks if the characteristic satisfies any of the following properties:
+    /// - `NimbleProperties::READ`
+    /// - `NimbleProperties::READ_AUTHEN`
+    /// - `NimbleProperties::READ_AUTHOR`
+    /// - `NimbleProperties::READ_ENC`
+    pub fn is_readable(&self) -> bool {
+        self.satisfies_at_least_one_property(NimbleProperties::READ |
+        NimbleProperties::READ_AUTHEN |
+        NimbleProperties::READ_AUTHOR |
+        NimbleProperties::READ_ENC)
+    }
+
+    /// Checks if the characteristic satisfies any of the following properties:
+    /// - `NimbleProperties::WRITE`
+    /// - `NimbleProperties::WRITE_AUTHEN`
+    /// - `NimbleProperties::WRITE_AUTHOR`
+    /// - `NimbleProperties::WRITE_ENC`
+    /// - `NimbleProperties::WRITE_NO_RSP`
+    pub fn is_writable(&self) -> bool {
+        self.satisfies_at_least_one_property(NimbleProperties::WRITE |
+        NimbleProperties::WRITE_AUTHEN |
+        NimbleProperties::WRITE_AUTHOR |
+        NimbleProperties::WRITE_ENC    |
+        NimbleProperties::WRITE_NO_RSP)
+    }
+
+    /// Checks if the characteristic satisfies the INDICATE property
+    pub fn is_indicatable(&self) -> bool {
+        self.satisfies_at_least_one_property(NimbleProperties::INDICATE)
+    }
+
+    /// Checks if the characteristic satisfies the NOTIFY property
+    pub fn is_notifiable(&self) -> bool {
+        self.satisfies_at_least_one_property(NimbleProperties::NOTIFY)
+    } 
+
+    /// Checks if the characteristic satisfies the BROADCAST property
+    pub fn is_broadcastable(&self) -> bool {
+        self.satisfies_at_least_one_property(NimbleProperties::BROADCAST)
+    } 
 }
 
 

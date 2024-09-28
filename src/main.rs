@@ -1,8 +1,9 @@
+
 use std::time::{Duration, Instant};
 
 use esp_idf_svc::{hal::{adc::{attenuation, oneshot::{config::AdcChannelConfig, AdcChannelDriver, AdcDriver}, Resolution, ADC1}, delay::FreeRtos, gpio::Gpio5, prelude::Peripherals}, sys::EspError};
 
-fn main(){
+fn main() {
 
     esp_idf_svc::sys::link_patches();
     let peripherals = Peripherals::take().unwrap();

@@ -2,7 +2,7 @@
 //! is pressed. The signal is configured with a debounce time of 200msec.
 
 use esp_idf_svc::hal::{gpio::*,peripherals::Peripherals,delay::FreeRtos};
-use std::{collections::HashMap, sync::atomic::{AtomicBool, Ordering}};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 static FLAG: AtomicBool = AtomicBool::new(false);
 

@@ -23,8 +23,10 @@ pub struct WifiDriver<'a> {
 
 impl <'a>WifiDriver<'a> {
     
-    ///TODO: Docu with Default value of nvs!
     /// Creates a new WifiDriver.
+    /// 
+    /// By default this function takes the Non-Volatile Storage of the ESP in order to save
+    /// wifi configuration. This is to improve future connection times to the same network
     ///
     /// # Arguments
     ///

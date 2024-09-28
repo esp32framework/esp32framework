@@ -1,5 +1,5 @@
 use std::mem;
-use esp_idf_svc::hal::gpio::*;
+use esp_idf_svc::hal::{gpio::*, i2c::I2C0};
 
 const PIN_COUNT: usize = 24;
 const TIMERS_COUNT: usize = 2;
@@ -14,7 +14,9 @@ const UART_BOUNDS: (usize, usize) = (0, 1);
 
 #[derive(Debug)]
 pub enum PeripheralError {
-    NotAPin
+    NotAPin,
+    NotAnI2CPeripheral,
+    AlreadyTaken,
 }
 
 /// Represents the esp32 Peripheral allowing to instanciate diferent Peripheral Types 
@@ -68,9 +70,18 @@ impl Peripheral {
                 23 => unsafe {Gpio23::new().downgrade()},
                 _ => return Err(PeripheralError::NotAPin)
             },
+            Peripheral::None => return Err(PeripheralError::AlreadyTaken),
             _ => return Err(PeripheralError::NotAPin),
         };
         Ok(pin)
+    }
+
+    pub fn into_i2c0(self)-> Result<I2C0, PeripheralError> {
+        match self{
+            Peripheral::I2C => Ok(unsafe{I2C0::new()}),
+            Peripheral::None => Err(PeripheralError::AlreadyTaken),
+            _ => Err(PeripheralError::NotAnI2CPeripheral)
+        }
     }
 }
 

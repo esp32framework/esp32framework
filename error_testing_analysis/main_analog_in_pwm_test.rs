@@ -5,12 +5,13 @@
 //! on pin B with different input frequencies.
 //! All these data will be collected and then be analyzed with the intention of getting
 //! a percentage of the error.
-//!
+//! 
+//! Note: This file was used to test, after the testing was done libraries used where 
+//! taken off the Cargo.toml. To replicate this test, the rand library should be added 
+//! to the Cargo.toml.
 
 use rand::prelude::*;
 use esp32framework::{gpio::{AnalogInPwm, AnalogOut}, Microcontroller};
-
-use esp_idf_svc::hal::delay::FreeRtos;
 
 const MAX_LOOPS: u32 = 10000;
 const READS_PER_LOOP: u32 = 5;
