@@ -171,7 +171,7 @@ impl <'a>DS3231<'a> {
         if read_byte == MERIDIEM_BITMASK {
             return Ok(Merdiem::PM);
         }
-        return Ok(Merdiem::AM);
+        Ok(Merdiem::AM)
     }
 
     /// Converts a Binary-Coded Decimal (BCD) value to its decimal representation.

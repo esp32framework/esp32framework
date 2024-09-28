@@ -38,6 +38,7 @@ pub enum BleError{
     CanOnlyBeOneBleDriver,
     Disconnected,
     CouldNotConnectToDevice,
+    DeviceNotConnectable,
     InvalidPasskey,
 }
 
@@ -178,6 +179,7 @@ impl BleError {
     fn connection_params_context(self)-> Self{
         match self{
             BleError::DeviceNotFound => BleError::Disconnected,
+            BleError::TimeOut => BleError::ConnectionError,
             _ => self
         }
     }
