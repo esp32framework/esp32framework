@@ -11,15 +11,17 @@ const DATE_ADDR     : u8 = 0x04;
 const MONTH_ADDR    : u8 = 0x05;    // Also works for century
 const YEAR_ADDR     : u8 = 0x06;
 
-const MIN_VALUE     : u8 = 0;
-const MAX_SECS      : u8 = 59;
-const MAX_MINS      : u8 = 59;
-const MIN_WEEK_DAY  : u8 = 1;
-const MAX_WEEK_DAY  : u8 = 7;
-const MAX_DATE      : u8 = 31;
-const MIN_MONTH     : u8 = 1;
-const MAX_MONTH     : u8 = 12;
-const MAX_YEAR      : u8 = 99;
+const MIN_VALUE         : u8 = 0;
+const MAX_SECS          : u8 = 59;
+const MAX_MINS          : u8 = 59;
+const MIN_WEEK_DAY      : u8 = 1;
+const MAX_WEEK_DAY      : u8 = 7;
+const MAX_DATE          : u8 = 31;
+const MIN_MONTH         : u8 = 1;
+const MAX_MONTH         : u8 = 12;
+const MAX_YEAR          : u8 = 99;
+const MAX_12_HOUR_MODE  : u8 = 12;
+const MAX_24_HOUR_MODE  : u8 = 24;
 
 const SECONDS_ALARM_1_ADDR    : u8 = 0x07;
 const MINUTES_ALARM_1_ADDR    : u8 = 0x08;
@@ -30,12 +32,22 @@ const MINUTES_ALARM_2_ADDR    : u8 = 0x0B;
 const HOURS_ALARM_2_ADDR      : u8 = 0x0C;
 const DAY_ALARM_2_ADDR        : u8 = 0x0D;
 
+const READ_BITMASK_24_HOUR_MODE  : u8 = 0x3f;
+const READ_BITMASK_12_HOUR_MODE  : u8 = 0x1f;
+const READ_BITMASK_SECONDS       : u8 = 0x7f;
+
+const WRITE_BITMASK_24_HOUR_MODE        : u8 = 0x00;
+const WRITE_BITMASK_12_AM_HOUR_MODE     : u8 = 0x40;
+const WRITE_BITMASK_12_PM_HOUR_MODE     : u8 = 0x60;
+
 const CONTROL_ADDR          : u8 = 0x0E;
 const CONTROL_STATUS_ADDR   : u8 = 0x0F;
 
 const TEMP_ADDR             : u8 = 0x11;
 
 const ALARM_MSB_ON: u8 = 128;
+
+const MERIDIEM_BITMASK : u8 = 0x20;
 
 /// Possible alar rates for alarm 1.
 /// - `EverySecond`: The alarm activates every second. When using this rate, remember to update the alarm with update_alarm_1(). 
@@ -68,6 +80,7 @@ pub enum Alarm2Rate {
 }
 
 /// Component of DateTime.
+#[derive(PartialEq)]
 pub enum DateTimeComponent {
     Second,
     Minute,
@@ -93,12 +106,30 @@ pub struct DateTime {
     pub week_day: u8,
     pub date: u8,
     pub month: u8,
-    pub year: u8
+    pub year: u8,
+}
+
+/// Enums the different possible hour modes for the DS3231:
+/// - `TwentyFourHour`: Hours will go from 0 to 24
+/// - `TwelveHourAM`: Hours will go from 0 to 12. It will satart with the AM mode
+/// - `TwelveHourPM`: Hours will go from 0 to 12. It will satart with the PM mode
+#[derive(Clone, Copy, Debug)]
+pub enum HourMode {
+    TwentyFourHour,
+    TwelveHourAM,
+    TwelveHourPM,
+}
+
+#[derive(PartialEq, Debug)]
+pub enum Merdiem {
+    AM,
+    PM
 }
 
 /// Simple abstraction of the DS3231 that facilitates its handling
 pub struct DS3231<'a> {
-    i2c: I2CMaster<'a>
+    i2c: I2CMaster<'a>,
+    mode: HourMode
 }
 
 
@@ -113,8 +144,8 @@ impl <'a>DS3231<'a> {
     /// # Returns
     ///
     /// A new `DS3231` instance.
-    pub fn new(i2c: I2CMaster<'a>) -> DS3231<'a> {
-        DS3231 { i2c }
+    pub fn new(i2c: I2CMaster<'a>, mode: HourMode) -> DS3231<'a> {
+        DS3231 { i2c, mode }
     }
 
     /// Converts a decimal number to its Binary-Coded Decimal (BCD) representation.
@@ -128,6 +159,19 @@ impl <'a>DS3231<'a> {
     /// The BCD representation of the decimal value.
     fn decimal_to_bcd(&self, decimal: u8) -> u8 {
         ((decimal / 10) << 4) | (decimal % 10)
+    }
+
+    pub fn meridiem(&mut self) -> Result<Merdiem, I2CError> {
+        let mut buffer = [0_u8; 1];
+        self.read_clock(DateTimeComponent::Hour.addr(), &mut buffer)?;
+
+        let mut read_byte = buffer[0];
+        read_byte &= MERIDIEM_BITMASK;
+
+        if read_byte == MERIDIEM_BITMASK {
+            return Ok(Merdiem::PM);
+        }
+        Ok(Merdiem::AM)
     }
 
     /// Converts a Binary-Coded Decimal (BCD) value to its decimal representation.
@@ -160,11 +204,11 @@ impl <'a>DS3231<'a> {
     pub fn set_time(&mut self, date_time: DateTime) -> Result<(), I2CError> {
         self.set(date_time.second, DateTimeComponent::Second)?;
         self.set(date_time.minute, DateTimeComponent::Minute)?;
-        self.set(date_time.hour, DateTimeComponent::Hour)?;
         self.set(date_time.week_day, DateTimeComponent::WeekDay)?;
         self.set(date_time.date, DateTimeComponent::Date)?;
         self.set(date_time.month, DateTimeComponent::Month)?;
-        self.set(date_time.year, DateTimeComponent::Year)
+        self.set(date_time.year, DateTimeComponent::Year)?;
+        self.set(date_time.hour, DateTimeComponent::Hour)
     }
 
 
@@ -201,7 +245,7 @@ impl <'a>DS3231<'a> {
     /// 
     /// - `I2CError::InvalidArg`: If any of the value of the DateTime is not between acceptable boundaries
     pub fn set(&mut self, value: u8, time_component: DateTimeComponent) -> Result<(), I2CError> {
-        if !time_component.is_between_boundaries(value) {
+        if !time_component.is_between_boundaries(value, self.mode) {
             return Err(I2CError::InvalidArg);
         }
         self.write_clock(value, time_component.addr())
@@ -269,7 +313,13 @@ impl <'a>DS3231<'a> {
     /// - `I2CError::BufferTooSmall`: If the buffer is too small.
     /// - `I2CError::NoMoreHeapMemory`: If there isn't enough heap memory to perform the operation.
     fn write_clock(&mut self, time: u8, addr: u8) -> Result<(), I2CError> {
-        let bcd_time = self.decimal_to_bcd(time);
+        let mut bcd_time = self.decimal_to_bcd(time);
+
+        // If the hour is being written, then a mask is used to keep the hour-mode bits correct
+        if addr == DateTimeComponent::Hour.addr() {
+            let bitmask = self.mode.get_write_bitmask();
+            bcd_time |= bitmask;
+        }
         self.i2c.write(DS3231_ADDR, &[addr, bcd_time], BLOCK)
     }
 
@@ -285,8 +335,8 @@ impl <'a>DS3231<'a> {
     /// The decimal representation of the time component, with unnecessary bits masked out if applicable.
     fn parse_component(&self, read_value: u8, component: DateTimeComponent) -> u8 {
         match component {
-            DateTimeComponent::Second => self.bcd_to_decimal(read_value & 0x7f),
-            DateTimeComponent::Hour => self.bcd_to_decimal(read_value & 0x7f),
+            DateTimeComponent::Second => self.bcd_to_decimal(read_value & READ_BITMASK_SECONDS),
+            DateTimeComponent::Hour => self.bcd_to_decimal(read_value & self.mode.get_read_bitmask()),
             _ => self.bcd_to_decimal(read_value),
         }
     }
@@ -329,9 +379,9 @@ impl <'a>DS3231<'a> {
     /// A `HashMap` where the keys are string representations of the time components (e.g., "secs", "min") and the values are their corresponding decimal values.
     fn parse_read_data(&self, data: [u8; 13] )-> HashMap<String, String> {
         let mut res = HashMap::new();
-        let secs = self.bcd_to_decimal(data[0] & 0x7f);  // 0 1 1 1 1 1 1 1
+        let secs = self.bcd_to_decimal(data[0] & READ_BITMASK_SECONDS);
         let mins = self.bcd_to_decimal(data[1]);
-        let hrs = self.bcd_to_decimal(data[2] & 0x3f);   // 0 0 1 1 1 1 1 1
+        let hrs = self.bcd_to_decimal(data[2] & self.mode.get_read_bitmask());
         let day_number = self.bcd_to_decimal(data[4]);
         let month = self.bcd_to_decimal(data[5]);
         let yr = self.bcd_to_decimal(data[6]);
@@ -546,7 +596,7 @@ impl <'a>DS3231<'a> {
     /// # Returns
     ///
     /// The temperature in degrees Celsius as a floating-point value as a f32.
-    pub fn get_temperature(&mut self) -> f32 { // TODO: The values are not being deserialized with BCD, only twos complement. Check in datasheet if BCD needs to be used to.
+    pub fn get_temperature(&mut self) -> f32 {
         let mut buffer: [u8; 2] = [0; 2];
         self.i2c.write_read(DS3231_ADDR, &[TEMP_ADDR], &mut buffer,BLOCK).unwrap();
 
@@ -607,11 +657,16 @@ impl DateTimeComponent {
     /// # Returns
     /// 
     /// A bool. True if val is between boundaries, False if not.
-    pub fn is_between_boundaries(&self, val: u8) -> bool {
+    pub fn is_between_boundaries(&self, val: u8, hour_mode: HourMode) -> bool {
         match self {
             DateTimeComponent::Second => self.check_boundaries(val, MIN_VALUE, MAX_SECS),
             DateTimeComponent::Minute => self.check_boundaries(val, MIN_VALUE, MAX_MINS),
-            DateTimeComponent::Hour => true, // TODO: Check if is set on 12 or 24 to see which is the max
+            DateTimeComponent::Hour => {
+                match hour_mode {
+                    HourMode::TwentyFourHour => self.check_boundaries(val, MIN_VALUE, MAX_24_HOUR_MODE),
+                    _ => self.check_boundaries(val, MIN_VALUE, MAX_12_HOUR_MODE),
+                }
+            },
             DateTimeComponent::WeekDay => self.check_boundaries(val, MIN_WEEK_DAY, MAX_WEEK_DAY),
             DateTimeComponent::Date => self.check_boundaries(val, MIN_VALUE, MAX_DATE),
             DateTimeComponent::Month => self.check_boundaries(val, MIN_MONTH, MAX_MONTH),
@@ -638,5 +693,38 @@ impl DateTimeComponent {
     /// ```
     fn check_boundaries(&self, val: u8, min_boundarie: u8, max_boundarie: u8) -> bool {
         val >= min_boundarie && val <= max_boundarie
+    }
+}
+
+impl HourMode {
+
+    /// Gets the bitmask needed to read hour values according to the hour-mode
+    /// 
+    /// When reading the hour from the DS3231 the hour-mode changes which bits should be ignored
+    /// 
+    /// # Returns
+    /// 
+    /// An u8 that represents the bitmask to be used
+    fn get_read_bitmask(&self) -> u8 {
+        match self {
+            Self::TwentyFourHour => READ_BITMASK_24_HOUR_MODE,
+            _  => READ_BITMASK_12_HOUR_MODE
+        }
+    }
+
+    /// Gets the bitmask needed to write hour values according to the hour-mode
+    /// 
+    /// When writing the the hour on the DS3231 some bits (apart from the ones holding the hour value)
+    /// need to be set according to the hour-mode
+    /// 
+    /// # Returns
+    /// 
+    /// An u8 that represents the bitmask to be used
+    fn get_write_bitmask(&self) -> u8 {
+        match self {
+            HourMode::TwentyFourHour => WRITE_BITMASK_24_HOUR_MODE,
+            HourMode::TwelveHourAM => WRITE_BITMASK_12_AM_HOUR_MODE,
+            HourMode::TwelveHourPM => WRITE_BITMASK_12_PM_HOUR_MODE,
+        }
     }
 }

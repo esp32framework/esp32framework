@@ -38,7 +38,8 @@ pub enum BleError{
     CanOnlyBeOneBleDriver,
     Disconnected,
     CouldNotConnectToDevice,
-    DeviceNotConnectable
+    DeviceNotConnectable,
+    InvalidPasskey,
 }
 
 impl From<BLEError> for BleError {

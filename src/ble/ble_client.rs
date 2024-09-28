@@ -7,7 +7,7 @@ const MS_BETWEEN_SCANS: u16 = 100;
 
 use crate::{ble::RemoteCharacteristic, utils::{auxiliary::{SharableRef, SharableRefExt}, esp32_framework_error::Esp32FrameworkError, notification::Notifier}, InterruptDriver};
 
-use super::{adv_type_is_connectable, BleAdvertisedDevice, BleError, BleId};
+use super::{BleAdvertisedDevice, BleError, BleId};
 
 /// Driver responsible for handling the client-end of ble connections. Can be used to read, write or notify 
 /// on characteristics of services of connected clients
@@ -103,7 +103,7 @@ impl _BleClient{
     /// - `timeout`: A duration in which the client will attempt to connect to a device that fullfills the condition. If it is None then 
     /// the client will attempt to connect indefinitly
     /// - `service_id`: A [&BleId] that a advertising devise must advertise in order for the client to connect to it
-    
+    ///
     /// # Returns
     /// Same return type as [Self::find_device]
     /// 
@@ -120,7 +120,7 @@ impl _BleClient{
     /// - `timeout`: A duration in which the client will attempt to connect to a device that fullfills the condition. If it is None then 
     /// the client will attempt to connect indefinitly
     /// - `name`: A name that a advertising devise must have in order for the client to connect to it
-    
+    ///
     /// # Returns
     /// Same return type as [Self::find_device]
     /// 
@@ -135,15 +135,10 @@ impl _BleClient{
         self.find_device_async(timeout, |adv| { adv.is_advertising_service(service) }).await
     }
 
-    /// Non blocking async version of [Self::connect_to_device_of_name]
+    /// Non blocking async version of [Self::find_device_of_name]
     pub async fn find_device_of_name_async(&mut self, timeout: Option<Duration>, name: String)->Result<BleAdvertisedDevice, BleError>{
         self.find_device_async(timeout, |adv| { adv.name() == name }).await
     }
-
-
-
-
-
 
     /// Blocking method that attempts to connect to a device.
     /// 
@@ -363,7 +358,7 @@ impl BleClient{
 }
 
 impl InterruptDriver for BleClient{
-    /// Updates all characteristics that have ben gotten
+    /// Updates all characteristics that have been gotten
     fn update_interrupt(&mut self)-> Result<(), Esp32FrameworkError> {
         for c in self.updater.deref_mut().remote_characteristics.values_mut(){
             c.execute_if_notified()

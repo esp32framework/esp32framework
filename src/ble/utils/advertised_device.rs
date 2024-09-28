@@ -122,7 +122,7 @@ impl From<&BLEAdvertisedDevice> for BleAdvertisedDevice{
 }
 
 /// Returns wether or not a device is connectable acording to the advertisement type
-pub fn adv_type_is_connectable(adv_type: &AdvType)-> bool{
+fn adv_type_is_connectable(adv_type: &AdvType)-> bool{
     match adv_type{
         AdvType::Ind => true,
         AdvType::DirectInd => true,

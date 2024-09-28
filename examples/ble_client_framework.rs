@@ -1,5 +1,5 @@
 //! Example of a ble client using an async aproach. The client will connect to a server that has a 
-//! service of uuid 0x12345678. Once connected the client will read all characteristics interpreting
+//! service of uuid 0x5678. Once connected the client will read all characteristics interpreting
 //! their value as an u32 and then multiplies them by a value. This value is obtained from the notifiable 
 //! characteristics of the service. Thanks to the async aproch we can have other tasks running concurrently
 //! to this main function. In this case there is a TimerDriver se to print 'Tic' every 2 seconds.
@@ -21,7 +21,7 @@ fn main(){
 
 fn get_characteristics(micro: &mut Microcontroller)-> Vec<RemoteCharacteristic>{
   let mut client = micro.ble_client();
-  let service_id = BleId::FromUuid32(0x12345678);
+  let service_id = BleId::FromUuid16(0x5678);
   println!("Attempting connection");
   
   let device = client.find_device_with_service(None, &service_id).unwrap();
@@ -54,7 +54,7 @@ fn set_periodical_timer_driver_interrupts<'a>(micro: &mut Microcontroller<'a>, m
   timer_driver
 }
 
-async fn main_loop<'a>(mut timer_driver: TimerDriver<'a>,mut characteristics: Vec<RemoteCharacteristic>, receiver: Receiver<u8>){
+async fn main_loop(mut timer_driver: TimerDriver<'_>,mut characteristics: Vec<RemoteCharacteristic>, receiver: Receiver<u8>){
   let mut mult = 2;
   loop{
     for characteristic in characteristics.iter_mut(){
@@ -62,7 +62,7 @@ async fn main_loop<'a>(mut timer_driver: TimerDriver<'a>,mut characteristics: Ve
         Ok(read) => get_number_from_bytes(read),
         Err(err) => match err{
           BleError::CharacteristicNotReadable => continue,
-          _ => Err(err).unwrap()
+          _ => panic!("{:?}", err)
         }
       };
       
@@ -76,7 +76,7 @@ async fn main_loop<'a>(mut timer_driver: TimerDriver<'a>,mut characteristics: Ve
       if let Err(err) = characteristic.write_async(&new_value.to_be_bytes()).await{
         match err{
           BleError::CharacteristicNotWritable => continue,
-          _ => Err(err).unwrap()
+          _ => panic!("{:?}", err)
         }
       }
     }
