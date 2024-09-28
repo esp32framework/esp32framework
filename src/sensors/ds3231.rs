@@ -120,10 +120,11 @@ pub enum HourMode {
     TwelveHourPM,
 }
 
+/// Enums the meridiems used on the DS3231
 #[derive(PartialEq, Debug)]
-pub enum Merdiem {
+pub enum Meridiem {
     AM,
-    PM
+    PM,
 }
 
 /// Simple abstraction of the DS3231 that facilitates its handling
@@ -135,7 +136,7 @@ pub struct DS3231<'a> {
 
 impl <'a>DS3231<'a> {
     
-    /// Creates a new `DS3231` instance.
+    /// Creates a new `DS3231` instance with 24-hour mode.
     ///
     /// # Arguments
     ///
@@ -144,9 +145,23 @@ impl <'a>DS3231<'a> {
     /// # Returns
     ///
     /// A new `DS3231` instance.
-    pub fn new(i2c: I2CMaster<'a>, mode: HourMode) -> DS3231<'a> {
-        DS3231 { i2c, mode }
+    pub fn new(i2c: I2CMaster<'a>) -> DS3231<'a> {
+        DS3231 { i2c, mode: HourMode::TwentyFourHour }
     }
+
+    /// Creates a new `DS3231` instance with the desired hour mode.
+    ///
+    /// # Arguments
+    ///
+    /// - `i2c`: The I2CMaster interface to communicate with the DS3231.
+    /// - `mode`: The desired hour mode for the clock.
+    ///
+    /// # Returns
+    ///
+    /// A new `DS3231` instance.
+    pub fn new_with_hour_mode(i2c: I2CMaster<'a>, mode: HourMode) -> DS3231<'a> {
+        DS3231 { i2c, mode }
+    } 
 
     /// Converts a decimal number to its Binary-Coded Decimal (BCD) representation.
     ///
@@ -161,7 +176,19 @@ impl <'a>DS3231<'a> {
         ((decimal / 10) << 4) | (decimal % 10)
     }
 
-    pub fn meridiem(&mut self) -> Result<Merdiem, I2CError> {
+    /// Gets the meridiem set on the DS3231.
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` containing the Meridiem type or an `I2CError` if
+    /// reading the DS3231 fails
+    /// 
+    /// # Errors
+    /// 
+    /// - `I2CError::InvalidArg`: If an invalid argument is passed.
+    /// - `I2CError::BufferTooSmall`: If the buffer is too small.
+    /// - `I2CError::NoMoreHeapMemory`: If there isn't enough heap memory to perform the operation.
+    pub fn meridiem(&mut self) -> Result<Meridiem, I2CError> {
         let mut buffer = [0_u8; 1];
         self.read_clock(DateTimeComponent::Hour.addr(), &mut buffer)?;
 
@@ -169,9 +196,9 @@ impl <'a>DS3231<'a> {
         read_byte &= MERIDIEM_BITMASK;
 
         if read_byte == MERIDIEM_BITMASK {
-            return Ok(Merdiem::PM);
+            return Ok(Meridiem::PM);
         }
-        Ok(Merdiem::AM)
+        Ok(Meridiem::AM)
     }
 
     /// Converts a Binary-Coded Decimal (BCD) value to its decimal representation.
