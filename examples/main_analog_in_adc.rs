@@ -51,7 +51,7 @@ fn main(){
         let smooth_read = analog_in.smooth_read(20).unwrap();
         println!("READ: {read} | RAW: {raw_read} | SMOOTH: {smooth_read}");
         FreeRtos::delay_ms(500_u32);
-        micro.update();
+        micro.update().unwrap();
     }
     //drop(analog_in);
     //println!("{:?}", micro);

@@ -9,18 +9,18 @@ use std::sync::mpsc::{self, Receiver};
 use esp32framework::{ble::{BleError, BleId, RemoteCharacteristic}, timer_driver::TimerDriver, Microcontroller};
 
 fn main(){
-  let mut micro = Microcontroller::new().unwrap();
+  let mut micro = Microcontroller::new();
 
   let mut characteristics = get_characteristics(&mut micro);
 
   let receiver = set_notify_callback_for_characteristics(&mut characteristics);
   let timer_driver = set_periodical_timer_driver_interrupts(&mut micro, 2000);
 
-  micro.block_on(main_loop(timer_driver, characteristics, receiver))
+  micro.block_on(main_loop(timer_driver, characteristics, receiver)).unwrap();
 }
 
 fn get_characteristics(micro: &mut Microcontroller)-> Vec<RemoteCharacteristic>{
-  let mut client = micro.ble_client();
+  let mut client = micro.ble_client().unwrap();
   let service_id = BleId::FromUuid16(0x5678);
   println!("Attempting connection");
   
@@ -28,7 +28,7 @@ fn get_characteristics(micro: &mut Microcontroller)-> Vec<RemoteCharacteristic>{
   client.connect_to_device(device).unwrap();
   
   println!("Connected");
-  micro.wait_for_updates(Some(2000));
+  micro.wait_for_updates(Some(2000)).unwrap();
   
   client.get_all_characteristics(&service_id).unwrap() 
 }

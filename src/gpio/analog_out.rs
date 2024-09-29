@@ -45,7 +45,7 @@ enum FixedChangeType {
 /// - `fixed_change_increasing`: Arc<AtomicBool> that indicates if a fixed change on the duty is needed
 /// - `fixed_change_type`: An instance of FixedChangeType that indicates the type of duty change
 /// - `amount_of_cycles`: An Option containing an u32 thath indicates the amount of desired cycles 
-pub struct _AnalogOut<'a> {
+struct _AnalogOut<'a> {
     driver: LedcDriver<'a>,
     timer_driver: TimerDriver<'a>,
     duty: Arc<AtomicU32>,
@@ -667,4 +667,10 @@ impl <'a> InterruptDriver for _AnalogOut<'a>{
 /// An u32 value that represents the duty corresponding to the ratio of time the signal is high.  
 fn duty_from_high_ratio(max_duty: u32, high_ratio: f32) -> u32{
     ((max_duty as f32) * high_ratio) as u32
+}
+
+impl From<TimerDriverError> for AnalogOutError{
+    fn from(value: TimerDriverError) -> Self {
+        AnalogOutError::TimerDriverError(value)
+    }
 }

@@ -1,10 +1,10 @@
 use std::{rc::Rc, time::Duration, time::Instant};
 use esp_idf_svc::hal::{gpio::*, adc::*, adc::attenuation::adc_atten_t};
 use oneshot::{config::AdcChannelConfig, AdcChannelDriver, AdcDriver};
-use crate::microcontroller_src::{
+use crate::{microcontroller_src::{
     microcontroller::SharableAdcDriver, 
     peripherals::{Peripheral, PeripheralError}
-};
+}, utils::esp32_framework_error::AdcDriverError};
 
 const MAX_DIGITAL_VAL: u16 = 4095;
 
@@ -14,7 +14,8 @@ pub enum AnalogInError{
     MissingAdcDriver,
     InvalidPin,
     ErrorReading,
-    InvalidPeripheral(PeripheralError)
+    InvalidPeripheral(PeripheralError),
+    AdcDriverError(AdcDriverError),
 }
 
 /// Driver for receiving analog inputs from a particular pin
@@ -184,5 +185,11 @@ impl <'a> AnalogIn<'a> {
         }
         let result = smooth_val / amount_of_samples as u64;
         Ok(result as u16)
+    }
+}
+
+impl From<AdcDriverError> for AnalogInError{
+    fn from(value: AdcDriverError) -> Self {
+        AnalogInError::AdcDriverError(value)
     }
 }

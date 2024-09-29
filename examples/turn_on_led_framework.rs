@@ -5,7 +5,7 @@
 use esp32framework::{Microcontroller, gpio::InterruptType};
 
 fn main(){
-    let mut micro = Microcontroller::new().unwrap();
+    let mut micro = Microcontroller::new();
     let mut button = micro.set_pin_as_digital_in(9).unwrap();
     let mut led = micro.set_pin_as_digital_out(3).unwrap();
     button.set_debounce(200 * 1000).unwrap();
@@ -17,5 +17,5 @@ fn main(){
         led.toggle().unwrap();
     };
     button.trigger_on_interrupt(callback, InterruptType::NegEdge).unwrap();
-    micro.wait_for_updates(None)
+    micro.wait_for_updates(None).unwrap();
 }

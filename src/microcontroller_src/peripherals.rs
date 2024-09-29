@@ -1,6 +1,6 @@
 use std::mem;
 use esp32_nimble::BLEDevice;
-use esp_idf_svc::hal::{gpio::*, i2c::I2C0};
+use esp_idf_svc::hal::{gpio::*, i2c::I2C0, modem};
 
 const PIN_COUNT: usize = 24;
 const TIMERS_COUNT: usize = 2;
@@ -90,9 +90,15 @@ impl Peripheral {
     
     pub fn into_ble_device(self) -> Result<&'static mut BLEDevice, PeripheralError>{
         match self{
-            Peripheral::BleDevice => {
-                Ok(BLEDevice::take())
-            },
+            Peripheral::BleDevice => Ok(BLEDevice::take()),
+            Peripheral::None => Err(PeripheralError::AlreadyTaken),
+            _ => Err(PeripheralError::NotABleDevicePeripheral),
+        }
+    }
+
+    pub fn into_modem(self) -> Result<modem::Modem, PeripheralError>{
+        match self{
+            Peripheral::BleDevice => Ok(unsafe {modem::Modem::new()}),
             Peripheral::None => Err(PeripheralError::AlreadyTaken),
             _ => Err(PeripheralError::NotABleDevicePeripheral),
         }
@@ -196,7 +202,7 @@ impl Peripherals {
         self.ble_device.take()
     }
 
-    pub fn get_modem(&mut self) -> Peripheral {
+    pub fn get_wifi_peripheral(&mut self) -> Peripheral {
         self.modem.take()
     }
 }

@@ -1,7 +1,5 @@
 use crate::{
-    gpio::digital_in::{DigitalIn, DigitalInError}, 
-    microcontroller_src::peripherals::Peripheral, 
-    utils::timer_driver::TimerDriver
+    gpio::digital_in::{DigitalIn, DigitalInError}, microcontroller_src::peripherals::Peripheral, timer_driver::TimerDriverError, utils::timer_driver::TimerDriver
 };
 use esp_idf_svc::hal::ledc::config::TimerConfig;
 
@@ -10,7 +8,8 @@ const FREQUENCY_TO_SAMPLING_RATIO: u32 = 2;
 /// Enums the different errors possible when working with the analog in with pwm signals
 #[derive(Debug)]
 pub enum AnalogInPwmError {
-    DigitalDriverError(DigitalInError)
+    DigitalDriverError(DigitalInError),
+    TimerDriverError(TimerDriverError)
 }
 
 /// Driver for receiving analog input with a PWM signal from a particular DigitalIn.
@@ -99,5 +98,11 @@ impl <'a>AnalogInPwm<'a> {
     /// An f32 representing the percentage value
     pub fn read_percentage(&self)-> f32 {
         self.read() * 100.0
+    }
+}
+
+impl From<TimerDriverError> for AnalogInPwmError{
+    fn from(value: TimerDriverError) -> Self {
+        AnalogInPwmError::TimerDriverError(value)
     }
 }

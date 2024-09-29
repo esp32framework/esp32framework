@@ -479,3 +479,9 @@ impl <'a> InterruptDriver for _DigitalIn<'a>{
         self._update_interrupt().map_err(Esp32FrameworkError::DigitalIn)
     }
 }
+
+impl From<TimerDriverError> for DigitalInError{
+    fn from(value: TimerDriverError) -> Self {
+        DigitalInError::TimerDriverError(value)
+    }
+}

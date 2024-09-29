@@ -37,7 +37,7 @@ fn add_handlers_to_server(server: &mut BleServer) {
 }
 
 fn main() {
-	let mut micro = Microcontroller::new().unwrap();
+	let mut micro = Microcontroller::new();
 
 	// Security configuration
 	let phone_capabilities = IOCapabilities::DisplayOnly;
@@ -49,7 +49,7 @@ fn main() {
     let mut service = Service::new(&service_id, vec![0xAB]).unwrap();
 	service.add_characteristics(&characteristics);
 
-	let mut server = micro.ble_secure_server("Example Secure Server".to_string(), &vec![service], security);
+	let mut server = micro.ble_secure_server("Example Secure Server".to_string(), &vec![service], security).unwrap();
 
 	add_handlers_to_server(&mut server);
 
@@ -59,7 +59,7 @@ fn main() {
     loop {
         notifiable_characteristic.update_data(vec![counter]);
         server.notify_value(service_id.clone(), &notifiable_characteristic).unwrap();
-		micro.wait_for_updates(Some(1000));
+		micro.wait_for_updates(Some(1000)).unwrap();
         counter += 1;
 	}
 }

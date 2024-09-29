@@ -9,7 +9,7 @@ const SDA: usize = 5;
 const SCL: usize = 6;
 
 fn setup_ds3231<'a>(micro: &mut Microcontroller<'a>)-> DS3231<'a> {
-	let i2c = micro.set_pins_for_i2c_master(SDA,SCL);
+	let i2c = micro.set_pins_for_i2c_master(SDA,SCL).unwrap();
 	let mut ds3231 = DS3231::new(i2c, HourMode::TwentyFourHour);
 	let date_time = DateTime {
 		second: 5,
@@ -28,7 +28,7 @@ fn setup_ds3231<'a>(micro: &mut Microcontroller<'a>)-> DS3231<'a> {
 fn setup_ble_beacon<'a>(micro: & mut Microcontroller<'a>)-> (BleBeacon<'a>, Service) {
 	let service_id = BleId::StandardService(StandarServiceId::EnvironmentalSensing);
 	let mut service = vec![Service::new(&service_id, vec![]).unwrap()];
-	let mut beacon = micro.ble_beacon("ESP32-beacon".to_string(), &service);
+	let mut beacon = micro.ble_beacon("ESP32-beacon".to_string(), &service).unwrap();
 	beacon.advertise_service_data(&service_id).unwrap();
 	beacon.start().unwrap();
 	(beacon, service.pop().unwrap())
@@ -47,7 +47,7 @@ fn parse_temperature(temp: f32) -> Vec<u8> {
 }
 
 fn main(){
-	let mut micro = Microcontroller::new().unwrap();
+	let mut micro = Microcontroller::new();
 	let mut ds3231 = setup_ds3231(&mut micro);
 	let (mut beacon, mut service) = setup_ble_beacon(&mut micro);
 	let mut led = setup_led(&mut micro);
@@ -67,6 +67,6 @@ fn main(){
 		} else {
 			sent = false;
 		}
-		micro.wait_for_updates(Some(300));
+		micro.wait_for_updates(Some(300)).unwrap();
 	}
 }
