@@ -2,7 +2,6 @@
 
 class Microcontroller {
     + peripherals 
-    + timer_drivers 
     + interrupt_drivers 
     + adc_driver 
     + notification 
@@ -34,6 +33,28 @@ class Microcontroller {
     + block_on()
     + get_wifi_driver()
 }
+
+class TimerDriver{
+    -driver
+    -interrupt_update
+    -alarms
+    -interrupts
+    +create_child_copy()
+    +delay()
+    +set_interrupt_update_callback()
+    +interrupt_after()
+    +interrupt_after_n_times()
+    +micro_to_counter()
+    +activate()
+    +deactivate()
+    +reset()
+    +enable()
+    +disable()
+    +remove_interrupt()
+    +set_lowest_alarm()
+    +handle_alarm_update()
+}
+
 
 class DigitalIn{
     + pin_driver 
@@ -173,6 +194,7 @@ Microcontroller .> BleBeacon: create
 Microcontroller ..> BleClient: create
 Microcontroller ..> BleServer: create
 Microcontroller ..> WifiDriver: create
+Microcontroller ..> TimerDriver: create
 AnalogInPwm "1" --> "1" DigitalIn
 
 @enduml
