@@ -1,48 +1,78 @@
 @startuml diagrama
 
-class DigitalOut {
-    +pin : Pin
-    +value : DigitalValue
-    +is_high() : bool
-    +is_low() : bool
-    +set_high() : Result<>
-    +set_low() : Result<>
-    +toggle() : Result<>
-    +blink(frequency, duration) : Result<>
+class DigitalOut{
+    +set_level(Level)
+    +get_level()
+    +set_high()
+    +set_low()
+    +toggle()
+    +blink(u32, u64)
+    +update_interrupt()
 }
 
-class DigitalIn {
-    +pin : Pin
-    +react_to : Flank
-    +debounce_time : u32
-    +wait_for_flank() : void
-    +on_flank(func) : void
-    +get_value() : DigitalValue
-    +is_high() : bool
-    +is_low() : bool
-    +set_debounce() : void
+class _DigitalOut {
+    -pin_driver: PinDriver<'a, AnyIOPin, Output>,
+    -timer_driver: TimerDriver<'a>,
+    -interrupt_update_code: Arc<AtomicInterruptUpdateCode>
+    +set_level(Level)
+    +get_level()
+    +set_high()
+    +set_low()
+    +toggle()
+    +blink(u32, u64)
+    +update_interrupt()
 }
 
-class Pin {
-    -number : u8
-    -protocols : Vector<>
+
+class DigitalIn{
+    +set_pull(Pull)
+    +change_interrupt_type(InterruptType)
+    +trigger_if_mantains_after(u64)
+    +subscribe_trigger(func)
+    +trigger_on_interrupt(func, InterruptType)
+    +trigger_on_interrupt_first_n_times(usize,func, InterruptType)
+    +timer_reached()
+    +get_level()
+    +is_high()
+    +is_low()
+    +set_debounce(u64)
 }
 
-enum Flank {
-    Ascending
-    Descending
-    Both
+class _DigitalIn {
+    +pin_driver: PinDriver<'a, AnyIOPin, Input>
+    -timer_driver: TimerDriver<'a>
+    -user_callback: Box<dyn FnMut()>
+    -debounce_ms: Option<u64>
+    -notifier: Option<Notifier>
+    +set_pull(Pull)
+    +change_interrupt_type(InterruptType)
+    +trigger_if_mantains_after(u64)
+    +subscribe_trigger(func)
+    +trigger_on_interrupt(func, InterruptType)
+    +trigger_on_interrupt_first_n_times(usize,func, InterruptType)
+    +timer_reached()
+    +get_level()
+    +is_high()
+    +is_low()
+    +set_debounce(u64)
 }
 
-enum DigitalValue {
-    High
-    Low
+enum InterruptType {
+    PosEdge
+    NegEdge
+    AnyEdge
+    LowLevel
+    HighLevel
 }
 
-DigitalOut "1" -up-> "1" Pin: contains
-DigitalIn "1" -up-> "1" Pin: contains
-DigitalIn "1" --> "1" Flank: use
-DigitalIn "1" --> "1" DigitalValue : use
-DigitalOut "1" --> "1" DigitalValue : use
+enum InterruptUpdate {
+    Blink,
+    None
+}
+
+DigitalIn *-- _DigitalIn
+_DigitalIn -> InterruptType
+_DigitalOut -> InterruptUpdate
+DigitalOut -> _DigitalOut
 
 @enduml

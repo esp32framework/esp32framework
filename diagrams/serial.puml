@@ -1,0 +1,62 @@
+@startuml Microcontroller serial
+
+Interface READER {
+    +read_and_parse()
+}
+Interface WRITER {
+    +parse_and_write()
+}
+
+class I2CMaster{
+    - driver: I2cDriver<'a>
+    + read(u8, [u8], u32) : Result<>
+    + write(u8, [u8], u32) : Result<>
+    + write_read(u8 , [u8], [u8], u32) : Result<>
+}
+
+class I2CSlave{
+    - driver: I2cSlaveDriver<'a>
+    + read([u8], u32): Result<>
+    + write([u8], u32): Result<>
+}
+
+class UART{
+    - driver: UartDriver<'a>
+    + write([u8]): Result<>
+    + read([u8]): Result<>
+    +read_with_timeout([u8], u32): Result<>
+}
+
+exception I2CError {
+    Temp,
+    InvalidPin,
+    InvalidPeripheral,
+    BufferTooSmall,
+    InvalidArg,
+    DriverError,
+    NoMoreHeapMemory,
+    TimeoutError,
+    ErrorInReadValue
+}
+
+exception UARTError{
+    InvalidPin,
+    InvalidUartNumber,
+    DriverError,
+    WriteError,
+    ReadError,
+    InvalidBaudrate
+}
+
+READER <-- I2CMaster
+WRITER <-- I2CMaster
+READER <-- I2CSlave
+WRITER <-- I2CSlave
+READER <-- UART
+WRITER <-- UART
+UART --> UARTError
+I2CMaster --> I2CError
+I2CSlave --> I2CError
+
+
+@enduml
