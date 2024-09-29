@@ -35,7 +35,7 @@ fn setup_ble_beacon<'a>(micro: & mut Microcontroller<'a>)-> (BleBeacon<'a>, Serv
 }
 
 fn setup_led<'a>(micro: & mut Microcontroller<'a>)-> DigitalOut<'a> {
-	let mut led = micro.set_pin_as_digital_out(LED);
+	let mut led = micro.set_pin_as_digital_out(LED).unwrap();
 	led.set_low().unwrap();
 	led
 }
@@ -47,7 +47,7 @@ fn parse_temperature(temp: f32) -> Vec<u8> {
 }
 
 fn main(){
-	let mut micro = Microcontroller::new();
+	let mut micro = Microcontroller::new().unwrap();
 	let mut ds3231 = setup_ds3231(&mut micro);
 	let (mut beacon, mut service) = setup_ble_beacon(&mut micro);
 	let mut led = setup_led(&mut micro);

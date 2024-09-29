@@ -37,7 +37,7 @@ fn add_handlers_to_server(server: &mut BleServer) {
 }
 
 fn main() {
-	let mut micro = Microcontroller::new();
+	let mut micro = Microcontroller::new().unwrap();
 
 	// Security configuration
 	let phone_capabilities = IOCapabilities::DisplayOnly;

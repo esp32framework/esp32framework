@@ -9,7 +9,7 @@ use std::sync::mpsc::{self, Receiver};
 use esp32framework::{ble::{BleError, BleId, RemoteCharacteristic}, timer_driver::TimerDriver, Microcontroller};
 
 fn main(){
-  let mut micro = Microcontroller::new();
+  let mut micro = Microcontroller::new().unwrap();
 
   let mut characteristics = get_characteristics(&mut micro);
 
@@ -48,7 +48,7 @@ fn set_notify_callback_for_characteristics(characteristics: &mut Vec<RemoteChara
 }
 
 fn set_periodical_timer_driver_interrupts<'a>(micro: &mut Microcontroller<'a>, mili: u64)-> TimerDriver<'a>{
-  let mut timer_driver = micro.get_timer_driver();
+  let mut timer_driver = micro.get_timer_driver().unwrap();
   timer_driver.interrupt_after_n_times(mili * 1000, None, true, || {println!("Tic")});
   timer_driver.enable().unwrap();
   timer_driver

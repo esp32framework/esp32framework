@@ -9,7 +9,7 @@ const PASSWORD: &str = "WIFI_PASS";
 const URI: &str = "https://dog.ceo/api/breeds/image/random";
 
 fn main(){
-    let mut micro = Microcontroller::new();
+    let mut micro = Microcontroller::new().unwrap();
 
     // WIFI connection
     let mut wifi = micro.get_wifi_driver();

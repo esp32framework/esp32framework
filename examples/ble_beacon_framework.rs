@@ -4,7 +4,7 @@
 use esp32framework::{ ble::{Service, BleId}, Microcontroller};
 
 fn main(){
-    let mut micro = Microcontroller::new();
+    let mut micro = Microcontroller::new().unwrap();
     let mut services1 = vec![];
     let mut services2 = vec![];
     for i in 1..3{

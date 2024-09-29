@@ -5,10 +5,10 @@
 use esp32framework::{sensors::{Alarm1Rate, DateTime, HourMode, DS3231}, serial::READER, Microcontroller};
 
 fn main() {
-    let mut micro = Microcontroller::new();
+    let mut micro = Microcontroller::new().unwrap();
     let i2c = micro.set_pins_for_i2c_master(5,6);
     let mut ds3231 = DS3231::new(i2c, HourMode::TwentyFourHour);
-    let sqw = micro.set_pin_as_digital_in(3);
+    let sqw = micro.set_pin_as_digital_in(3).unwrap();;
 
     let date_time = DateTime {
         second: 5,

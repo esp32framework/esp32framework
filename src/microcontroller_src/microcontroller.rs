@@ -3,16 +3,9 @@ use std::rc::Rc;
 use esp32_nimble::{enums::AuthReq, BLEDevice};
 use futures::future::{join, Future};
 use crate::{
-    microcontroller_src::{peripherals::*, interrupt_driver::InterruptDriver},
-    ble::{BleBeacon,BleServer,Service,Security, ble_client::BleClient},
-    gpio::{AnalogIn, AnalogInPwm, DigitalIn, DigitalOut,  AnalogOut},
-    serial::{Parity, StopBit, UART, I2CMaster, I2CSlave},
-    wifi::WifiDriver,
-    utils::{
-        timer_driver::TimerDriver, 
-        auxiliary::{SharableRef, SharableRefExt}, 
-        notification::{Notification, Notifier}
-    },
+    ble::{ble_client::BleClient, BleBeacon, BleServer, Security, Service}, gpio::{AnalogIn, AnalogInError, AnalogInPwm, AnalogInPwmError, AnalogOut, AnalogOutError, DigitalIn, DigitalInError, DigitalOut, DigitalOutError}, microcontroller_src::{interrupt_driver::InterruptDriver, peripherals::*}, serial::{I2CMaster, I2CSlave, Parity, StopBit, UART}, timer_driver::TimerDriverError, utils::{
+        auxiliary::{SharableRef, SharableRefExt}, esp32_framework_error::Esp32FrameworkError, notification::{Notification, Notifier}, timer_driver::TimerDriver
+    }, wifi::WifiDriver
 };
 use oneshot::AdcDriver;
 
@@ -44,19 +37,20 @@ impl <'a>Microcontroller<'a> {
     /// # Returns
     /// 
     /// The new Microcontroller
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self, Esp32FrameworkError> {
         esp_idf_svc::sys::link_patches();
         let peripherals = Peripherals::new();
         
-        Microcontroller{
+        Ok(Microcontroller{
             peripherals,
             timer_drivers: vec![],
             interrupt_drivers: Vec::new(),
             adc_driver: None,
             notification: Notification::new(),
-            event_loop: EspSystemEventLoop::take().unwrap(),
-        }
+            event_loop: EspSystemEventLoop::take().map_err(|_| Esp32FrameworkError::Initialization)?,
+        })
     }
+    
 
     /// Retrieves a TimerDriver instance.
     ///
@@ -69,17 +63,17 @@ impl <'a>Microcontroller<'a> {
     /// # Panics
     ///
     /// This function will panic if the `TimerDriver` cannot be created, which might happen due to hardware constraints.
-    pub fn get_timer_driver(&mut self)-> TimerDriver<'a>{
+    pub fn get_timer_driver(&mut self)-> Result<TimerDriver<'a>, Esp32FrameworkError>{
         let mut timer_driver = if self.timer_drivers.len() < TIMER_GROUPS{
             let timer = self.peripherals.get_timer(self.timer_drivers.len());
-            TimerDriver::new(timer, self.notification.notifier()).unwrap()
+            TimerDriver::new(timer, self.notification.notifier()).map_err(Esp32FrameworkError::TimerDriver)?
         } else {
             self.timer_drivers.swap_remove(0)
         };
 
-        let timer_driver_copy = timer_driver.create_child_copy().unwrap();
+        let timer_driver_copy = timer_driver.create_child_copy().map_err( Esp32FrameworkError::TimerDriver)?;
         self.timer_drivers.push(timer_driver);
-        timer_driver_copy
+        Ok(timer_driver_copy)
     }
 
     /// Creates a DigitalIn on the ESP pin with number 'pin_num' to read digital inputs.
@@ -95,11 +89,11 @@ impl <'a>Microcontroller<'a> {
     /// # Panics
     ///
     /// This function will panic if the `DigitalIn` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration.
-    pub fn set_pin_as_digital_in(&mut self, pin_num: usize) -> DigitalIn<'a> {
+    pub fn set_pin_as_digital_in(&mut self, pin_num: usize) -> Result<DigitalIn<'a>, Esp32FrameworkError>  {
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
-        let dgin = DigitalIn::new(self.get_timer_driver(), pin_peripheral, Some(self.notification.notifier())).unwrap();
+        let dgin = DigitalIn::new(self.get_timer_driver()?, pin_peripheral, Some(self.notification.notifier())).map_err(Esp32FrameworkError::DigitalIn)?;
         self.interrupt_drivers.push(Box::new(dgin.clone()));
-        dgin
+        Ok(dgin)
     }
     
     /// Creates a DigitalOut on the ESP pin with number 'pin_num' to write digital outputs.
@@ -115,11 +109,11 @@ impl <'a>Microcontroller<'a> {
     /// # Panics
     ///
     /// This function will panic if the `DigitalOut` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration.
-    pub fn set_pin_as_digital_out(&mut self, pin_num: usize) -> DigitalOut<'a> {
+    pub fn set_pin_as_digital_out(&mut self, pin_num: usize) -> Result<DigitalOut<'a>, Esp32FrameworkError> {
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
-        let dgout = DigitalOut::new(self.get_timer_driver(), pin_peripheral).unwrap();
+        let dgout = DigitalOut::new(self.get_timer_driver()?, pin_peripheral).map_err(Esp32FrameworkError::DigitalOut)?;
         self.interrupt_drivers.push(Box::new(dgout.clone()));
-        dgout
+        Ok(dgout)
     }
     
     /// Starts an adc driver if no other was started before. Bitwidth is always set to 12, since 
@@ -128,12 +122,13 @@ impl <'a>Microcontroller<'a> {
     /// # Panics
     ///
     /// This function will panic if the `AdcDriver` instance cannot be created, which might happen due to hardware constraints.
-    fn start_adc_driver(&mut self) {
+    fn start_adc_driver(&mut self) -> Result<(),Esp32FrameworkError>{
         if self.adc_driver.is_none() {
             self.peripherals.get_adc();
-            let driver = AdcDriver::new(unsafe{ADC1::new()}).unwrap();
+            let driver = AdcDriver::new(unsafe{ADC1::new()}).map_err(|_| Esp32FrameworkError::AdcInitialization)?;
             self.adc_driver.replace(Rc::new(driver));
-        }
+        };
+        Ok(())
     }
 
     /// Sets pin as analog input with attenuation set to 2.5dB
@@ -149,10 +144,10 @@ impl <'a>Microcontroller<'a> {
     /// # Panics
     ///
     /// This function will panic if the `AnalogIn` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration.
-    pub fn set_pin_as_analog_in_low_atten(&mut self, pin_num: usize) -> AnalogIn<'a> {
-        self.start_adc_driver();
+    pub fn set_pin_as_analog_in_low_atten(&mut self, pin_num: usize) -> Result<AnalogIn<'a>, Esp32FrameworkError> {
+        self.start_adc_driver()?;
         let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
-        AnalogIn::new(pin_peripheral, self.adc_driver.clone().unwrap(), attenuation::DB_2_5).unwrap()
+        AnalogIn::new(pin_peripheral, self.adc_driver.clone().ok_or(Esp32FrameworkError::AdcInitialization)?, attenuation::DB_2_5).map_err(Esp32FrameworkError::AnalogIn)
     }
     
     /// Sets pin as analog input with attenuation set to 6dB 
@@ -168,10 +163,10 @@ impl <'a>Microcontroller<'a> {
     /// # Panics
     ///
     /// This function will panic if the `AnalogIn` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration. 
-    pub fn set_pin_as_analog_in_medium_atten(&mut self, pin_num: usize) -> AnalogIn<'a> {
-        self.start_adc_driver();
+    pub fn set_pin_as_analog_in_medium_atten(&mut self, pin_num: usize) -> Result<AnalogIn<'a>, Esp32FrameworkError> {
+        self.start_adc_driver()?;
         let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
-        AnalogIn::new(pin_peripheral, self.adc_driver.clone().unwrap(), attenuation::DB_6).unwrap()
+        AnalogIn::new(pin_peripheral, self.adc_driver.clone().ok_or(Esp32FrameworkError::AdcInitialization)?, attenuation::DB_6).map_err(Esp32FrameworkError::AnalogIn)
     }
     
     /// Sets pin as analog input with attenuation set to 11dB
@@ -187,10 +182,10 @@ impl <'a>Microcontroller<'a> {
     /// # Panics
     ///
     /// This function will panic if the `AnalogIn` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration. 
-    pub fn set_pin_as_analog_in_high_atten(&mut self, pin_num: usize) -> AnalogIn<'a> {
-        self.start_adc_driver();
+    pub fn set_pin_as_analog_in_high_atten(&mut self, pin_num: usize) -> Result<AnalogIn<'a>, Esp32FrameworkError> {
+        self.start_adc_driver()?;
         let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
-        AnalogIn::new(pin_peripheral, self.adc_driver.clone().unwrap(), attenuation::DB_11).unwrap()
+        AnalogIn::new(pin_peripheral, self.adc_driver.clone().ok_or(Esp32FrameworkError::AdcInitialization)?, attenuation::DB_11).map_err(Esp32FrameworkError::AnalogIn)
     }
 
     /// Sets pin as analog input with attenuation set to 0dB
@@ -206,10 +201,10 @@ impl <'a>Microcontroller<'a> {
     /// # Panics
     ///
     /// This function will panic if the `AnalogIn` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration. 
-    pub fn set_pin_as_analog_in_no_atten(&mut self, pin_num: usize) -> AnalogIn<'a> {
-        self.start_adc_driver();
+    pub fn set_pin_as_analog_in_no_atten(&mut self, pin_num: usize) -> Result<AnalogIn<'a>, Esp32FrameworkError> {
+        self.start_adc_driver()?;
         let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
-        AnalogIn::new(pin_peripheral, self.adc_driver.clone().unwrap(), attenuation::NONE).unwrap()
+        AnalogIn::new(pin_peripheral, self.adc_driver.clone().ok_or(Esp32FrameworkError::AdcInitialization)?, attenuation::NONE).map_err(Esp32FrameworkError::AnalogIn)
     }
 
     /// Sets pin as analog output, with desired frequency and resolution
@@ -228,12 +223,12 @@ impl <'a>Microcontroller<'a> {
     /// # Panics
     ///
     /// This function will panic if the `AnalogOut` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration. 
-    pub fn set_pin_as_analog_out(&mut self, pin_num: usize, freq_hz: u32, resolution: u32) -> AnalogOut<'a> {
+    pub fn set_pin_as_analog_out(&mut self, pin_num: usize, freq_hz: u32, resolution: u32) ->  Result<AnalogOut<'a>, Esp32FrameworkError>{
         let (pwm_channel, pwm_timer) = self.peripherals.get_next_pwm();
         let pin_peripheral = self.peripherals.get_pwm_pin(pin_num);
-        let anlg_out = AnalogOut::new(pwm_channel, pwm_timer, pin_peripheral, self.get_timer_driver(), freq_hz, resolution).unwrap();
+        let anlg_out = AnalogOut::new(pwm_channel, pwm_timer, pin_peripheral, self.get_timer_driver()?, freq_hz, resolution).map_err(Esp32FrameworkError::AnalogOut)?;
         self.interrupt_drivers.push(Box::new(anlg_out.clone()));
-        anlg_out
+        Ok(anlg_out)
     } 
 
     /// Sets pin as analog output, with a default frequency of 100 Hertz and resolution of 8 bits
@@ -249,12 +244,12 @@ impl <'a>Microcontroller<'a> {
     /// # Panics
     ///
     /// This function will panic if the `AnalogOut` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration. 
-    pub fn set_pin_as_default_analog_out(&mut self, pin_num: usize) -> AnalogOut<'a> {
+    pub fn set_pin_as_default_analog_out(&mut self, pin_num: usize) -> Result<AnalogOut<'a>, Esp32FrameworkError> {
         let (pwm_channel, pwm_timer) = self.peripherals.get_next_pwm();
         let pin_peripheral = self.peripherals.get_pwm_pin(pin_num);
-        let anlg_out = AnalogOut::default(pwm_channel, pwm_timer, pin_peripheral, self.get_timer_driver()).unwrap();
+        let anlg_out = AnalogOut::default(pwm_channel, pwm_timer, pin_peripheral, self.get_timer_driver()?).map_err(Esp32FrameworkError::AnalogOut)?;
         self.interrupt_drivers.push(Box::new(anlg_out.clone()));
-        anlg_out
+        Ok(anlg_out)
     }
     
     /// Sets pin as analog input of PWM signals, with default signal frequency of 1000 Hertz
@@ -270,10 +265,10 @@ impl <'a>Microcontroller<'a> {
     /// # Panics
     ///
     /// This function will panic if the `AnalogInPwm` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration.
-    pub fn set_pin_as_analog_in_pwm(&mut self, pin_num: usize) -> AnalogInPwm<'a> {
+    pub fn set_pin_as_analog_in_pwm(&mut self, pin_num: usize) -> Result<AnalogInPwm<'a>, Esp32FrameworkError> {
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
-        let timer_driver = self.get_timer_driver();
-        AnalogInPwm::default(timer_driver, pin_peripheral).unwrap()
+        let timer_driver = self.get_timer_driver()?;
+        AnalogInPwm::default(timer_driver, pin_peripheral).map_err(Esp32FrameworkError::AnalogInPwm)
     }
     
     /// Configures the specified pins for I2C master mode.
@@ -392,7 +387,7 @@ impl <'a>Microcontroller<'a> {
     pub fn ble_beacon(&mut self, advertising_name: String, services: &Vec<Service>)-> BleBeacon<'a>{
         let ble_device = self.peripherals.get_ble_peripheral().into_ble_device().unwrap();
 
-        BleBeacon::new(ble_device, self.get_timer_driver(), advertising_name, services).unwrap()
+        BleBeacon::new(ble_device, self.get_timer_driver().unwrap(), advertising_name, services).unwrap()
     }
     
     /// Configures a BLE device as a server.
@@ -495,7 +490,7 @@ impl <'a>Microcontroller<'a> {
     fn wait_for_updates_until(&mut self, miliseconds:u32){
         let timer_driver = match self.timer_drivers.first_mut(){
             Some(timer_driver) => timer_driver,
-            None => &mut self.get_timer_driver(),
+            None => &mut self.get_timer_driver().unwrap(),
         };
         
         let timed_out = SharableRef::new_sharable(false);
@@ -540,11 +535,11 @@ impl <'a>Microcontroller<'a> {
     
 }
 
-impl<'a> Default for Microcontroller<'a> {
-    fn default() -> Self {
-    Self::new()
-    }
-}
+// impl<'a> Default for Microcontroller<'a> { // TODO: Why do we have a default for microcontroller if it doesnt need any parameter?
+//     fn default() -> Self {
+//     Self::new()
+//     }
+// }
 
 async fn wrap_user_future<F: Future>(notifier: Notifier, mut finished: SharableRef<bool>, fut: F)-> F::Output{
     let res = fut.await;

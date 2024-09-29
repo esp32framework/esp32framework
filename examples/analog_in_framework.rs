@@ -6,8 +6,8 @@ use esp32framework::Microcontroller;
 
 fn main(){
 
-    let mut micro = Microcontroller::new();
-    let mut sound_in = micro.set_pin_as_analog_in_no_atten(5);
+    let mut micro = Microcontroller::new().unwrap();
+    let mut sound_in = micro.set_pin_as_analog_in_no_atten(5).unwrap();
     micro.wait_for_updates(Some(2000));
     let first_second = sound_in.smooth_read_during(1000).unwrap() as f32;
     println!("Value of first second #{first_second}");

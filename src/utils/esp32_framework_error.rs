@@ -5,9 +5,9 @@ use crate::{
         AnalogOutError,
         DigitalInError,
         DigitalOutError,
-    }, serial::{I2CError, UARTError},
-    utils::timer_driver::TimerDriverError,
-    wifi::WifiError
+    }, 
+    microcontroller_src::microcontroller::MicrocontrollerError,
+    serial::{I2CError, UARTError}, utils::timer_driver::TimerDriverError, wifi::WifiError
 };
 
 /// Represents various error conditions encountered in the ESP32 framework.
@@ -23,4 +23,5 @@ pub enum Esp32FrameworkError{
     Uart(UARTError),
     Ble(BleError),
     Wifi(WifiError),
+    Microcontroller(MicrocontrollerError)
 }

@@ -44,7 +44,7 @@ use esp_idf_svc::hal::delay::FreeRtos;
 ///  Main for our analog
 fn main(){
     let mut micro = Microcontroller::new();
-    let mut analog_in = micro.set_pin_as_analog_in_low_atten(0);
+    let mut analog_in = micro.set_pin_as_analog_in_low_atten(0).unwrap();
     loop {
         let read = analog_in.read().unwrap();
         let raw_read = analog_in.read_raw().unwrap();
