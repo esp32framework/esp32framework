@@ -17,8 +17,8 @@ pub enum IOCapabilities {
     DisplayOnly,
     DisplayYesNo,
     KeyboardOnly,
-    NoInputNoOutput,
     KeyboardDisplay,
+    NoInputNoOutput,
 }
 
 impl IOCapabilities {

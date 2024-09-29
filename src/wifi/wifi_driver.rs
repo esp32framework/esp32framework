@@ -6,13 +6,13 @@ use super::http::{Http, HttpClient, HttpsClient};
 #[derive(Debug)]
 pub enum WifiError {
     ConfigurationError,
-    StartingError,
     ConnectingError,
-    WifiNotInitialized,
-    InformationError,
     DnsNotFound,
     HttpError,
-    NvsAlreadyTaken
+    InformationError,
+    NvsAlreadyTaken,
+    StartingError,
+    WifiNotInitialized,    
 }
 
 /// Abstraction of the driver that controls the wifi. It simplifies

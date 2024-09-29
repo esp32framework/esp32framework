@@ -24,9 +24,9 @@ class AnalogIn {
 }
 
 enum AnalogicTriggerCondition {
+    HigherThan(u32)
     InRange(u32, u32)
     OutOfRange(u32, u32)
-    HigherThan(u32)
     LowerThan(u32)
 }
 

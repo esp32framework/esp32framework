@@ -3,10 +3,10 @@ use esp_idf_svc::http::{client::{Configuration, EspHttpConnection}, Method};
 #[derive(Debug)]
 pub enum HttpError {
     InizializationError,
-    RequestError,
     ListeningError,
+    ReadError,
+    RequestError,
     TimeoutError,
-    ReadError
 }
 
 /// The Http trait gives the implementation on how to do the basic HTTP methods and wait for

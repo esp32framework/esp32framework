@@ -12,27 +12,27 @@ const ATTRIBUTE_CANNOT_BE_READ: u32 = 258;
 /// Enums the different errors possible when working with BLE  
 #[derive(Debug)]
 pub enum BleError{
-    ServiceDoesNotFit,
-    ServiceTooBig,
-    ServiceUnknown,
-    StartingFailure,
-    StoppingFailure,
-    TimerDriverError(TimerDriverError),
-    Code(u32, String),
-    ServiceNotFound,
-    CharacteristicNotFound,
-    PropertiesError,
     AdvertisementError,
-    StartingAdvertisementError,
-    IncorrectHandle,
-    ConnectionError,
-    InvalidParameters,
-    DeviceNotFound,
-    AlreadyConnected,
-    CharacteristicIsNotReadable,
-    CharacteristicIsNotWritable,
-    CharacteristicIsNotNotifiable,
-    NotReadable
+AlreadyConnected,
+CharacteristicIsNotNotifiable,
+CharacteristicIsNotReadable,
+CharacteristicIsNotWritable,
+CharacteristicNotFound,
+Code(u32, String),
+ConnectionError,
+DeviceNotFound,
+IncorrectHandle,
+InvalidParameters,
+NotReadable,
+PropertiesError,
+ServiceDoesNotFit,
+ServiceNotFound,
+ServiceTooBig,
+ServiceUnknown,
+StartingAdvertisementError,
+StartingFailure,
+StoppingFailure,
+TimerDriverError(TimerDriverError),
 }
 
 impl From<BLEError> for BleError {
@@ -86,9 +86,9 @@ impl BleError {
 /// * `max_interval`: The maximum advertising intervaltime between advertisememts. TThis value 
 /// must range between 20ms and 10240ms in 0.625ms units.
 pub enum DiscoverableMode {
-    NonDiscoverable,
+    GeneralDiscoverable(u16, u16),
     LimitedDiscoverable(u16, u16), // TODO: ADD support
-    GeneralDiscoverable(u16, u16)
+    NonDiscoverable,
 }
 
 impl DiscoverableMode {
@@ -216,13 +216,13 @@ impl Service {
 /// - `FromUuid128`: A way to get a BLE id from an [u8;16].
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum BleId {
-    StandardService(StandarServiceId),
-    StandarCharacteristic(StandarCharacteristicId),
-    StandarDescriptor(StandarDescriptorId),
     ByName(String),
     FromUuid16(u16),
     FromUuid32(u32),
     FromUuid128([u8; 16]),
+    StandardService(StandarServiceId),
+    StandarCharacteristic(StandarCharacteristicId),
+    StandarDescriptor(StandarDescriptorId),
 }
 
 
@@ -851,8 +851,8 @@ pub enum IOCapabilities {
     DisplayOnly,
     DisplayYesNo,
     KeyboardOnly,
-    NoInputNoOutput,
     KeyboardDisplay,
+    NoInputNoOutput,
 }
 
 impl IOCapabilities {

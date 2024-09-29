@@ -6,8 +6,8 @@ pub type SharableRef<T> = Rc<RefCell<T>>;
 /// Error types related to ISR queue operations.
 #[derive(Debug)]
 pub enum ISRQueueError {
-    Timeout,
     Empty,
+    Timeout,
 }
 
 /// Trait to handle sherable references.

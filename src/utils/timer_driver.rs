@@ -36,14 +36,15 @@ struct _TimerDriver<'a> {
 
 #[derive(Debug, Clone, Copy)]
 pub enum TimerDriverError {
-    ErrorReadingTimer,
-    ErrorReadingAlarm,
-    CouldNotSetTimer,
-    InvalidTimer,
     CannotSetTimerCounter,
+    CouldNotSetTimer,
+    ErrorReadingAlarm,
+    ErrorReadingTimer,
+    InvalidTimer,
+    OnlyOriginalCopyCanCreateChildren,
     SubscriptionError,
     TooManyChildren,
-    OnlyOriginalCopyCanCreateChildren
+
 }
 
 /// Represents an interrupt to be executed after some time a number of times
@@ -59,8 +60,8 @@ struct TimeInterrupt{
 
 #[derive(Debug, PartialEq, Eq)]
 enum TimerInterruptStatus{
-    Enabled,
     Disabled,
+    Enabled,
     Removing
 }
 

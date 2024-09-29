@@ -10,14 +10,14 @@ type AtomicInterruptUpdateCode = AtomicU8;
 /// Enums the different errors possible when working with the digital in
 #[derive(Debug)]
 pub enum DigitalInError {
-    CannotSetPullForPin,
-    CannotSetPinAsInput,
-    StateAlreadySet,
-    InvalidPin,
-    InvalidPeripheral,
-    NoInterruptTypeSet,
     CannotSetDebounceOnAnyEdgeInterruptType,
-    TimerDriverError (TimerDriverError)
+    CannotSetPinAsInput,
+    CannotSetPullForPin,
+    InvalidPeripheral,
+    InvalidPin,
+    NoInterruptTypeSet,
+    StateAlreadySet,
+    TimerDriverError (TimerDriverError),
 }
 
 /// Driver for receiving digital inputs from a particular Pin
@@ -47,11 +47,11 @@ pub struct DigitalIn<'a>{
 
 /// After an interrupt is triggered an InterruptUpdate will be set and handled
 enum InterruptUpdate {
-    ExecAndEnablePin,
     EnableTimerDriver,
-    TimerReached,
+    ExecAndEnablePin,
     ExecAndUnsubscribePin,
-    None
+    None,
+    TimerReached,
 }
 
 impl InterruptUpdate{
