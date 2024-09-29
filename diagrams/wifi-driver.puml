@@ -1,0 +1,52 @@
+@startuml Wifi Driver
+
+class Wifi_driver{
+    -controller: AsyncWifi<EspWifi>
+    +connect()
+    +is_started()
+    +is_connected()
+    +get_address_info()
+    +get_dns_info()
+    +get_http_client()
+    +get_https_client()
+}
+
+interface Http{
+    +post(string, vec)
+    +get(string, vec)
+    +put(string, vec)
+    +delete(string, vec)
+    +patch(string, vec)
+    +head(string, vec)
+    +options(string, vec)
+    +response_status(string, vec)
+    +response_status_message()
+    +wait_for_response([u8])
+}
+
+class HttpClient{
+    -connection: EspHttpConnection
+    +get_connection()
+    
+}
+
+class HttpsClient{
+    -connection: EspHttpConnection
+    +get_connection()
+}
+
+class HttpHeader {
+    header_type: HttpHeaderType,
+    value: string
+    +to_string()
+}
+
+
+Wifi_driver ..> HttpClient: create
+Wifi_driver ..> HttpsClient: create
+HttpClient --> Http
+HttpsClient --> Http
+Http -> HttpHeader
+
+
+@enduml

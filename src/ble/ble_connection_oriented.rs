@@ -34,7 +34,6 @@ pub struct _BleServer<'a> {
 #[derive(Clone)]
 pub struct BleServer<'a>{
     inner: SharableRef<_BleServer<'a>>
-
 }
 
 /// Wrapper to handle user connection and disconnections callbacks in a simpler way

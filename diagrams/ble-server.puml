@@ -1,0 +1,104 @@
+@startuml Ble Server
+
+
+class BleServer{
+    - take_connection_callbacks()
+    - set_connection_callbacks()
+    + connection_handler()
+    + disconnect_handler()
+    + set_connection_settings()
+    + set_advertising_interval()
+    + set_high_advertising_duty_cycle()
+    + set_low_advertising_duty_cycle()
+    + set_discoverable_mode()
+    + set_connection_mode()
+    + set_service()
+    + set_services()
+    + set_characteristic()
+    - try_to_update_characteristic()
+    + notify_value()
+    + start()
+    - create_advertisement_data()
+
+}
+
+class _BleServer{
+    - advertising_name: String,
+    - ble_server: &'a mut BLEServer,
+    - advertisement: &'a Mutex<BLEAdvertising>,
+    + connection_handler()
+    + disconnect_handler()
+    + set_connection_settings()
+    + set_advertising_interval()
+    + set_high_advertising_duty_cycle()
+    + set_low_advertising_duty_cycle()
+    + set_discoverable_mode()
+    + set_connection_mode()
+    + set_service()
+    + set_services()
+    + set_characteristic()
+    - try_to_update_characteristic()
+    + notify_value()
+    + start()
+    - create_advertisement_data()
+}
+
+class ConnectionCallback{
+    -callback
+    -info_queue
+    -notifier
+    +set_callback()
+    +handle_connection_changes()
+}
+
+class Service {
+    - id: BleId
+    - data: Vec<u8>
+    + add_characteristic()
+    
+} 
+
+class Characteristic{
+    - id: BleId
+    - properties: u16
+    - data: Vec<u8>
+    + add_descriptor()
+    + writable(bool)
+    + readeable(bool)
+    + notifiable(bool)
+    + readeable_enc(bool)
+    + readeable_authen(bool)
+    + readeable_author(bool)
+    + writeable_no_rsp(bool)
+    + writeable_enc(bool)
+    + writeable_authen(bool)
+    + writeable_author(bool)
+    + broadcastable(bool)
+    + indicatable(bool)
+    + update_data(bool)
+}
+
+class Descriptor{
+    - id: BleId,
+    - properties: u8
+    - data: Vec<u8>
+    + get_properties()
+    + writable(bool)
+    + readeable(bool)
+    + notifiable(bool)
+    + readeable_enc(bool)
+    + readeable_authen(bool)
+    + readeable_author(bool)
+    + writeable_no_rsp(bool)
+    + writeable_enc(bool)
+    + writeable_authen(bool)
+    + writeable_author(bool)
+}
+
+BleServer *-right- _BleServer
+_BleServer "0" *-- "*" Service
+_BleServer "1" *-- "2" ConnectionCallback
+Service "0" *-- "*" Characteristic
+Characteristic "0" *-- "*" Descriptor
+
+@enduml

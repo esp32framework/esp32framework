@@ -1,0 +1,23 @@
+@startuml Ble Beacon
+
+class BleBeacon{
+    - advertising_name: String,
+    - ble_device: &'a mut BLEDevice,
+    - services: SharableRef<HashMap<BleId,Service>>,
+    - advertisement: SharableRef<BLEAdvertisementData>,
+    - timer_driver: TimerDriver<'a>,
+    - time_per_service: Duration,
+    - insert_service(&Service):
+    + set_name(String):
+    + set_service(&Service): 
+    + set_services(Vec<Service>): 
+    + remove_service(&BleId): 
+    + remove_services(Vec<BleId>): 
+    + advertise_service_data(&BleId): 
+    + set_time_per_service(Duration):
+    + advertise_all_service_data(): 
+    + start(): 
+    + stop(): 
+}
+
+@enduml

@@ -5,18 +5,23 @@ class BleClient {
     + get_all_characteristics()
     + get_characteristic_async()
     + get_all_characteristics_async()
+    + connect_to_device()
+    + connect_to_device_with_service()
+    + connect_to_device_of_name()
+    + connect_to_device_async()
+    + connect_to_device_with_service_async()
+    + connect_to_device_of_name_async()
+    + get_all_service_ids()
+    + get_all_service_ids_async()
+    + disconnect()
 }
 
 class _BleClient{
-    - ble_client: BLEClient,
-    - ble_scan: &'static mut BLEScan,
-    - connected: bool,
-    - time_between_scans: u16,
-    - notifier: Notifier,
-    - _get_characteristic_async()
-    - _get_all_characteristics_async()
-    - _start_scan()
-    - is_connected()
+    - ble_client
+    - ble_scan
+    - connected
+    - time_between_scans
+    - notifier
     + connect_to_device()
     + connect_to_device_with_service()
     + connect_to_device_of_name()
@@ -34,7 +39,6 @@ class BleClientUpdater{
 }
 
 class RemoteCharacteristic{
-    - duplicate()
     + on_notify()
     + execute_if_notified()
 }
