@@ -3,3 +3,4 @@ pub mod timer_driver;
 pub mod esp32_framework_error;
 pub mod auxiliary;
 pub mod notification;
+pub mod isr_queues;

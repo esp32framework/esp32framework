@@ -5,12 +5,13 @@
 //! on pin B with different input frequencies.
 //! All these data will be collected and then be analyzed with the intention of getting
 //! a percentage of the error.
-//!
+//! 
+//! Note: This file was used to test, after the testing was done libraries used where 
+//! taken off the Cargo.toml. To replicate this test, the rand library should be added 
+//! to the Cargo.toml.
 
 use rand::prelude::*;
 use esp32framework::{gpio::{AnalogInPwm, AnalogOut}, Microcontroller};
-
-use esp_idf_svc::hal::delay::FreeRtos;
 
 const MAX_LOOPS: u32 = 10000;
 const READS_PER_LOOP: u32 = 5;
@@ -64,18 +65,18 @@ fn main(){
         micro.sleep(SLEEP_TIME);
     }
 
-    micro.wait_for_updates(None)
+    micro.wait_for_updates(None).unwrap();
 }
 
 /// Returns analog_in_1, analog_in_2, analog_out_1, analog_out_2
 fn create_analogs(frequency_in_1: u32, frequency_in_2: u32, mut micro: Microcontroller) -> (AnalogInPwm, AnalogInPwm, AnalogOut, AnalogOut) {
-    let mut analog_in_1 = micro.set_pin_as_analog_in_pwm(INPUT_PIN_1, frequency_in_1);
+    let mut analog_in_1 = micro.set_pin_as_analog_in_pwm(INPUT_PIN_1, frequency_in_1).unwrap();
     analog_in_1.set_sampling(frequency_in_1);
-    let analog_out_1 = micro.set_pin_as_analog_out(OUTPUT_PIN_1, FREQUENCY_OUT, RESOLUTION_OUT);
+    let analog_out_1 = micro.set_pin_as_analog_out(OUTPUT_PIN_1, FREQUENCY_OUT, RESOLUTION_OUT).unwrap();
     
-    let mut analog_in_2 = micro.set_pin_as_analog_in_pwm(INPUT_PIN_2, frequency_in_2);
+    let mut analog_in_2 = micro.set_pin_as_analog_in_pwm(INPUT_PIN_2, frequency_in_2).unwrap();
     analog_in_2.set_sampling(frequency_in_2);
-    let analog_out_2 = micro.set_pin_as_analog_out(OUTPUT_PIN_2, FREQUENCY_OUT, RESOLUTION_OUT);
+    let analog_out_2 = micro.set_pin_as_analog_out(OUTPUT_PIN_2, FREQUENCY_OUT, RESOLUTION_OUT).unwrap();
 
     (analog_in_1, analog_in_2, analog_out_1, analog_out_2)
 

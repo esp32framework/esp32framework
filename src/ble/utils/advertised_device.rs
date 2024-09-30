@@ -108,10 +108,25 @@ impl BleAdvertisedDevice{
     pub fn get_manufacture_data(&self) -> Option<&[u8]> {
         self.device.get_manufacture_data()
     }
+    
+    /// Returns wether or not a device is connectable acording to the advertisement type
+    pub fn is_connectable(&self) -> bool{
+        adv_type_is_connectable(&self.adv_type())
+    }
 }
 
 impl From<&BLEAdvertisedDevice> for BleAdvertisedDevice{
     fn from(value: &BLEAdvertisedDevice) -> Self {
         BleAdvertisedDevice { device: value.clone() }
+    }
+}
+
+/// Returns wether or not a device is connectable acording to the advertisement type
+fn adv_type_is_connectable(adv_type: &AdvType)-> bool{
+    match adv_type{
+        AdvType::Ind => true,
+        AdvType::DirectInd => true,
+        AdvType::ScanInd => false,
+        AdvType::NonconnInd => false,
     }
 }

@@ -1,5 +1,14 @@
-use esp_idf_svc::{hal::{i2c::{I2cConfig, I2cDriver, I2cSlaveConfig, I2cSlaveDriver, I2C0}, units::FromValueType}, sys::{ESP_ERR_INVALID_ARG, ESP_ERR_NO_MEM, ESP_ERR_TIMEOUT}};
-use crate::{microcontroller_src::peripherals::Peripheral, utils::auxiliary::micro_to_ticks};
+use esp_idf_svc::{
+    hal::{
+        i2c::{I2cConfig, I2cDriver, I2cSlaveConfig, I2cSlaveDriver}, 
+        units::FromValueType
+    }, 
+    sys::{ESP_ERR_INVALID_ARG, ESP_ERR_NO_MEM, ESP_ERR_TIMEOUT}
+};
+use crate::{
+    microcontroller_src::peripherals::{Peripheral, PeripheralError}, 
+    utils::auxiliary::micro_to_ticks
+};
 
 
 const DEFAULT_BAUDRATE: u32 = 100;
@@ -8,8 +17,7 @@ const DEFAULT_BAUDRATE: u32 = 100;
 #[derive(Debug)]
 pub enum I2CError {
     Temp,
-    InvalidPin,
-    InvalidPeripheral,
+    PeripheralError(PeripheralError),
     BufferTooSmall,
     InvalidArg,
     DriverError,
@@ -43,9 +51,10 @@ impl <'a>I2CMaster<'a> {
     /// - `I2CError::InvalidPin`: If either the SDA or SCL pins cannot be converted to IO pins.
     /// - `I2CError::InvalidArg`: If an invalid argument is passed.
     /// - `I2CError::DriverError`: If there is an error initializing the driver.
-    pub fn new(sda_per: Peripheral, scl_per: Peripheral, i2c: I2C0) -> Result<I2CMaster<'a>, I2CError> { // TODO: What can we do with i2c_per
-        let sda = sda_per.into_any_io_pin().map_err(|_| I2CError::InvalidPin)?;
-        let scl = scl_per.into_any_io_pin().map_err(|_| I2CError::InvalidPin)?;
+    pub fn new(sda_per: Peripheral, scl_per: Peripheral, i2c_per: Peripheral) -> Result<I2CMaster<'a>, I2CError> {
+        let sda = sda_per.into_any_io_pin().map_err(I2CError::PeripheralError)?;
+        let scl = scl_per.into_any_io_pin().map_err(I2CError::PeripheralError)?;
+        let i2c = i2c_per.into_i2c0().map_err(I2CError::PeripheralError)?;
 
         let config = I2cConfig::new().baudrate(DEFAULT_BAUDRATE.kHz().into());
         let driver = I2cDriver::new(i2c, sda, scl, &config).map_err(|error| match error.code() {
@@ -163,10 +172,11 @@ impl <'a>I2CSlave<'a> {
     /// # Errors
     ///
     /// - `I2CError::InvalidPin`: If either the SDA or SCL pins cannot be converted to IO pins.
-    pub fn new(sda_per: Peripheral, scl_per: Peripheral, i2c: I2C0, addr: u8) -> Result<I2CSlave<'a>, I2CError> {
-        let sda = sda_per.into_any_io_pin().map_err(|_| I2CError::InvalidPin)?;
-        let scl = scl_per.into_any_io_pin().map_err(|_| I2CError::InvalidPin)?;
-
+    pub fn new(sda_per: Peripheral, scl_per: Peripheral, i2c_per: Peripheral, addr: u8) -> Result<I2CSlave<'a>, I2CError> {
+        let sda = sda_per.into_any_io_pin().map_err(I2CError::PeripheralError)?;
+        let scl = scl_per.into_any_io_pin().map_err(I2CError::PeripheralError)?;
+        let i2c = i2c_per.into_i2c0().map_err(I2CError::PeripheralError)?;
+        
         let config = I2cSlaveConfig::new(); // TODO: Check if the default values work. It has the buffers on 0. Maybe this should be choosen by the user
         let driver = I2cSlaveDriver::new(i2c, sda, scl, addr, &config).unwrap();
 

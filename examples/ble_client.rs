@@ -1,5 +1,5 @@
 //! Example of a ble client using an async approach. The client will connect to a server that has a 
-//! characteristic of uuid 0x12345678. Once connected the client will read all characteristics interpreting
+//! characteristic of uuid 0x5678. Once connected the client will read all characteristics interpreting
 //! their value as an u32 and then multiplies them by a value. This value is obtained from the notifiable 
 //! characteristics of the service. Thanks to the async aproch we can have other tasks running concurrently
 //! to this main function. In this case there is a TimerDriver se to print 'Tic' every 2 seconds.
@@ -9,8 +9,8 @@ use esp_idf_svc::hal::{delay::FreeRtos, prelude::Peripherals, task::{asynch::Not
 use futures::future::join;
 use utilities::BleUuid;
 
-const SERVICE_UUID: u32 = 0x12345678;
-
+const SERVICE_UUID: u16 = 0x5678;
+const MILLIS: u64 = 2000;
 fn main(){
 	esp_idf_svc::sys::link_patches();
     let peripherals = Peripherals::take().unwrap();
@@ -24,7 +24,7 @@ fn main(){
 
     let queue = Arc::new(Queue::new(100));
 	set_notify_callback_for_characteristics(&mut characteristics, &queue);
-	let print_notification = set_periodical_timer_driver_interrupts(&mut timer_driver0, 2000);
+	let print_notification = set_periodical_timer_driver_interrupts(&mut timer_driver0, MILLIS);
 
 	let fut = join(main_loop(timer_driver1, characteristics, queue), print_tic(print_notification));
 	block_on(fut);
@@ -61,7 +61,7 @@ async fn print_tic(notification: Arc<Notification>){
 	}
 }
 
-fn set_periodical_timer_driver_interrupts(timer_driver: &mut TimerDriver<'static>, mili: u64)-> Arc<Notification>{
+fn set_periodical_timer_driver_interrupts(timer_driver: &mut TimerDriver<'static>, millis: u64)-> Arc<Notification>{
 	let notification = Arc::new(Notification::new());
 	let notifier = notification.clone();	
 	unsafe{ timer_driver.subscribe(move || {
@@ -70,7 +70,7 @@ fn set_periodical_timer_driver_interrupts(timer_driver: &mut TimerDriver<'static
 	
 	timer_driver.set_counter(0).unwrap();
 	timer_driver.enable_interrupt().unwrap();
-	timer_driver.set_alarm(mili * timer_driver.tick_hz() / 1000).unwrap();
+	timer_driver.set_alarm(millis * timer_driver.tick_hz() / 1000).unwrap();
 	timer_driver.enable_alarm(true).unwrap();
 	timer_driver.enable(true).unwrap();
 
@@ -104,8 +104,8 @@ async fn get_characteristics_async(client: &mut BLEClient)->Vec<&mut BLERemoteCh
 
     FreeRtos::delay_ms(2000);
 
-    let remote_service = client.get_service(BleUuid::Uuid32(SERVICE_UUID)).await.unwrap();
-    
+    let remote_service = client.get_service(BleUuid::Uuid16(SERVICE_UUID)).await.unwrap();
+
     remote_service.get_characteristics().await.unwrap().collect()
 }
 
@@ -115,7 +115,7 @@ async fn find_device(ble_scan: &mut BLEScan) -> Option<BLEAdvertisedDevice>{
     .interval(100)
     .window(99)
     .find_device(i32::MAX, |device| 
-      device.is_advertising_service(&BleUuid::Uuid32(SERVICE_UUID)))
+      device.is_advertising_service(&BleUuid::Uuid16(SERVICE_UUID)))
     .await
     .unwrap()
 }

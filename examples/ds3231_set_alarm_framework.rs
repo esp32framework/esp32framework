@@ -2,13 +2,13 @@
 //! a date and time with an alarm in a ds3231 sensor. Then, every second it will 
 //! ask the sensor for the time and print it with the state of the sqw signal.
 
-use esp32framework::{Microcontroller, serial::READER, sensors::{Alarm1Rate, DateTime, DS3231}};
+use esp32framework::{sensors::{Alarm1Rate, DateTime, HourMode, DS3231}, serial::READER, Microcontroller};
 
 fn main() {
     let mut micro = Microcontroller::new();
-    let i2c = micro.set_pins_for_i2c_master(5,6);
-    let mut ds3231 = DS3231::new(i2c);
-    let sqw = micro.set_pin_as_digital_in(3);
+    let i2c = micro.set_pins_for_i2c_master(5,6).unwrap();
+    let mut ds3231 = DS3231::new(i2c, HourMode::TwentyFourHour);
+    let sqw = micro.set_pin_as_digital_in(3).unwrap();
 
     let date_time = DateTime {
         second: 5,

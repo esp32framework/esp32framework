@@ -1,21 +1,38 @@
 use std::sync::Arc;
-use esp32_nimble::{BLEAddress, BLEService};
-use esp32_nimble::{utilities::mutex::Mutex, BLEAdvertisementData, BLEAdvertising, BLEConnDesc, BLEDevice, BLEError, BLEServer, NimbleProperties};
+use esp32_nimble::{
+    BLEAddress, 
+    BLEService, 
+    utilities::mutex::Mutex, 
+    BLEAdvertisementData, 
+    BLEAdvertising, 
+    BLEConnDesc, 
+    BLEDevice, 
+    BLEError, 
+    BLEServer, 
+    NimbleProperties
+};
 use esp_idf_svc::hal::task;
-
-
-use crate::utils::auxiliary::{ISRQueue, ISRQueueTrait};
-use crate::utils::auxiliary::SharableRef;
-use crate::utils::auxiliary::SharableRefExt;
-use crate::utils::esp32_framework_error::Esp32FrameworkError;
-use crate::utils::notification::Notifier;
-use crate::InterruptDriver;
+use crate::{
+    utils::{
+        auxiliary::{SharableRef, SharableRefExt},
+        esp32_framework_error::Esp32FrameworkError,
+        notification::Notifier,
+        isr_queues::{ISRQueue, ISRQueueTrait}
+    },
+    InterruptDriver
+};
 use sharable_reference_macro::sharable_reference_wrapper;
-
 use super::{BleError, BleId, Characteristic, ConnectionMode, DiscoverableMode, Service};
 
+
 type ConnCallback<'a> = dyn FnMut(&mut BleServer<'a>, &ConnectionInformation) + 'a;
-// TODO: How do we document this?
+
+/// Abstraction to create a BLE server, the side that has the information to be used in a connection
+/// oriented relationship. Contains:
+/// * `advertising_name`: Clients scanning will see the advertising name before connection.
+/// * `services`: The servere will hace information for the clients to see. All this information will be encapsulated on different services.
+/// * `user_on_connection`: Callback that will be executed for each client connected.
+/// * `user_on_disconnection`: Callback that will be executed for each client disconnected.
 pub struct _BleServer<'a> {
     advertising_name: String,
     ble_server: &'a mut BLEServer,
@@ -256,11 +273,15 @@ impl <'a>_BleServer<'a> {
     /// # Returns
     /// 
     /// A `Result` with Ok if the configuration of connection settings completed successfully, or an `BleError` if it fails.
+    /// 
+    /// # Errors
+    /// 
+    /// - `BleError::Disconnected`: if there is no connection stablished to go look for a service
+    /// - `BleError::DeviceNotFound`: if the device has unexpectidly disconnected
+    /// - `BleError::Code`: on other errors
     pub fn set_connection_settings(&mut self, info: &ConnectionInformation, min_interval: u16, max_interval: u16, latency: u16, timeout: u16) -> Result<(), BleError>{
-        self.ble_server.update_conn_params(info.conn_handle, min_interval, max_interval, latency, timeout).map_err(BleError::from) 
+        self.ble_server.update_conn_params(info.conn_handle, min_interval, max_interval, latency, timeout).map_err(BleError::from_connection_params_context) 
     } 
-    // TODO: This func doesnt tell which errors it can return, so i can put it in the documentation. Also  though the docs says the intervals
-    // need to be between 7.5 and 4000 i dont see any 
 
     /// Set the advertising time parameters.
     /// 
@@ -462,7 +483,6 @@ impl <'a>_BleServer<'a> {
             let mut res_characteristic = server_characteristic.lock();
             res_characteristic.set_value(&characteristic.data);
             if notify {
-
                 res_characteristic.notify();
             }
             return Ok(());
@@ -487,10 +507,12 @@ impl <'a>_BleServer<'a> {
     /// - `BleError::ServiceNotFound`: If the service_id doesnt match with the id of a service already set on the server
     /// - `BleError::CharacteristicNotFound`: If the characteristic was not setted before on the server
     pub fn notify_value(&mut self, service_id: BleId, characteristic: &Characteristic) -> Result<(), BleError> {
+        if !characteristic.is_notifiable() {
+            return Err(BleError::CharacteristicNotNotifiable);
+        }
         let server_service = task::block_on(async {
             self.ble_server.get_service(service_id.to_uuid()).await
         });
-        // TODO: Raise error if char is not notifiable
         if let Some(service) = server_service {
             self.try_to_update_characteristic(service, characteristic, true)?;
             return Ok(());

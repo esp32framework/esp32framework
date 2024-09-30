@@ -1,5 +1,6 @@
 use std::mem;
-use esp_idf_svc::hal::gpio::*;
+use esp32_nimble::BLEDevice;
+use esp_idf_svc::hal::{gpio::*, i2c::I2C0, modem};
 
 const PIN_COUNT: usize = 24;
 const TIMERS_COUNT: usize = 2;
@@ -14,7 +15,12 @@ const UART_BOUNDS: (usize, usize) = (0, 1);
 /// Error types related to microcontroller peripheral operations.
 #[derive(Debug)]
 pub enum PeripheralError {
-    NotAPin
+    NotAPin,
+    NotAnI2CPeripheral,
+    NotABleDevicePeripheral,
+    NotAPwmTimer,
+    NotAPwmChannel,
+    AlreadyTaken,
 }
 
 /// Represents the esp32 Peripheral allowing to instanciate diferent Peripheral Types 
@@ -85,9 +91,34 @@ impl Peripheral {
                 23 => unsafe {Gpio23::new().downgrade()},
                 _ => return Err(PeripheralError::NotAPin)
             },
+            Peripheral::None => return Err(PeripheralError::AlreadyTaken),
             _ => return Err(PeripheralError::NotAPin),
         };
         Ok(pin)
+    }
+
+    pub fn into_i2c0(self)-> Result<I2C0, PeripheralError> {
+        match self{
+            Peripheral::I2C => Ok(unsafe{I2C0::new()}),
+            Peripheral::None => Err(PeripheralError::AlreadyTaken),
+            _ => Err(PeripheralError::NotAnI2CPeripheral)
+        }
+    }
+    
+    pub fn into_ble_device(self) -> Result<&'static mut BLEDevice, PeripheralError>{
+        match self{
+            Peripheral::BleDevice => Ok(BLEDevice::take()),
+            Peripheral::None => Err(PeripheralError::AlreadyTaken),
+            _ => Err(PeripheralError::NotABleDevicePeripheral),
+        }
+    }
+
+    pub fn into_modem(self) -> Result<modem::Modem, PeripheralError>{
+        match self{
+            Peripheral::BleDevice => Ok(unsafe {modem::Modem::new()}),
+            Peripheral::None => Err(PeripheralError::AlreadyTaken),
+            _ => Err(PeripheralError::NotABleDevicePeripheral),
+        }
     }
 }
 
@@ -272,16 +303,16 @@ impl Peripherals {
     /// # Returns
     /// 
     /// A `Peripheral::BleDevice` if it was not taken before, otherwise a `Peripheral::None
-    pub fn get_ble_device(&mut self)-> Peripheral{
+    pub fn get_ble_peripheral(&mut self)-> Peripheral{
         self.ble_device.take()
     }
-
+    
     /// Gets the only Modem peripheral available
     /// 
     /// # Returns
     /// 
     /// A `Peripheral::Modem` if it was not taken before, otherwise a `Peripheral::None
-    pub fn get_modem(&mut self) -> Peripheral {
+    pub fn get_wifi_peripheral(&mut self) -> Peripheral {
         self.modem.take()
     }
 }

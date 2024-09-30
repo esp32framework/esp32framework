@@ -12,8 +12,8 @@ fn main(){
     let mut micro = Microcontroller::new();
 
     // WIFI connection
-    let mut wifi = micro.get_wifi_driver();
-    micro.block_on(wifi.connect(SSID, Some(PASSWORD.to_string()))).unwrap();
+    let mut wifi = micro.get_wifi_driver().unwrap();
+    micro.block_on(wifi.connect(SSID, Some(PASSWORD.to_string()))).unwrap().unwrap();
 
     // HTTP
     let mut buf: [u8;1024] = [0;1024];
@@ -34,5 +34,5 @@ fn main(){
     }
  
     println!("End of example");
-    micro.wait_for_updates(None);
+    micro.wait_for_updates(None).unwrap();
 }

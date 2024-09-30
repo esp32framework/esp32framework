@@ -1,13 +1,10 @@
-use std::rc::Rc;
-use esp_idf_svc::hal::adc::attenuation::adc_atten_t;
-use esp_idf_svc::hal::gpio::*;
-use esp_idf_svc::hal::adc::*;
-use oneshot::config::AdcChannelConfig;
-use oneshot::AdcChannelDriver;
-use oneshot::AdcDriver;
-
-use crate::microcontroller_src::microcontroller::SharableAdcDriver;
-use crate::microcontroller_src::peripherals::Peripheral;
+use std::{rc::Rc, time::Duration, time::Instant};
+use esp_idf_svc::hal::{gpio::*, adc::*, adc::attenuation::adc_atten_t};
+use oneshot::{config::AdcChannelConfig, AdcChannelDriver, AdcDriver};
+use crate::{microcontroller_src::{
+    microcontroller::SharableAdcDriver, 
+    peripherals::{Peripheral, PeripheralError}
+}, utils::esp32_framework_error::AdcDriverError};
 
 const MAX_DIGITAL_VAL: u16 = 4095;
 
@@ -16,7 +13,9 @@ const MAX_DIGITAL_VAL: u16 = 4095;
 pub enum AnalogInError{
     MissingAdcDriver,
     InvalidPin,
-    ErrorReading
+    ErrorReading,
+    InvalidPeripheral(PeripheralError),
+    AdcDriverError(AdcDriverError),
 }
 
 /// Driver for receiving analog inputs from a particular pin
@@ -57,7 +56,7 @@ impl <'a> AnalogIn<'a> {
     /// - `AnalogInError::InvalidPin`: If the pin Peripheral is not valid
     pub fn new(pin: Peripheral, adc_driver: SharableAdcDriver<'a>, attenuation: adc_atten_t) -> Result<Self, AnalogInError> {
         Ok(AnalogIn {
-            adc_channel_driver: AnalogIn::new_channel(pin,adc_driver,attenuation)?
+            adc_channel_driver: AnalogIn::new_channel(pin,adc_driver, attenuation)?
         })
     }
 
@@ -93,7 +92,8 @@ impl <'a> AnalogIn<'a> {
                 6 => AnalogChannels::Channel6(AdcChannelDriver::new(sharable_adc_driver, unsafe {Gpio6::new()}, &config).unwrap()),
                 _ => return Err(AnalogInError::InvalidPin),
             }
-            _ => return Err(AnalogInError::InvalidPin),
+            Peripheral::None => return Err(AnalogInError::InvalidPeripheral(PeripheralError::AlreadyTaken)),
+            _ => return Err(AnalogInError::InvalidPeripheral(PeripheralError::NotAPin)),
         };
         Ok(adc_channel_driver)
     }
@@ -126,8 +126,6 @@ impl <'a> AnalogIn<'a> {
         Ok(read_value)
     }
     
-    //TODO: max_in_time, min_in_time, bigger_than, lower_than
-
     /// Returns the raw value read from an analog pin. 
     /// The value returned is not attenuated, so its ranges is [0, 4095].
     /// 
@@ -166,12 +164,32 @@ impl <'a> AnalogIn<'a> {
     /// 
     /// - `AnalogInError::ErrorReading` : If the read operation fails
     pub fn smooth_read(&mut self, amount_of_samples: u16) -> Result<u16, AnalogInError> {
-        let mut smooth_val: u16 = 0;
+        let mut smooth_val: u32 = 0;
         for _ in 0..amount_of_samples {
             let read_val = self.read()?;
-            smooth_val += read_val;
+            smooth_val += read_val as u32;
         }
-        let result = smooth_val / amount_of_samples;
-        Ok(result)
+        let result = smooth_val / amount_of_samples as u32;
+        Ok(result as u16)
+    }
+
+    pub fn smooth_read_during(&mut self, ms: u16) -> Result<u16, AnalogInError>{
+        let mut smooth_val: u64 = 0;
+        let duration = Duration::from_millis(ms as u64);
+        let starting_time  = Instant::now();
+        let mut amount_of_samples = 0;
+        while starting_time.elapsed() < duration{
+            let read_val = self.read()?;
+            smooth_val += read_val as u64;
+            amount_of_samples += 1;
+        }
+        let result = smooth_val / amount_of_samples as u64;
+        Ok(result as u16)
+    }
+}
+
+impl From<AdcDriverError> for AnalogInError{
+    fn from(value: AdcDriverError) -> Self {
+        AnalogInError::AdcDriverError(value)
     }
 }
