@@ -35,8 +35,11 @@ pub enum Peripheral{
 
 impl Peripheral {
 
-    /// Takes the Peripheral instance and changes to a Peripheral::None instance
-    /// TODO: Does this panic if it was already None?
+    /// Takes the Peripheral instance and changes to a Peripheral::None instance.
+    ///
+    /// # Returns
+    /// 
+    /// A `Peripheral` instance. It it was already a `Peripheral::None` it will keep returning it.
     fn take(&mut self) -> Peripheral {
         mem::take(self)
     }
@@ -220,8 +223,12 @@ impl Peripherals {
         self.adc.take()
     }
 
-    // TODO: Why the check on the channel and not the timer? (I guess that by checking one, 
-    // it is not necessary to check the other since both have the same quantity available)
+    /// Gets the next PWM Channel peripheral and PWM Timer peripheral available
+    /// 
+    /// # Returns
+    /// 
+    /// A tuple containing the `Peripheral::PWMChannel` and the `Peripheral::PWMTimer` if both of them are still available,
+    ///  otherwise a tuple containing two `Peripheral::None`. 
     pub fn get_next_pwm(&mut self) -> (Peripheral, Peripheral) {
         
         for (channel, timer) in self.pwm_channels.iter_mut().zip(self.pwm_timers.iter_mut()) {
