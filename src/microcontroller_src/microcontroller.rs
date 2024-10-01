@@ -565,7 +565,16 @@ impl <'a>Microcontroller<'a> {
         WifiDriver::new(self.event_loop.clone(), modem)
     }
 
-    /// TODO!
+    /// Updates all assigned drivers of the microcontroller, handling interrupts and alarms as needed.
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` with Ok if the operation completed successfully, or an `Esp32FrameworkError` instance if it fails.
+    /// 
+    /// # Errors
+    /// 
+    /// - `Esp32FrameworkError::TimerDriverError`: If an error occurs while updating the timer driver.
+    /// - Depending of the nature of the driver, other errors as `Esp32FrameworkError::AnalogOut` may be returned.
     pub fn update(&mut self)-> Result<(), Esp32FrameworkError> {
         //timer_drivers must be updated before other drivers since this may efect the other drivers updates
         for timer_driver in &mut self.timer_drivers{
