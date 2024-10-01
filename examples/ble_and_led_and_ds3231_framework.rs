@@ -2,7 +2,7 @@
 //! Every 5 seconds, the program takes the temperatur from the ds3231 and advertises
 //! it through the BLE beacon. At the same time, a lede on pin 15 blinks twice. 
 
-use esp32framework::{ble::{BleBeacon, BleId, Service, StandarServiceId}, gpio::DigitalOut, sensors::{DateTime, DS3231,HourMode}, Microcontroller};
+use esp32framework::{ble::{BleBeacon, BleId, Service, StandarServiceId}, gpio::DigitalOut, sensors::{DateTime, DS3231}, Microcontroller};
 
 const LED: usize = 15;
 const SDA: usize = 5;
@@ -10,7 +10,7 @@ const SCL: usize = 6;
 
 fn setup_ds3231<'a>(micro: &mut Microcontroller<'a>)-> DS3231<'a> {
 	let i2c = micro.set_pins_for_i2c_master(SDA,SCL).unwrap();
-	let mut ds3231 = DS3231::new(i2c, HourMode::TwentyFourHour);
+  let mut ds3231 = DS3231::new(i2c);
 	let date_time = DateTime {
 		second: 5,
 		minute: 10,
