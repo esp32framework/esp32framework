@@ -7,27 +7,27 @@ use std::{cell::RefCell, rc::Rc, sync::{Arc,atomic::{AtomicU32, Ordering, Atomic
 /// Enums the different errors possible when working with the analog out
 #[derive(Debug)]
 pub enum AnalogOutError{
-    TooManyPWMOutputs,
+    ErrorSettingOutput,
     InvalidArg,
     InvalidPeripheral,
     InvalidFrequencyOrDuty,
-    ErrorSettingOutput,
-    TimerDriverError(TimerDriverError)
+    TimerDriverError(TimerDriverError),
+    TooManyPWMOutputs,
 }
 
 /// Enums the possible Duty Policies for the driver
 #[derive(Clone, Copy, Debug)]
 enum ExtremeDutyPolicy{
     BounceBack,
+    None,
     Reset,
-    None
 }
 
 /// Enums Change Type of the drivers
 #[derive(Clone, Copy, Debug)]
 enum FixedChangeType {
-    Increase(ExtremeDutyPolicy),
     Decrease(ExtremeDutyPolicy),
+    Increase(ExtremeDutyPolicy),
     None
 }
 

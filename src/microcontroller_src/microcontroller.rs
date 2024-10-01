@@ -3,9 +3,8 @@ use std::rc::Rc;
 use esp32_nimble::{enums::AuthReq, BLEDevice};
 use esp_idf_svc::hal::{adc::*, delay::FreeRtos, task::block_on, i2c};
 use futures::future::{join, Future};
-use crate::ble::BleError;
 use crate::microcontroller_src::{peripherals::*, interrupt_driver::InterruptDriver};
-use crate::ble::{BleBeacon,BleServer,Service,Security, ble_client::BleClient};
+use crate::ble::{BleBeacon,BleServer,Service,Security, ble_client::BleClient,BleError};
 use crate::gpio::{AnalogIn, AnalogInPwm, DigitalIn, DigitalOut,  AnalogOut};
 use crate::serial::{Parity, StopBit, UART, I2CMaster, I2CSlave};
 use crate::wifi::WifiDriver;
@@ -511,7 +510,7 @@ impl <'a>Microcontroller<'a> {
         }
     }
     
-    fn wait_for_updates_indefinitly(&mut self){
+    fn wait_for_updates_indefinitely(&mut self){
         loop{
             self.notification.blocking_wait();
             self.update();
@@ -558,7 +557,7 @@ impl <'a>Microcontroller<'a> {
     pub fn wait_for_updates(&mut self, miliseconds:Option<u32>){
         match miliseconds{
             Some(milis) => self.wait_for_updates_until(milis),
-            None => self.wait_for_updates_indefinitly(),
+            None => self.wait_for_updates_indefinitely(),
         }
     }
 

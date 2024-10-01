@@ -1,5 +1,3 @@
-use std::u16;
-
 use esp32framework::Microcontroller;
 
 fn main(){

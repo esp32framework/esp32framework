@@ -11,12 +11,12 @@ const DS3231_ADDR: u8 = 0x68;
 
 #[repr(u8)]
 enum Ds3231RegDir {
-    Seconds,
-    Minutes,
-    Hours,
     Day,
     Date,
+    Hours,
+    Minutes,
     Month,
+    Seconds,
     Year,
 }
 

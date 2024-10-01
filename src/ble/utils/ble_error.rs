@@ -7,38 +7,39 @@ const ATTRIBUTE_CANNOT_BE_WRITTEN: u32 = 259;
 
 /// Enums the different errors possible when working with BLE  
 #[derive(Debug)]
-pub enum BleError{
+pub enum BleError {
+    AdvertisementError,
+    AlreadyConnected,
+    CanOnlyBeOneBleDriver,
+    CharacteristicNotFound,
+    CharacteristicNotNotifiable,
+    CharacteristicNotReadable,
+    CharacteristicNotWritable,
+    Code(u32, String),
+    ConnectionError,
+    CouldNotConnectToDevice,
+    DescriptorNotFound,
+    DescriptorNotReadable,
+    DescriptorNotWritable,
+    DeviceNotFound,
+    Disconnected,
+    IncorrectHandle,
+    InvalidParameters,
+    NotFound,
+    NotReadable,
+    NotWritable,
+    PropertiesError,
     ServiceDoesNotFit,
+    ServiceNotFound,
     ServiceTooBig,
     ServiceUnknown,
+    StartingAdvertisementError,
     StartingFailure,
     StoppingFailure,
-    TimerDriverError(TimerDriverError),
-    Code(u32, String),
-    NotFound,
-    ServiceNotFound,
-    CharacteristicNotFound,
-    DescriptorNotFound,
-    PropertiesError,
-    AdvertisementError,
-    StartingAdvertisementError,
-    IncorrectHandle,
-    ConnectionError,
-    InvalidParameters,
-    DeviceNotFound,
-    AlreadyConnected,
-    NotWritable,
-    CharacteristicNotWritable,
-    DescriptorNotWritable,
-    CharacteristicNotNotifiable,
     TimeOut,
-    NotReadable,
-    DescriptorNotReadable,
-    CharacteristicNotReadable,
-    CanOnlyBeOneBleDriver,
-    Disconnected,
-    CouldNotConnectToDevice
+    TimerDriverError(TimerDriverError)
 }
+
 
 impl From<BLEError> for BleError {
 
@@ -53,14 +54,14 @@ impl From<BLEError> for BleError {
     /// The new BleError
     fn from(value: BLEError) -> Self {
         match value.code() {
-            esp_idf_svc::sys::BLE_HS_EMSGSIZE => BleError::ServiceDoesNotFit,
-            esp_idf_svc::sys::BLE_HS_EINVAL => BleError::InvalidParameters,
-            esp_idf_svc::sys::BLE_HS_EDONE => BleError::AlreadyConnected,
-            esp_idf_svc::sys::BLE_HS_ENOTCONN  => BleError::DeviceNotFound,
-            esp_idf_svc::sys::BLE_HS_ETIMEOUT  => BleError::TimeOut,
             ATTRIBUTE_CANNOT_BE_READ => BleError::NotReadable,
             ATTRIBUTE_CANNOT_BE_WRITTEN => BleError::NotWritable,
             esp_idf_svc::sys::BLE_HS_CONN_HANDLE_NONE => BleError::NotFound,
+            esp_idf_svc::sys::BLE_HS_EDONE => BleError::AlreadyConnected,
+            esp_idf_svc::sys::BLE_HS_EINVAL => BleError::InvalidParameters,
+            esp_idf_svc::sys::BLE_HS_EMSGSIZE => BleError::ServiceDoesNotFit,
+            esp_idf_svc::sys::BLE_HS_ENOTCONN  => BleError::DeviceNotFound,
+            esp_idf_svc::sys::BLE_HS_ETIMEOUT  => BleError::TimeOut,
             _ => BleError::Code(value.code(), value.to_string()),
         }
     }
@@ -136,8 +137,8 @@ impl BleError {
     /// Makes a BleError more specific in the context of services
     fn service_context(self)-> Self{
         match self{
-            BleError::NotFound => BleError::ServiceNotFound,
             BleError::DeviceNotFound => BleError::Disconnected,
+            BleError::NotFound => BleError::ServiceNotFound,
             _ => self
         }
     }
@@ -145,8 +146,8 @@ impl BleError {
     /// Makes a BleError more specific in the context of characteristic
     fn characteristic_context(self)-> Self{
         match self{
-            BleError::NotFound => BleError::CharacteristicNotFound,
             BleError::DeviceNotFound => BleError::Disconnected,
+            BleError::NotFound => BleError::CharacteristicNotFound,
             BleError::NotReadable => BleError::CharacteristicNotReadable,
             BleError::NotWritable => BleError::CharacteristicNotWritable,
             _ => self
@@ -156,8 +157,8 @@ impl BleError {
     /// Makes a BleError more specific in the context of descriptors
     fn descriptor_context(self)-> Self{
         match self{
-            BleError::NotFound => BleError::DescriptorNotFound,
             BleError::DeviceNotFound => BleError::Disconnected,
+            BleError::NotFound => BleError::DescriptorNotFound,
             BleError::NotReadable => BleError::DescriptorNotReadable,
             BleError::NotWritable => BleError::DescriptorNotWritable,
             _ => self

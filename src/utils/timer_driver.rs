@@ -36,14 +36,15 @@ struct _TimerDriver<'a> {
 
 #[derive(Debug, Clone, Copy)]
 pub enum TimerDriverError {
-    ErrorReadingTimer,
-    ErrorReadingAlarm,
-    CouldNotSetTimer,
-    InvalidTimer,
     CannotSetTimerCounter,
+    CouldNotSetTimer,
+    ErrorReadingAlarm,
+    ErrorReadingTimer,
+    InvalidTimer,
+    OnlyOriginalCopyCanCreateChildren,
     SubscriptionError,
     TooManyChildren,
-    OnlyOriginalCopyCanCreateChildren
+
 }
 
 /// Represents an interrupt to be executed after some time a number of times
@@ -59,8 +60,8 @@ struct TimeInterrupt{
 
 #[derive(Debug, PartialEq, Eq)]
 enum TimerInterruptStatus{
-    Enabled,
     Disabled,
+    Enabled,
     Removing
 }
 
@@ -216,7 +217,7 @@ impl <'a>_TimerDriver<'a>{
     }
 
     /// Sets an interrupt to trigger every "micro_seconds" for an "amount_of_times" if given, if not
-    /// triggers indefinitly. If autoenable is set, after triggering the callback, it will be set again
+    /// triggers indefinitely. If autoenable is set, after triggering the callback, it will be set again
     /// if not it will have to be reenabled manually by caling enable(). For this to start working 
     /// enable() must be called. There can only be one callback per id.
     pub fn interrupt_after_n_times<F: FnMut() + 'static>(&mut self, id: u16, micro_seconds: u64, amount_of_triggers: Option<u32>, auto_reenable: bool, callback: F){        
@@ -244,8 +245,8 @@ impl <'a>_TimerDriver<'a>{
         Ok(())
     }
     
-    /// Diactivates the timeInterrupt corresponding to "id".
-    fn diactivate(&mut self, id: u16){
+    /// Deactivates the timeInterrupt corresponding to "id".
+    fn deactivate(&mut self, id: u16){
         if let Some(interrupt) = self.interrupts.get_mut(&id){
             if interrupt.status == TimerInterruptStatus::Enabled{
                 interrupt.disable_previouse_alarms()
@@ -269,7 +270,7 @@ impl <'a>_TimerDriver<'a>{
             self.activate(id)?;
             self.set_lowest_alarm()?;
         }else{
-            self.diactivate(id);
+            self.deactivate(id);
         }
         
         if self.alarms.is_empty() || starting_len == 0{
