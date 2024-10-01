@@ -41,9 +41,7 @@ class DigitalIn{
 class _DigitalIn {
     +pin_driver: PinDriver<'a, AnyIOPin, Input>
     -timer_driver: TimerDriver<'a>
-    -user_callback: Box<dyn FnMut()>
     -debounce_ms: Option<u64>
-    -notifier: Option<Notifier>
     +set_pull(Pull)
     +change_interrupt_type(InterruptType)
     +trigger_if_mantains_after(u64)
@@ -55,6 +53,10 @@ class _DigitalIn {
     +is_high()
     +is_low()
     +set_debounce(u64)
+}
+
+class Notifier{
+    + notify()
 }
 
 enum InterruptType {
@@ -74,5 +76,5 @@ DigitalIn *-- _DigitalIn
 _DigitalIn -> InterruptType
 _DigitalOut -> InterruptUpdate
 DigitalOut -> _DigitalOut
-
+_DigitalIn -> Notifier
 @enduml

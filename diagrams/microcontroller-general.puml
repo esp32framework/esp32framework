@@ -124,6 +124,26 @@ class AnalogOut {
     + update_interrupt()
 }
 
+class I2CMaster{
+    - driver
+    + read() 
+    + write() 
+    + write_read() 
+}
+
+class I2CSlave{
+    - driver
+    + read()
+    + write()
+}
+
+class UART{
+    - driver
+    + write()
+    + read()
+    +read_with_timeout()
+}
+
 class BleBeacon{
     - advertising_name
     - ble_device
@@ -189,12 +209,15 @@ Microcontroller ..> DigitalOut: create
 Microcontroller ..> AnalogIn: create
 Microcontroller .left.> DigitalIn: create
 Microcontroller ..> AnalogInPwm: create
-Microcontroller .> AnalogOut: create
-Microcontroller .> BleBeacon: create
-Microcontroller ..> BleClient: create
-Microcontroller ..> BleServer: create
-Microcontroller ..> WifiDriver: create
-Microcontroller ..> TimerDriver: create
-AnalogInPwm "1" --> "1" DigitalIn
+Microcontroller .left.> AnalogOut: create
+Microcontroller .up.> BleBeacon: create
+Microcontroller .up.> BleClient: create
+Microcontroller .up.> BleServer: create
+Microcontroller .down.> WifiDriver: create
+Microcontroller .> TimerDriver: create
+Microcontroller .up.> UART: create
+Microcontroller .down.> I2CMaster: create
+Microcontroller .up.> I2CSlave: create
+AnalogInPwm "1" -down-> "1" DigitalIn
 
 @enduml

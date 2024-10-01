@@ -1,14 +1,14 @@
 @startuml analog
 class AnalogOut {
     + duty()
-    + set_high_level_output_ratio()
-    + start_changing_by_fixed_amount()
-    + start_increasing()
-    + start_decreasing()
-    + start_increasing_bounce_back()
-    + start_decreasing_bounce_back()
-    + start_increasing_reset()
-    + start_decreasing_intensity_reset()
+    + set_high_level_output_ratio(f32)
+    + start_changing_by_fixed_amount(u64, f32, f32)
+    + start_increasing(u64, f32, f32)
+    + start_decreasing(u64, f32, f32)
+    + start_increasing_bounce_back(u64, f32, f32, Option<u32>)
+    + start_decreasing_bounce_back(u64, f32, f32, Option<u32>)
+    + start_increasing_reset(u64, f32, f32, Option<u32>)
+    + start_decreasing_intensity_reset(u64, f32, f32, Option<u32>)
     + update_interrupt()
 }
 

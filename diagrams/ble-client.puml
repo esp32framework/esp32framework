@@ -17,11 +17,10 @@ class BleClient {
 }
 
 class _BleClient{
-    - ble_client
-    - ble_scan
-    - connected
-    - time_between_scans
-    - notifier
+    - ble_client: BLEClient,
+    - ble_scan: &'static mut BLEScan,
+    - connected: bool,
+    - time_between_scans: u16,
     + connect_to_device(Option<Duration>, condition)
     + connect_to_device_with_service(Option<Duration>, &BleId)
     + connect_to_device_of_name(Option<Duration>, string)

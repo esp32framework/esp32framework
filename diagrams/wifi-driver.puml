@@ -2,7 +2,7 @@
 
 class Wifi_driver{
     -controller: AsyncWifi<EspWifi>
-    +connect()
+    +connect(&str, Option<String>)
     +is_started()
     +is_connected()
     +get_address_info()
@@ -12,14 +12,14 @@ class Wifi_driver{
 }
 
 interface Http{
-    +post(string, vec<(&'a str,&'a str)>)
-    +get(string, vec<(&'a str,&'a str)>)
-    +put(string, vec<(&'a str,&'a str)>)
-    +delete(string, vec<(&'a str,&'a str)>)
-    +patch(string, vec<(&'a str,&'a str)>)
-    +head(string, vec<(&'a str,&'a str)>)
-    +options(string, vec<(&'a str,&'a str)>)
-    +response_status(string, vec<(&'a str,&'a str)>)
+    +post(string, Vec<HttpHeader>)
+    +get(string, Vec<HttpHeader>)
+    +put(string, Vec<HttpHeader>)
+    +delete(string, Vec<HttpHeader>)
+    +patch(string,Vec<HttpHeader> )
+    +head(string, Vec<HttpHeader>)
+    +options(string, Vec<HttpHeader>)
+    +response_status()
     +response_status_message()
     +wait_for_response([u8])
 }
@@ -36,17 +36,59 @@ class HttpsClient{
 }
 
 class HttpHeader {
-    header_type: HttpHeaderType,
     value: string
     +to_string()
 }
 
+enum HttpHeaderType {
+    AIM,
+    Accept,
+    AcceptCharset,
+    AcceptDatetime,
+    AcceptEncoding,
+    AcceptLanguage,
+    AccessControlRequestMethod,
+    Authorization,
+    CacheControl,
+    Connection,
+    ContentEncoding,
+    ContentLength,
+    ContentMD5,
+    ContentType,
+    Cookie,
+    Custom( &'a str ),
+    Date,
+    Expect,
+    Forwarded,
+    From,
+    Host,
+    HTTP2Settings,
+    IfMatch,
+    IfModifiedSince,
+    IfNoneMatch,
+    IfRange,
+    IfUnmodifiedSince,
+    MaxForwards,
+    Origin,
+    Pragma,	
+    Prefer,	
+    ProxyAuthorization,
+    Range,	
+    Referer,
+    TE,
+    Trailer,
+    TransferEncoding,
+    UserAgent,
+    Upgrade,
+    Via,
+    Warning,
+}
 
 Wifi_driver ..> HttpClient: create
 Wifi_driver ..> HttpsClient: create
 HttpClient --> Http
 HttpsClient --> Http
 Http -> HttpHeader
-
+HttpHeader *- HttpHeaderType
 
 @enduml

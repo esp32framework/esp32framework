@@ -47,7 +47,6 @@ class TimeInterrupt{
     -after: u64
     +id: u16
     +current_alarm_id: usize
-    +status: TimerInterruptStatus
     +remaining_triggers: Option<u32>
     +auto_reenable: bool
     +callback: Box<dyn FnMut()>
@@ -64,11 +63,22 @@ class Alarm{
     +equals()
 }
 
+class Notifier{
+    + notify()
+}
+
+enum TimerInterruptStatus{
+    Disabled,
+    Enabled,
+    Removing
+}
+
 TimerDriver *-- _TimerDriver
 _TimerDriver *-- InterruptUpdate
 _TimerDriver --> TimeInterrupt
 _TimerDriver --> Alarm
 TimeInterrupt --> Alarm
-
+TimeInterrupt --> TimerInterruptStatus
+_TimerDriver -> Notifier
 
 @enduml

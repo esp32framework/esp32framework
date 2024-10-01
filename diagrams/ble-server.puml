@@ -15,13 +15,12 @@ class BleServer{
     + set_characteristic(BleId, &Characteristic)
     + notify_value(BleId, &Characteristic)
     + start()
-
 }
 
 class _BleServer{
     - advertising_name: String,
     - ble_server: &'a mut BLEServer,
-    - advertisement: &'a Mutex<BLEAdvertising>,
+    - advertisement: &'a Mutex<BLEAdvertising>
     + connection_handler(handler)
     + disconnect_handler(handler)
     + set_connection_settings(ConnectionInformation, u16,u16,u16,u16)
@@ -46,14 +45,12 @@ class ConnectionCallback{
 }
 
 class Service {
-    - id: BleId
     - data: Vec<u8>
     + add_characteristic()
     
 } 
 
 class Characteristic{
-    - id: BleId
     - properties: u16
     - data: Vec<u8>
     + add_descriptor()
@@ -73,7 +70,6 @@ class Characteristic{
 }
 
 class Descriptor{
-    - id: BleId,
     - properties: u8
     - data: Vec<u8>
     + get_properties()
@@ -113,13 +109,15 @@ enum BleId {
 
 BleServer *-right- _BleServer
 _BleServer *- Service
-_BleServer *-- ConnectionCallback
+_BleServer *-- "2" ConnectionCallback
 Service *-- Characteristic
 Characteristic  *-- Descriptor
 _BleServer --> DiscoverableMode
 _BleServer --> ConnectionMode
-_BleServer --> BleId
-
+_BleServer -> BleId
+Service *- BleId
+Characteristic *- BleId
+Descriptor *- BleId
 
 
 @enduml

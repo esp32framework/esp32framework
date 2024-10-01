@@ -27,26 +27,6 @@ class UART{
     +read_with_timeout([u8], u32)
 }
 
-exception I2CError {
-    Temp,
-    InvalidPin,
-    InvalidPeripheral,
-    BufferTooSmall,
-    InvalidArg,
-    DriverError,
-    NoMoreHeapMemory,
-    TimeoutError,
-    ErrorInReadValue
-}
-
-exception UARTError{
-    InvalidPin,
-    InvalidUartNumber,
-    DriverError,
-    WriteError,
-    ReadError,
-    InvalidBaudrate
-}
 
 READER <|-- I2CMaster
 WRITER <|-- I2CMaster
@@ -54,9 +34,5 @@ READER <|-- I2CSlave
 WRITER <|-- I2CSlave
 READER <|-- UART
 WRITER <|-- UART
-UART --> UARTError
-I2CMaster --> I2CError
-I2CSlave --> I2CError
-
 
 @enduml

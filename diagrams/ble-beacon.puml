@@ -13,7 +13,7 @@ class BleBeacon{
     + remove_service(&BleId)
     + remove_services(Vec<BleId>)
     + advertise_service_data(&BleId)
-    + set_time_per_service(Duration
+    + set_time_per_service(Duration)
     + advertise_all_service_data()
     + start()
     + stop()
@@ -30,14 +30,12 @@ enum BleId {
 }
 
 class Service {
-    - id: BleId
     - data: Vec<u8>
     + add_characteristic()
     
 } 
 
 class Characteristic{
-    - id: BleId
     - properties: u16
     - data: Vec<u8>
     + add_descriptor()
@@ -57,7 +55,6 @@ class Characteristic{
 }
 
 class Descriptor{
-    - id: BleId,
     - properties: u8
     - data: Vec<u8>
     + get_properties()
@@ -74,7 +71,10 @@ class Descriptor{
 }
 
 BleBeacon -> BleId
-BleBeacon -> Service
-Service *-- Characteristic
-Characteristic *-- Descriptor
+BleBeacon o- Service
+Service *- Characteristic
+Service *-- BleId
+Characteristic *- Descriptor
+Characteristic *-- BleId
+Descriptor *- BleId
 @enduml
