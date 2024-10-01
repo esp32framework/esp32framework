@@ -152,7 +152,7 @@ impl _BleClient{
     /// # Arguments
     /// 
     /// - `timeout`: A duration in which the client will attempt to connect to a device that fullfills the condition. If it is None then 
-    /// the client will attempt to connect indefinitly
+    /// the client will attempt to connect indefinitely
     /// - `condition`: A closure that receives a [&BleAdvertisedDevice], and returns a bool. The client will connect to any device where applying
     /// this clossure returns true. This way the client can connect to any device that advertises itslef in a certain way.
     /// 

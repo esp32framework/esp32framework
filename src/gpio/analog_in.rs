@@ -11,11 +11,10 @@ const MAX_DIGITAL_VAL: u16 = 4095;
 /// Enums the different errors possible when working with the analog in
 #[derive(Debug)]
 pub enum AnalogInError{
-    MissingAdcDriver,
-    InvalidPin,
+    AdcDriverError(AdcDriverError),
     ErrorReading,
     InvalidPeripheral(PeripheralError),
-    AdcDriverError(AdcDriverError),
+    InvalidPin,
 }
 
 /// Driver for receiving analog inputs from a particular pin

@@ -16,14 +16,16 @@ const DEFAULT_BAUDRATE: u32 = 100;
 /// Error types related to I2C operations.
 #[derive(Debug)]
 pub enum I2CError {
-    Temp,
-    PeripheralError(PeripheralError),
     BufferTooSmall,
-    InvalidArg,
     DriverError,
+    ErrorInReadValue,
+    InvalidArg,
+    InvalidPeripheral,
+    InvalidPin,
     NoMoreHeapMemory,
+    PeripheralError(PeripheralError),
+    Temp,
     TimeoutError,
-    ErrorInReadValue
 }
 
 

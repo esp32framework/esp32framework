@@ -18,13 +18,13 @@ type AtomicInterruptUpdateCode = AtomicU8;
 /// Enums the different errors possible when working with the digital in
 #[derive(Debug)]
 pub enum DigitalInError {
-    CannotSetPullForPin,
-    CannotSetPinAsInput,
-    StateAlreadySet,
-    InvalidPin,
-    InvalidPeripheral(PeripheralError),
-    NoInterruptTypeSet,
     CannotSetDebounceOnAnyEdgeInterruptType,
+    CannotSetPinAsInput,
+    CannotSetPullForPin,
+    InvalidPeripheral(PeripheralError),
+    InvalidPin,
+    NoInterruptTypeSet,
+    StateAlreadySet,
     TimerDriverError (TimerDriverError)
 }
 
@@ -55,11 +55,11 @@ pub struct DigitalIn<'a>{
 
 /// After an interrupt is triggered an InterruptUpdate will be set and handled
 enum InterruptUpdate {
-    ExecAndEnablePin,
     EnableTimerDriver,
-    TimerReached,
+    ExecAndEnablePin,
     ExecAndUnsubscribePin,
-    None
+    None,
+    TimerReached,
 }
 
 impl InterruptUpdate{
@@ -96,14 +96,14 @@ impl InterruptUpdate{
     /// 
     /// ```
     /// let interrupt = InterruptUpdate::from_code(1);
-    /// assert_eq!(interrupt, InterruptUpdate::EnableTimerDriver);
+    /// assert_eq!(interrupt, InterruptUpdate::ExecAndEnablePin);
     /// ```
     fn from_code(code:u8)-> Self {
         match code{
-            0 => Self::ExecAndEnablePin,
-            1 => Self::EnableTimerDriver,
-            2 => Self::TimerReached,
-            3 => Self::ExecAndUnsubscribePin,
+            x if x == Self::ExecAndEnablePin.get_code() => Self::ExecAndEnablePin,
+            x if x == Self::EnableTimerDriver.get_code()  => Self::EnableTimerDriver,
+            x if x == Self::TimerReached.get_code()  => Self::TimerReached,
+            x if x == Self::ExecAndUnsubscribePin.get_code()  => Self::ExecAndUnsubscribePin,
             _ => Self::None,
         }
     }

@@ -17,12 +17,12 @@ pub enum Esp32FrameworkError{
     AnalogIn(AnalogInError),
     AnalogInPwm(AnalogInPwmError),
     AnalogOut(AnalogOutError),
+    Ble(BleError),
     DigitalIn(DigitalInError),
     DigitalOut(DigitalOutError),
-    TimerDriver(TimerDriverError),
     I2c(I2CError),
+    TimerDriver(TimerDriverError),
     Uart(UARTError),
-    Ble(BleError),
     Wifi(WifiError)
 }
 

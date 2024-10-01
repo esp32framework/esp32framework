@@ -1,13 +1,10 @@
-
 use esp32framework::Microcontroller;
-
-const SERVICE_UUID: u16 = 0x0101;
 
 fn main(){
     let mut micro = Microcontroller::new();
-    let mut client = micro.ble_client().unwrap();
-    let device = client.find_device_with_service(None, &esp32framework::ble::BleId::FromUuid16(SERVICE_UUID)).unwrap();
+    let mut timer = micro.get_timer_driver().unwrap();
+    timer.interrupt_after(2000000, || {println!("el timer esta bien")});
+    timer.enable().unwrap();
 
-    client.connect_to_device(device).unwrap();
     micro.wait_for_updates(None).unwrap();
 }

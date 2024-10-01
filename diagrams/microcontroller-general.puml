@@ -1,0 +1,223 @@
+@startuml Microcontroller general
+
+class Microcontroller {
+    + peripherals 
+    + interrupt_drivers 
+    + adc_driver 
+    + notification 
+    + event_loop 
+    + get_timer_driver()  
+    + set_pin_as_digital_in()  
+    + set_pin_as_digital_out()  
+    + start_adc_driver()
+    + set_pin_as_analog_in_low_atten() 
+    + set_pin_as_analog_in_medium_atten() 
+    + set_pin_as_analog_in_high_atten() 
+    + set_pin_as_analog_in_no_atten() 
+    + set_pin_as_analog_out() 
+    + set_pin_as_default_analog_out() 
+    + set_pin_as_analog_in_pwm() 
+    + set_pin_as_default_analog_in_pwm() 
+    + set_pins_for_i2c_master() 
+    + set_pins_for_i2c_slave() 
+    + set_pins_for_default_uart() 
+    + set_pins_for_uart() 
+    + ble_beacon() 
+    + ble_server() 
+    + ble_secure_server() 
+    + ble_client() 
+    + wait_for_updates()
+    + update() 
+    + sleep() 
+    + wait_for_updates_until_finished()
+    + block_on()
+    + get_wifi_driver()
+}
+
+class TimerDriver{
+    -driver
+    -interrupt_update
+    -alarms
+    -interrupts
+    +create_child_copy()
+    +delay()
+    +set_interrupt_update_callback()
+    +interrupt_after()
+    +interrupt_after_n_times()
+    +micro_to_counter()
+    +activate()
+    +deactivate()
+    +reset()
+    +enable()
+    +disable()
+    +remove_interrupt()
+    +set_lowest_alarm()
+    +handle_alarm_update()
+}
+
+
+class DigitalIn{
+    + pin_driver 
+    - timer_driver 
+    - interrupt_type
+    + interrupt_update_code 
+    - user_callback
+    - debounce_ms 
+    - notifier
+    + set_pull() 
+    + change_interrupt_type() 
+    + trigger_if_mantains_after() 
+    + subscribe_trigger() 
+    + trigger_on_interrupt() 
+    + trigger_on_interrupt_first_n_times() 
+    + get_level() 
+    + is_high() 
+    + is_low() 
+    + set_debounce() 
+}
+
+class DigitalOut{
+    - pin_driver
+    - timer_driver
+    - interrupt_update_code
+    + set_level() 
+    + get_level() 
+    + set_high() 
+    + set_low() 
+    + toggle() 
+    + blink() 
+}
+
+class AnalogInPwm {
+    + digital_in 
+    + sampling 
+    + set_sampling() 
+    + read() 
+    + read_percentage() 
+}
+
+class AnalogIn {
+    + adc_channel_driver
+    + adc_driver_ref
+    + read() 
+    + read_raw() 
+    + smooth_read() 
+}
+
+class AnalogOut {
+    + driver
+    + timer_driver
+    + duty
+    + interrupt_update_code
+    + fixed_change_increasing
+    + fixed_change_type
+    + amount_of_cycles
+    + duty()
+    + set_high_level_output_ratio()
+    + start_changing_by_fixed_amount()
+    + start_increasing()
+    + start_decreasing()
+    + start_increasing_bounce_back()
+    + start_decreasing_bounce_back()
+    + start_increasing_reset()
+    + start_decreasing_intensity_reset()
+    + update_interrupt()
+}
+
+class I2CMaster{
+    - driver
+    + read() 
+    + write() 
+    + write_read() 
+}
+
+class I2CSlave{
+    - driver
+    + read()
+    + write()
+}
+
+class UART{
+    - driver
+    + write()
+    + read()
+    +read_with_timeout()
+}
+
+class BleBeacon{
+    - advertising_name
+    - ble_device
+    - services
+    - advertisement
+    - timer_driver
+    - time_per_service
+    + set_name()
+    + set_service()
+    + set_services()
+    + remove_service
+    + remove_services()
+    + advertise_service_data
+    + set_time_per_service()
+    + advertise_all_service_data()
+    + start()
+    + stop()
+}
+
+class BleClient {
+    -inner: _BleClient
+    -updater: BleClientUpdater
+    + get_characteristic()
+    + get_all_characteristics()
+    + get_characteristic_async()
+    + get_all_characteristics_async()
+}
+
+
+class BleServer{
+    -advertising_name
+    -advertisement   
+    -user_on_connection
+    -user_on_disconnection
+    +services          
+    +connection_handler()
+    +disconnect_handler()
+    +set_connection_settings()
+    +set_advertising_interval()
+    +set_high_advertising_duty_cycle()
+    +set_low_advertising_duty_cycle()
+    +set_discoverable_mode()
+    +set_connection_mode()
+    +set_service()
+    +set_services()
+    +set_characteristic()
+    +notify_value()
+    +start()
+}
+
+class WifiDriver{
+    -controller
+    +connect()
+    +is_started()
+    +is_connected()
+    +get_address_info()
+    +get_dns_info()
+    +get_http_client()
+    +get_https_client()
+}
+
+Microcontroller ..> DigitalOut: create
+Microcontroller ..> AnalogIn: create
+Microcontroller .left.> DigitalIn: create
+Microcontroller ..> AnalogInPwm: create
+Microcontroller .left.> AnalogOut: create
+Microcontroller .up.> BleBeacon: create
+Microcontroller .up.> BleClient: create
+Microcontroller .up.> BleServer: create
+Microcontroller .down.> WifiDriver: create
+Microcontroller .> TimerDriver: create
+Microcontroller .up.> UART: create
+Microcontroller .down.> I2CMaster: create
+Microcontroller .up.> I2CSlave: create
+AnalogInPwm "1" -down-> "1" DigitalIn
+
+@enduml

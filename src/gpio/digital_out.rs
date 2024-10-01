@@ -76,7 +76,7 @@ impl InterruptUpdate {
     /// An `InterruptUpdate` instance corresponding to the provided `code`.
     fn from_code(code: u8)-> Self {
         match code{
-            0 => Self::Blink,
+            x if x == Self::Blink.get_code() => Self::Blink,
             _ => Self::None,
         }
     }

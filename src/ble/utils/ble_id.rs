@@ -12,12 +12,12 @@ use super::{StandarCharacteristicId, StandarDescriptorId, StandarServiceId};
 /// - `FromUuid128`: A way to get a BLE id from an [u8;16].
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum BleId {
-    StandardService(StandarServiceId),
-    StandarCharacteristic(StandarCharacteristicId),
-    StandarDescriptor(StandarDescriptorId),
     ByName(String),
     FromUuid16(u16),
     FromUuid128([u8; 16]),
+    StandardService(StandarServiceId),
+    StandarCharacteristic(StandarCharacteristicId),
+    StandarDescriptor(StandarDescriptorId),
 }
 
 

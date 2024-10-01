@@ -13,14 +13,14 @@ const DEFAULT_BAUDRATE: u32 = 115_200;
 
 /// Error types related to UART operations.
 #[derive(Debug)]
-pub enum UARTError{
+pub enum UARTError {
+    DriverError,
+    InvalidBaudrate,
+    InvalidPeripheral(PeripheralError),
     InvalidPin,
     InvalidUartNumber,
-    DriverError,
-    WriteError,
     ReadError,
-    InvalidBaudrate,
-    InvalidPeripheral(PeripheralError)
+    WriteError,
 }
 
 /// Represents the stop bit settings for UART communication.
