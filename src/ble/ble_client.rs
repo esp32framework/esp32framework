@@ -3,6 +3,7 @@ use std::{ collections::HashMap, time::Duration};
 use esp32_nimble::{BLEClient, BLEDevice, BLEScan};
 use esp_idf_svc::hal::task::block_on;
 const BLOCK: i32 = i32::MAX;
+const MS_BETWEEN_SCANS: u16 = 100;
 
 use crate::{ble::RemoteCharacteristic, utils::{auxiliary::{SharableRef, SharableRefExt}, esp32_framework_error::Esp32FrameworkError, notification::Notifier}, InterruptDriver};
 
@@ -48,9 +49,9 @@ impl _BleClient{
     /// - `notifier`: A notifier in order to wake up the [crate::Microcontroller]
     /// 
     /// # Returns
-    /// A [_BleClient] with the default time_between_scans, ready to connect to a ble server
+    /// A [_BleClient] with the default time_between_scans `TIME_BETWEEN_SCANS`, ready to connect to a ble server
     pub fn new(ble_device: & mut BLEDevice, notifier: Notifier)-> Self{
-        _BleClient{ble_client: BLEClient::new(), ble_scan: ble_device.get_scan(), connected: false,time_between_scans: 100, notifier}
+        _BleClient{ble_client: BLEClient::new(), ble_scan: ble_device.get_scan(), connected: false,time_between_scans: MS_BETWEEN_SCANS, notifier}
     }
 
     /// Blocking method that attempts to connect to a device that fullfills a condition, for a specified ammount of time or indefinitely.
@@ -125,12 +126,14 @@ impl _BleClient{
         let device = self.ble_scan.find_device(timeout, |adv| {
             let adv = BleAdvertisedDevice::from(adv);
             condition(&adv)
-        }).await.map_err(BleError::from)?;
-        
+        }).await?;
+
+        println!("found device");
+
         match device{
             Some(device) => self.ble_client.connect(device.addr()).await
-            .map_err(BleError::from) , // no lo encuentra, ya esta conectado. TODO, capas si se intenta connectar y falla volver a intentar
-            None => Err(BleError::TimeOut)
+            .map_err(BleError::from_connection_context) , // no lo encuentra, ya esta conectado. TODO, capas si se intenta connectar y falla volver a intentar
+            None => Err(BleError::DeviceNotFound)
         }?;
         self.connected = true;
         Ok(())
@@ -151,13 +154,6 @@ impl _BleClient{
             adv.name() == name
         }).await
     }
-
-    /// Starts a scan in order to find devices to connect to
-    fn _start_scan(&mut self){
-        self.ble_scan.active_scan(true)
-            .interval(self.time_between_scans.max(1))
-            .window(self.time_between_scans.max(2) -1);
-    }
     
     /// Blocking method that attempts to get all service ids of a given of the current connection
     ///
@@ -175,7 +171,8 @@ impl _BleClient{
 
     /// Non blocking async version of [Self::get_all_service_ids]
     pub async fn get_all_service_ids_async(&mut self)-> Result<Vec<BleId>, BleError>{
-        let remote_services = self.ble_client.get_services().await.map_err(BleError::from)?;
+        self.is_connected()?;
+        let remote_services = self.ble_client.get_services().await?;
         let services = remote_services.map(|remote_service| BleId::from(remote_service.uuid())).collect();
         Ok(services)
     }
@@ -198,21 +195,49 @@ impl _BleClient{
         Ok(remote_characteristics)
     }
     
+    /// Sets the amount of ms for between scans
+    pub fn set_time_between_scans(&mut self, ms_between_scans: u16){
+        self.time_between_scans = ms_between_scans
+    }
+
+    /// Starts a scan in order to find devices to connect to
+    fn _start_scan(&mut self){
+        self.ble_scan.active_scan(true)
+            .interval(self.time_between_scans.max(1))
+            .window(self.time_between_scans.max(2) -1);
+    }
+
+    /// The conn_handle is obtained with the ConnectionInformation inside the closure of 
+    /// connection_handler
+    /// 
+    /// # Arguments
+    /// 
+    /// - `min_interval`: The minimum connection interval, time between BLE events. This value 
+    /// must range between 7.5ms and 4000ms in 1.25ms units, this interval will be used while transferring data
+    /// in max speed.
+    /// - `max_interval`: The maximum connection interval, time between BLE events. This value 
+    /// must range between 7.5ms and 4000ms in 1.25ms units, this interval will be used to save energy.
+    /// - `latency`: The number of packets that can be skipped (packets will be skipped only if there is no data to answer).
+    /// - `timeout`: The maximum time to wait after the last packet arrived to consider connection lost. 
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` with Ok if the configuration of connection settings completed successfully, or an `BleError` if it fails.
+    /// 
+    /// # Errors
+    /// - `BleError::Disconnected`: if there is no connection stablished to go look for a service
+    /// - `BleError::DeviceNotFound`: if the device has unexpectidly disconnected
+    /// - `BleError::Code`: on other errors
+    pub fn set_connection_settings(&mut self, min_interval: u16, max_interval: u16, latency: u16, timeout: u16) -> Result<(), BleError>{
+        self.ble_client.update_conn_params(min_interval, max_interval, latency, timeout).map_err(BleError::from_connection_params_context)
+    } 
+
     fn is_connected(&mut self)->Result<(), BleError>{
         if !self.connected || !self.ble_client.connected(){
             return Err(BleError::Disconnected)
         }
         Ok(())
     }
-
-
-    //TODO lo ponemos?
-    /*
-    fn update_connection_params(){
-        todo!()
-    }
-    */
-    
 
     /// Disconnects the client from the current connection
     /// 
