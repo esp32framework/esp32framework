@@ -1,7 +1,6 @@
 @startuml Timer Driver
 
 class TimerDriver{
-    +inner: SharableRef<_TimerDriver<'a>>
     +id: u16
     +next_child: u16
     +create_child_copy()

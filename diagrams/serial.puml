@@ -48,12 +48,12 @@ exception UARTError{
     InvalidBaudrate
 }
 
-READER <-- I2CMaster
-WRITER <-- I2CMaster
-READER <-- I2CSlave
-WRITER <-- I2CSlave
-READER <-- UART
-WRITER <-- UART
+READER <|-- I2CMaster
+WRITER <|-- I2CMaster
+READER <|-- I2CSlave
+WRITER <|-- I2CSlave
+READER <|-- UART
+WRITER <|-- UART
 UART --> UARTError
 I2CMaster --> I2CError
 I2CSlave --> I2CError
