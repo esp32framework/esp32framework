@@ -7,7 +7,7 @@ use esp32framework::{sensors::{DateTime, DS3231}, serial::READER, Microcontrolle
 fn main() {
 
     let mut micro = Microcontroller::new();
-    let i2c = micro.set_pins_for_i2c_master(5,6);
+    let i2c = micro.set_pins_for_i2c_master(5,6).unwrap();
     let mut ds3231 = DS3231::new(i2c);
 
     let date_time = DateTime {

@@ -1,6 +1,5 @@
 use crate::{
-    gpio::digital_in::{DigitalIn, DigitalInError}, microcontroller_src::peripherals::Peripheral, 
-    utils::timer_driver::TimerDriver
+    gpio::digital_in::{DigitalIn, DigitalInError}, microcontroller_src::peripherals::Peripheral, timer_driver::TimerDriverError, utils::timer_driver::TimerDriver
 };
 use esp_idf_svc::hal::ledc::config::TimerConfig;
 
@@ -9,7 +8,8 @@ const FREQUENCY_TO_SAMPLING_RATIO: u32 = 2;
 /// Enums the different errors possible when working with the analog in with pwm signals
 #[derive(Debug)]
 pub enum AnalogInPwmError {
-    DigitalDriverError(DigitalInError)
+    DigitalDriverError(DigitalInError),
+    TimerDriverError(TimerDriverError)
 }
 
 /// Driver for receiving analog input with a PWM signal from a particular DigitalIn.
@@ -21,6 +21,7 @@ pub struct AnalogInPwm<'a> {
 }
 
 impl <'a>AnalogInPwm<'a> {
+    
     /// Create a new AnalogInPwm for a specific pin. 
     /// The Frecuency to Sampling ratio is defined in 2 by default
     /// 
@@ -28,7 +29,7 @@ impl <'a>AnalogInPwm<'a> {
     /// 
     /// - `timer_driver`: A TimerDriver instance
     /// - `per`: A Peripheral capable of being transformed into an AnyIOPin
-    /// - `frequency_hz`: An u32 representing the frequency in hertz of the timer used
+    /// - `frequency_hz`: An u32 representing the frequency in hertz of signal to be read.
     /// 
     /// # Returns
     /// 
@@ -65,13 +66,13 @@ impl <'a>AnalogInPwm<'a> {
         Self::new(timer_driver, per, TimerConfig::new().frequency.into())
     }
 
-    /// Changes the amount of samples taken in a read.
+    /// Changes the frequency between each read.
     /// 
     /// # Arguments
     /// 
-    /// - `sampling`: An u32 representing the new sampling quantity
-    pub fn set_sampling(&mut self, sampling: u32){
-        self.sampling = sampling
+    /// - `frequency_hz`: An u32 representing the frequency in hertz of signal to be read.
+    pub fn set_sampling_frequency(&mut self, frequency_hz: u32){
+        self.sampling = FREQUENCY_TO_SAMPLING_RATIO * frequency_hz
     }
 
     /// Returns the intensity value [0 , 1] obtained dividing the amount 
@@ -86,7 +87,7 @@ impl <'a>AnalogInPwm<'a> {
             if self.digital_in.is_high(){
                 highs += 1
             }
-        } 
+        }
         (highs as f32) / (self.sampling as f32)
     }
 
@@ -97,5 +98,11 @@ impl <'a>AnalogInPwm<'a> {
     /// An f32 representing the percentage value
     pub fn read_percentage(&self)-> f32 {
         self.read() * 100.0
+    }
+}
+
+impl From<TimerDriverError> for AnalogInPwmError{
+    fn from(value: TimerDriverError) -> Self {
+        AnalogInPwmError::TimerDriverError(value)
     }
 }

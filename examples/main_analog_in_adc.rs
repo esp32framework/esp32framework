@@ -44,14 +44,14 @@ use esp_idf_svc::hal::delay::FreeRtos;
 ///  Main for our analog
 fn main(){
     let mut micro = Microcontroller::new();
-    let mut analog_in = micro.set_pin_as_analog_in_low_atten(0);
+    let mut analog_in = micro.set_pin_as_analog_in_low_atten(0).unwrap();
     loop {
         let read = analog_in.read().unwrap();
         let raw_read = analog_in.read_raw().unwrap();
         let smooth_read = analog_in.smooth_read(20).unwrap();
         println!("READ: {read} | RAW: {raw_read} | SMOOTH: {smooth_read}");
         FreeRtos::delay_ms(500_u32);
-        micro.update();
+        micro.update().unwrap();
     }
     //drop(analog_in);
     //println!("{:?}", micro);

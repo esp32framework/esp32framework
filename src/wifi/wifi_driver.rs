@@ -1,5 +1,13 @@
 use std::net::Ipv4Addr;
-use esp_idf_svc::{eventloop::EspSystemEventLoop, hal::modem::{self}, nvs::EspDefaultNvsPartition, timer::EspTaskTimerService, wifi::{AsyncWifi, AuthMethod, ClientConfiguration, Configuration, EspWifi}};
+use esp_idf_svc::{
+    eventloop::EspSystemEventLoop, 
+    hal::modem::{self}, 
+    nvs::EspDefaultNvsPartition, 
+    timer::EspTaskTimerService, 
+    wifi::{AsyncWifi, AuthMethod, ClientConfiguration, Configuration, EspWifi}
+};
+use crate::microcontroller_src::peripherals::PeripheralError;
+
 use super::http::{Http, HttpClient, HttpsClient};
 
 /// Error types related to WIFI operations.
@@ -12,7 +20,8 @@ pub enum WifiError {
     InformationError,
     DnsNotFound,
     HttpError,
-    NvsAlreadyTaken
+    NvsAlreadyTaken,
+    PeripheralError(PeripheralError)
 }
 
 /// Abstraction of the driver that controls the wifi. It simplifies
@@ -26,11 +35,13 @@ impl <'a>WifiDriver<'a> {
     /// Creates a new WifiDriver.
     /// 
     /// By default this function takes the Non-Volatile Storage of the ESP in order to save
-    /// wifi configuration. This is to improve future connection times to the same network
+    /// wifi configuration. This is to improve connection times for future connections 
+    /// to the same network.
     ///
     /// # Arguments
     ///
     /// - `event_loop`: Microcontroller's event loop.
+    /// - `modem`: Microcontroller's modem peripheral.
     ///
     /// # Returns
     /// 
@@ -41,8 +52,7 @@ impl <'a>WifiDriver<'a> {
     ///
     /// - `WifiError::NvsAlreadyTaken`: If the NVS Default Partition was already taken.
     /// - `WifiError::StartingError`: If there is an error initializing the driver.
-    pub fn new(event_loop: EspSystemEventLoop) -> Result<Self, WifiError> {
-        let modem = unsafe { modem::Modem::new() };
+    pub fn new(event_loop: EspSystemEventLoop, modem: modem::Modem) -> Result<Self, WifiError> {
         let nvs = EspDefaultNvsPartition::take().map_err(|_| WifiError::NvsAlreadyTaken)?;
         let timer_service = EspTaskTimerService::new().map_err(|_| WifiError::StartingError)?;
         Ok(WifiDriver {
@@ -190,5 +200,11 @@ impl <'a>WifiDriver<'a> {
     /// - `WifiError::HttpError`: If the inizialization of the HttpsClient fails.
     pub fn get_https_client(&self) -> Result<HttpsClient, WifiError> {
         HttpsClient::new().map_err(|_| WifiError::HttpError)
+    }
+}
+
+impl From<PeripheralError> for WifiError{
+    fn from(value: PeripheralError) -> Self {
+        Self::PeripheralError(value)
     }
 }

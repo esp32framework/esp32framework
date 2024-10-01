@@ -16,11 +16,11 @@ fn main(){
   let receiver = set_notify_callback_for_characteristics(&mut characteristics);
   let timer_driver = set_periodical_timer_driver_interrupts(&mut micro, 2000);
 
-  micro.block_on(main_loop(timer_driver, characteristics, receiver))
+  micro.block_on(main_loop(timer_driver, characteristics, receiver)).unwrap();
 }
 
 fn get_characteristics(micro: &mut Microcontroller)-> Vec<RemoteCharacteristic>{
-  let mut client = micro.ble_client();
+  let mut client = micro.ble_client().unwrap();
   let service_id = BleId::FromUuid16(0x5678);
   println!("Attempting connection");
   
@@ -28,7 +28,7 @@ fn get_characteristics(micro: &mut Microcontroller)-> Vec<RemoteCharacteristic>{
   client.connect_to_device(device).unwrap();
   
   println!("Connected");
-  micro.wait_for_updates(Some(2000));
+  micro.wait_for_updates(Some(2000)).unwrap();
   
   client.get_all_characteristics(&service_id).unwrap() 
 }
@@ -48,7 +48,7 @@ fn set_notify_callback_for_characteristics(characteristics: &mut Vec<RemoteChara
 }
 
 fn set_periodical_timer_driver_interrupts<'a>(micro: &mut Microcontroller<'a>, mili: u64)-> TimerDriver<'a>{
-  let mut timer_driver = micro.get_timer_driver();
+  let mut timer_driver = micro.get_timer_driver().unwrap();
   timer_driver.interrupt_after_n_times(mili * 1000, None, true, || {println!("Tic")});
   timer_driver.enable().unwrap();
   timer_driver

@@ -8,11 +8,11 @@ const SAMPLING_QUANTITY: u16 = 10;
 
 fn main(){
     let mut micro = Microcontroller::new();
-    let mut analog_in = micro.set_pin_as_analog_in_high_atten(5);
+    let mut analog_in = micro.set_pin_as_analog_in_high_atten(5).unwrap();
     
     loop {
         let smooth_read = analog_in.smooth_read(SAMPLING_QUANTITY);
         println!("ADC value with {:?} amount of reads: {:?}",SAMPLING_QUANTITY, smooth_read);
-        micro.wait_for_updates(Some(1000));
+        micro.wait_for_updates(Some(1000)).unwrap();
     }
 }
