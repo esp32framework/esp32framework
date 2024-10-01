@@ -574,7 +574,7 @@ impl <'a>Microcontroller<'a> {
     /// # Errors
     /// 
     /// - `Esp32FrameworkError::TimerDriverError`: If an error occurs while updating the timer driver.
-    /// - Depending of the nature of the driver, other errors as `Esp32FrameworkError::AnalogOut` may be returned.
+    /// - Depending of the nature of the updated driver, other errors as `Esp32FrameworkError::AnalogOut` may be returned.
     pub fn update(&mut self)-> Result<(), Esp32FrameworkError> {
         //timer_drivers must be updated before other drivers since this may efect the other drivers updates
         for timer_driver in &mut self.timer_drivers{
@@ -642,7 +642,16 @@ impl <'a>Microcontroller<'a> {
         Ok(())
     }
 
-    /// TODO!
+    /// This functions works in a similar way to the block_on function from the futures crate. It blocks the current thread until the future is finished. 
+    /// 
+    /// # Arguments
+    /// - `fut`: The future to be executed.
+    /// 
+    /// # Returns
+    /// A `result` containing the output of the future or an `Esp32FrameworkError` if the future fails.
+    /// 
+    /// # Errors
+    ///  TODO!
     pub fn block_on<F: Future>(&mut self, fut: F)-> Result<F::Output, Esp32FrameworkError>{
         let finished = SharableRef::new_sharable(false);
         let fut = wrap_user_future(self.notification.notifier(), finished.clone(), fut);
