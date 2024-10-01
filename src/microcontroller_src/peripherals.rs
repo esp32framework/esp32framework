@@ -97,6 +97,21 @@ impl Peripheral {
         Ok(pin)
     }
 
+    /// Transforms the Peripheral instance into a I2C0
+    /// 
+    /// If the Peripheral is a I2C returns the corresponding I2C0.
+    /// If its a None it returns PeripheralError::AlreadyTaken
+    /// Otherwise it returns PeripheralError::NotAnI2CPeripheral
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` containing the new `I2C0` instance, or an `PeripheralError` if the
+    /// initialization fails.
+    /// 
+    /// # Errors
+    /// 
+    /// - `PeripheralError::NotAPin`: If the Peripheral is not of type I2C
+    /// - `PeripheralError::NotAnI2CPeripheral`: Peripheral can not be transform into a I2C.
     pub fn into_i2c0(self)-> Result<I2C0, PeripheralError> {
         match self{
             Peripheral::I2C => Ok(unsafe{I2C0::new()}),
@@ -105,6 +120,17 @@ impl Peripheral {
         }
     }
     
+    /// Transforms the Peripheral instance into a BleDevice.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the new `BLEDevice` instance, or an `PeripheralError` if the
+    /// initialization fails.
+    ///
+    /// # Errors
+    ///
+    /// - `PeripheralError::AlreadyTaken`: If the BleDevice was already taken.
+    /// - `PeripheralError::NotABleDevicePeripheral`: Peripheral can not be transform into a BleDevice.
     pub fn into_ble_device(self) -> Result<&'static mut BLEDevice, PeripheralError>{
         match self{
             Peripheral::BleDevice => Ok(BLEDevice::take()),
@@ -113,6 +139,17 @@ impl Peripheral {
         }
     }
 
+    /// Transforms the Peripheral instance into a Modem.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the new `Modem` instance, or an `PeripheralError` if the
+    /// initialization fails.
+    ///
+    /// # Errors
+    ///
+    /// - `PeripheralError::AlreadyTaken`: If the Modem was already taken.
+    /// - `PeripheralError::NotABleDevicePeripheral`: Peripheral can not be transform into a Modem.
     pub fn into_modem(self) -> Result<modem::Modem, PeripheralError>{
         match self{
             Peripheral::BleDevice => Ok(unsafe {modem::Modem::new()}),

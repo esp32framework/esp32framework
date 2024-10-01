@@ -371,7 +371,8 @@ impl <'a>_BleServer<'a> {
     /// 
     /// # Errors
     /// 
-    /// - `BleError::PropertiesError`: If a characteristic on the service has an invalid property
+    /// - `BleError::PropertiesError`: If a characteristic on the service has an invalid property.
+    /// - `BleError::ServiceNotFound`: If the service_id doesnt match with the id of a service already set on the server.
     pub fn set_service(&mut self, service: &Service) -> Result<(), BleError> {
         self.ble_server.create_service(service.id.to_uuid());
 

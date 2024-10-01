@@ -177,7 +177,7 @@ impl <'a>_TimerDriver<'a>{
     fn new(timer: Peripheral, notifier: Notifier) -> Result<_TimerDriver<'a>, TimerDriverError> {
         let driver = match timer{
             Peripheral::Timer(timer_num) => 
-                match timer_num{
+                match timer_num {
                     0 => timer::TimerDriver::new(unsafe{timer::TIMER00::new()}, &TimerConfig::new()),
                     1 => timer::TimerDriver::new(unsafe{timer::TIMER10::new()}, &TimerConfig::new()),
                     _ => return Err(TimerDriverError::InvalidTimer),

@@ -35,7 +35,8 @@ impl <'a>WifiDriver<'a> {
     /// Creates a new WifiDriver.
     /// 
     /// By default this function takes the Non-Volatile Storage of the ESP in order to save
-    /// wifi configuration. This is to improve future connection times to the same network
+    /// wifi configuration. This is to improve connection times for future connections 
+    /// to the same network.
     ///
     /// # Arguments
     ///

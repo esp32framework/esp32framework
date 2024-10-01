@@ -47,6 +47,10 @@ impl <'a>Microcontroller<'a> {
     /// # Returns
     /// 
     /// The new Microcontroller
+    /// 
+    /// # Panics
+    /// 
+    /// If the take on the EspSystemEventLoop fails. This may happen if it was already taken before
     pub fn new() -> Self{
         esp_idf_svc::sys::link_patches();
         let peripherals = Peripherals::new();
@@ -66,14 +70,17 @@ impl <'a>Microcontroller<'a> {
     ///
     /// # Returns
     ///
-    /// A `TimerDriver` instance that can be used to manage timers in the microcontroller.
+    /// A `Result` containing a new `TimerDriver` instance or a `TimerDriverError` if the creation fails.
+    /// 
+    /// A `TimerDriver` instance can be used to manage timers in the microcontroller.
     /// If the number of existing `TimerDriver`s is less than 2, a new one is created and added to the list.
     /// Otherwise, the first driver in the list is reused.
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if the `TimerDriver` cannot be created, which might happen due to hardware constraints.
-    pub fn get_timer_driver(&mut self)-> Result<TimerDriver<'a>, TimerDriverError>{
+    /// 
+    /// # Errors
+    /// 
+    /// - `TimerDriverError::InvalidTimer`: If the peripheral used is not a Peripheral::Timer
+    /// - `TimerDriverError::OnlyOriginalCopyCanCreateChildren`: // TODO: Why can this happen?  
+    pub fn get_timer_driver(&mut self)-> Result<TimerDriver<'a>, TimerDriverError> {
         let mut timer_driver = if self.timer_drivers.len() < TIMER_GROUPS{
             let timer = self.peripherals.get_timer(self.timer_drivers.len());
             TimerDriver::new(timer, self.notification.notifier())?
@@ -94,11 +101,18 @@ impl <'a>Microcontroller<'a> {
     ///
     /// # Returns
     ///
-    /// A `DigitalIn` instance that can be used to read digital inputs from the specified pin.
-    ///
+    /// A `Result` containing a new `DigitalIn` instance that can be used to read digital inputs from the specified pin, or
+    /// a `DigitalInError` if the setting fails
+    /// 
+    /// # Errors
+    /// 
+    /// - `DigitalInError::TimerDriver`: This error is returned if an issue occurs while initializing the TimerDriver.
+    /// - `DigitalInError::InvalidPeripheral`: If per parameter is not capable of transforming into an AnyIOPin
+    /// - `DigitalInError::CannotSetPinAsInput`: If the per parameter is not capable of soportin input
+    /// 
     /// # Panics
-    ///
-    /// This function will panic if the `DigitalIn` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration.
+    /// 
+    /// When setting Down the pull fails on the creation of the DigitalIn
     pub fn set_pin_as_digital_in(&mut self, pin_num: usize) -> Result<DigitalIn<'a>, DigitalInError>  {
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
         let dgin = DigitalIn::new(self.get_timer_driver()?, pin_peripheral, Some(self.notification.notifier()))?;
@@ -114,11 +128,14 @@ impl <'a>Microcontroller<'a> {
     ///
     /// # Returns
     ///
-    /// A `DigitalOut` instance that can be used to write digital outputs to the specified pin.
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if the `DigitalOut` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration.
+    /// A `Result` containing a new `DigitalOut` instance that can be used to write digital outputs to the specified pin, or
+    /// a `DigitalOutError` if the setting fails
+    /// 
+    /// # Errors
+    /// 
+    /// - `DigitalOutError::TimerDriver`: This error is returned if an issue occurs while initializing the TimerDriver.
+    /// - `DigitalOutError::InvalidPeripheral`: If the peripheral cannot be converted into an AnyIOPin.
+    /// - `DigitalOutError::CannotSetPinAsOutput`: If the pin cannot be set as an output.
     pub fn set_pin_as_digital_out(&mut self, pin_num: usize) -> Result<DigitalOut<'a>, DigitalOutError> {
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
         let dgout = DigitalOut::new(self.get_timer_driver()?, pin_peripheral)?;
@@ -129,10 +146,13 @@ impl <'a>Microcontroller<'a> {
     /// Starts an adc driver if no other was started before. Bitwidth is always set to 12, since 
     /// the ESP32-C6 only allows that width
     /// 
-    /// # Panics
+    /// # Returns
     ///
-    /// This function will panic if the `AdcDriver` instance cannot be created, which might happen due to hardware constraints.
+    /// A `Result` with an Empty Ok, or an `AdcDriverError` if the starting fails
     /// 
+    /// # Errors
+    /// 
+    /// - `AdcDriverError::Code`: To represent other errors.
     fn start_adc_driver(&mut self) -> Result<(), AdcDriverError>{
         if self.adc_driver.is_none() {
             self.peripherals.get_adc();
@@ -142,7 +162,22 @@ impl <'a>Microcontroller<'a> {
         Ok(())
     }
 
-    fn set_pin_as_analog_in(&mut self, pin_num: usize, attenuation: adc_atten_t)->Result<AnalogIn<'a>, AnalogInError>{
+    /// Creates an AnalogIn from a pin and a desired attenuation
+    /// 
+    /// # Arguments
+    /// 
+    /// - `pin_num`: An usize representing the desired pin number on the microcontroller
+    /// - `pin_num`: The desired attenuation for the analog pin
+    /// 
+    /// # Returns 
+    /// 
+    /// A `Result` containing a new `AnalogIn` instance, or a `AnalogInError` if the creation fails
+    /// 
+    /// # Errors
+    /// 
+    /// - `AnalogInError::AdcDriverError`: If starting the ADC driver fails
+    /// - `AnalogInError::InvalidPin`: If the pin Peripheral is not valid
+    fn set_pin_as_analog_in(&mut self, pin_num: usize, attenuation: adc_atten_t) -> Result<AnalogIn<'a>, AnalogInError> {
         self.start_adc_driver()?;
         let pin_peripheral = self.peripherals.get_analog_pin(pin_num);
         let adc_driver = self.adc_driver.clone().ok_or(AnalogInError::AdcDriverError(AdcDriverError::AlreadyTaken))?;
@@ -157,11 +192,12 @@ impl <'a>Microcontroller<'a> {
     ///
     /// # Returns
     ///
-    /// An `AnalogIn` instance that can be used to read analog inputs from the specified pin.
+    /// A `Result` containing a new `AnalogIn` instance that can be used to read analog inputs from the specified pin.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// This function will panic if the `AnalogIn` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration.
+    /// - `AnalogInError::AdcDriverError`: If starting the ADC driver fails
+    /// - `AnalogInError::InvalidPin`: If the pin Peripheral is not valid
     pub fn set_pin_as_analog_in_low_atten(&mut self, pin_num: usize) -> Result<AnalogIn<'a>, AnalogInError>{
         self.set_pin_as_analog_in(pin_num, attenuation::DB_2_5)
     }
@@ -174,11 +210,12 @@ impl <'a>Microcontroller<'a> {
     ///
     /// # Returns
     ///
-    /// An `AnalogIn` instance that can be used to read analog inputs from the specified pin.
+    /// A `Result` containing a new `AnalogIn` instance that can be used to read analog inputs from the specified pin.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// This function will panic if the `AnalogIn` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration. 
+    /// - `AnalogInError::AdcDriverError`: If starting the ADC driver fails
+    /// - `AnalogInError::InvalidPin`: If the pin Peripheral is not valid
     pub fn set_pin_as_analog_in_medium_atten(&mut self, pin_num: usize) -> Result<AnalogIn<'a>, AnalogInError> {
         self.set_pin_as_analog_in(pin_num, attenuation::DB_6)
     }
@@ -191,11 +228,12 @@ impl <'a>Microcontroller<'a> {
     ///
     /// # Returns
     ///
-    /// An `AnalogIn` instance that can be used to read analog inputs from the specified pin.
+    /// A `Result` containing a new `AnalogIn` instance that can be used to read analog inputs from the specified pin.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// This function will panic if the `AnalogIn` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration. 
+    /// - `AnalogInError::AdcDriverError`: If starting the ADC driver fails
+    /// - `AnalogInError::InvalidPin`: If the pin Peripheral is not valid
     pub fn set_pin_as_analog_in_high_atten(&mut self, pin_num: usize) -> Result<AnalogIn<'a>, AnalogInError> {
         self.set_pin_as_analog_in(pin_num, attenuation::DB_11)
     }
@@ -208,11 +246,12 @@ impl <'a>Microcontroller<'a> {
     ///
     /// # Returns
     ///
-    /// An `AnalogIn` instance that can be used to read analog inputs from the specified pin.
+    /// A `Result` containing a new `AnalogIn` instance that can be used to read analog inputs from the specified pin.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// This function will panic if the `AnalogIn` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration. 
+    /// - `AnalogInError::AdcDriverError`: If starting the ADC driver fails
+    /// - `AnalogInError::InvalidPin`: If the pin Peripheral is not valid
     pub fn set_pin_as_analog_in_no_atten(&mut self, pin_num: usize) -> Result<AnalogIn<'a>, AnalogInError> {
         self.set_pin_as_analog_in(pin_num, attenuation::NONE)
     }
@@ -228,12 +267,15 @@ impl <'a>Microcontroller<'a> {
     ///
     /// # Returns
     ///
-    /// An `AnalogOut` instance that can be used to read analog inputs from the specified pin.
+    /// A `Result` containing a new `AnalogOut` instance, or a `AnalogOutError` if the setting fails
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// This function will panic if the `AnalogOut` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration. 
-    pub fn set_pin_as_analog_out(&mut self, pin_num: usize, freq_hz: u32, resolution: u32) ->  Result<AnalogOut<'a>, AnalogOutError>{
+    /// - `AnalogOutError::TimerDriver`: This error is returned if an issue occurs while initializing the TimerDriver.
+    /// - `AnalogOutError::InvalidPeripheral`: If any of the peripherals are not from the correct type
+    /// - `AnalogOutError::InvalidFrequencyOrDuty`: If the frequency or duty are not compatible
+    /// - `AnalogOutError::InvalidArg`: If any of the arguments are not of the correct type
+    pub fn set_pin_as_analog_out(&mut self, pin_num: usize, freq_hz: u32, resolution: u32) -> Result<AnalogOut<'a>, AnalogOutError>{
         let (pwm_channel, pwm_timer) = self.peripherals.get_next_pwm();
         let pin_peripheral = self.peripherals.get_pwm_pin(pin_num);
         let anlg_out = AnalogOut::new(pwm_channel, pwm_timer, pin_peripheral, self.get_timer_driver()?, freq_hz, resolution)?;
@@ -248,12 +290,16 @@ impl <'a>Microcontroller<'a> {
     /// - `pin_num`: The number of the pin on the microcontroller to configure as an analog input.
     ///
     /// # Returns
+    /// 
+    /// A `Result` containing the new `AnalogOut` instance, or an `AnalogOutError` if the
+    /// initialization fails.
     ///
-    /// An `AnalogOut` instance that can be used to read analog inputs from the specified pin.
+    /// # Errors
     ///
-    /// # Panics
-    ///
-    /// This function will panic if the `AnalogOut` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration. 
+    /// - `AnalogOutError::TimerDriver`: This error is returned if an issue occurs while initializing the TimerDriver.
+    /// - `AnalogOutError::InvalidPeripheral`: If any of the peripherals are not from the correct type
+    /// - `AnalogOutError::InvalidFrequencyOrDuty`: If the frequency or duty are not compatible
+    /// - `AnalogOutError::InvalidArg`: If any of the arguments are not of the correct type
     pub fn set_pin_as_default_analog_out(&mut self, pin_num: usize) -> Result<AnalogOut<'a>, AnalogOutError> {
         let (pwm_channel, pwm_timer) = self.peripherals.get_next_pwm();
         let pin_peripheral = self.peripherals.get_pwm_pin(pin_num);
@@ -270,11 +316,12 @@ impl <'a>Microcontroller<'a> {
     ///
     /// # Returns
     ///
-    /// An `AnalogInPwm` instance that can be used to read analog inputs of PWM signals from the specified pin.
+    /// A `Result` containing the new `AnalogInPwm` instance, or an `AnalogInPwmError` if the
+    /// initialization fails.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// This function will panic if the `AnalogInPwm` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration.
+    /// - `AnalogInPwmError::TimerDriver`: This error is returned if an issue occurs while initializing the TimerDriver.
     pub fn set_pin_as_analog_in_pwm(&mut self, pin_num: usize) -> Result<AnalogInPwm<'a>, AnalogInPwmError> {
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
         let timer_driver = self.get_timer_driver()?;
@@ -290,12 +337,14 @@ impl <'a>Microcontroller<'a> {
     ///
     /// # Returns
     ///
-    /// An `I2CMaster` instance configured to use the specified SDA and SCL pins.
+    /// A `Result` containing the new `I2CMaster` instance, or an `I2CError` if the
+    /// initialization fails.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// This function will panic if the I2C peripheral is already in use or if the `I2CMaster` instance cannot be created, 
-    /// which might happen due to hardware constraints or incorrect pin configuration.
+    /// - `I2CError::InvalidPin`: If either the SDA or SCL pins cannot be converted to IO pins.
+    /// - `I2CError::InvalidArg`: If an invalid argument is passed.
+    /// - `I2CError::DriverError`: If there is an error initializing the driver.
     pub fn set_pins_for_i2c_master(&mut self, sda_pin: usize, scl_pin: usize) -> Result<I2CMaster<'a>, I2CError> {
         let sda_peripheral = self.peripherals.get_digital_pin(sda_pin);
         let scl_peripheral = self.peripherals.get_digital_pin(scl_pin);
@@ -313,12 +362,12 @@ impl <'a>Microcontroller<'a> {
     ///
     /// # Returns
     ///
-    /// An `I2CSlave` instance configured to use the specified SDA and SCL pins and the provided slave address.
+    /// A `Result` containing the new `I2CSlave` instance, or an `I2CError` if the
+    /// initialization fails.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// This function will panic if the I2C peripheral is already in use or if the `I2CSlave` instance cannot be created,
-    /// which might happen due to hardware constraints or incorrect pin configuration.
+    /// - `I2CError::InvalidPin`: If either the SDA or SCL pins cannot be converted to IO pins.
     pub fn set_pins_for_i2c_slave(&mut self, sda_pin: usize, scl_pin: usize, slave_addr: u8) -> Result<I2CSlave<'a>, I2CError> {
         let sda_peripheral = self.peripherals.get_digital_pin(sda_pin);
         let scl_peripheral = self.peripherals.get_digital_pin(scl_pin);
@@ -340,11 +389,14 @@ impl <'a>Microcontroller<'a> {
     ///
     /// # Returns
     ///
-    /// A `UART` instance configured with the default settings for the specified TX, RX pins, and UART number.
+    /// A `Result` containing the new `UART` instance, or an `UARTError` if the
+    /// initialization fails.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// This function will panic if the `UART` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration.
+    /// - `UARTError::InvalidPin`: If either the TX or RX pins cannot be converted to IO pins.
+    /// - `UARTError::InvalidUartNumber`: If an unsupported UART peripheral is selected.
+    /// - `UARTError::DriverError`: If there is an error initializing the driver.
     pub fn set_pins_for_default_uart(&mut self, tx_pin: usize, rx_pin: usize, uart_num: usize) -> Result<UART<'a>, UARTError> {
         let tx_peripheral = self.peripherals.get_digital_pin(tx_pin);
         let rx_peripheral = self.peripherals.get_digital_pin(rx_pin);
@@ -366,11 +418,14 @@ impl <'a>Microcontroller<'a> {
     ///
     /// # Returns
     ///
-    /// A `UART` instance configured with the specified settings for the TX, RX pins, and UART number.
+    /// A `Result` containing the new `UART` instance, or an `UARTError` if the
+    /// initialization fails.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// This function will panic if the `UART` instance cannot be created, which might happen due to hardware constraints or incorrect pin configuration.
+    /// - `UARTError::InvalidPin`: If either the TX or RX pins cannot be converted to IO pins.
+    /// - `UARTError::InvalidUartNumber`: If an unsupported UART peripheral is selected.
+    /// - `UARTError::DriverError`: If there is an error initializing the driver.
     pub fn set_pins_for_uart(&mut self, tx_pin: usize, rx_pin: usize, uart_num: usize, baudrate: u32, parity: Parity, stopbit: StopBit) -> Result<UART<'a>, UARTError> {
         let tx_peripheral = self.peripherals.get_digital_pin(tx_pin);
         let rx_peripheral = self.peripherals.get_digital_pin(rx_pin);
@@ -388,12 +443,14 @@ impl <'a>Microcontroller<'a> {
     ///
     /// # Returns
     ///
-    /// A `BleBeacon` instance configured to advertise the specified name and services.
+    /// A `Result` containing the new `BleBeacon` instance, or an `BleError` if the
+    /// initialization fails.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// This function will panic if the `BleBeacon` instance cannot be created, which might happen due to hardware 
-    /// constraints or incorrect configuration of the BLE device.
+    /// - `BleError::PeripheralError`: This error is returned if an issue occurs while initializing the BleDevice.
+    /// - `BleError::ServiceDoesNotFit`: if advertising service is too big.
+    /// - `BleError::Code`: To represent other errors.
     pub fn ble_beacon(&mut self, advertising_name: String, services: &Vec<Service>)-> Result<BleBeacon<'a>, BleError>{
         let ble_device = self.peripherals.get_ble_peripheral().into_ble_device()?;
 
@@ -409,12 +466,14 @@ impl <'a>Microcontroller<'a> {
     ///
     /// # Returns
     ///
-    /// A `BleServer` instance configured to advertise the specified name and services.
+    /// A `Result` containing the new `BleServer` instance, or an `BleError` if the
+    /// initialization fails.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// This function will panic if the `BleServer` instance cannot be created, which might happen due to hardware
-    /// constraints or incorrect configuration of the BLE device.
+    /// - `BleError::PeripheralError`: This error is returned if an issue occurs while initializing the BleDevice.
+    /// - `BleError::PropertiesError`: If a characteristic on the service has an invalid property.
+    /// - `BleError::ServiceNotFound`: If the service_id doesnt match with the id of a service already set on the server.
     pub fn ble_server(&mut self, advertising_name: String, services: &Vec<Service>)-> Result<BleServer<'a>, BleError>{
         let ble_device = self.peripherals.get_ble_peripheral().into_ble_device()?;
         let ble_server = BleServer::new(advertising_name, ble_device, services, self.notification.notifier(),self.notification.notifier() )?;
@@ -429,9 +488,13 @@ impl <'a>Microcontroller<'a> {
     /// - `ble_device`: A mutable reference to the BLEDevice instance to configure.
     /// - `security_config`: A Security configuration struct containing the desired security settings.
     ///
-    /// # Panics
+    /// # Returns
     ///
-    /// This function will panic if any of the security settings cannot be applied, which might happen due to invalid configuration values.
+    /// A `Result` with Ok if the operation completed successfully, or an `BleError` if it fails.
+    ///
+    /// # Errors
+    ///
+    /// - `BleError::InvalidParameters`: This error is returned if there is an error in the `security_config` argument.
     fn config_bluetooth_security(&mut self, ble_device: &mut BLEDevice, security_config: Security)-> Result<(), BleError>{
         ble_device.security()
         .set_auth(AuthReq::from_bits(security_config.auth_mode.to_le()).ok_or(BleError::InvalidParameters)?)
@@ -451,12 +514,15 @@ impl <'a>Microcontroller<'a> {
     ///
     /// # Returns
     ///
-    /// A `BleServer` instance configured with the specified security settings, advertising name, and services.
+    /// A `Result` containing the new `BleServer` instance, or an `BleError` if the
+    /// initialization fails.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// This function will panic if the `BleServer` instance cannot be created, or if the security settings cannot be applied,
-    /// which might happen due to hardware constraints or incorrect configuration of the BLE device.
+    /// - `BleError::PeripheralError`: This error is returned if an issue occurs while initializing the BleDevice.
+    /// - `BleError::InvalidParameters`: This error is returned if there is an error in the `security_config` argument.
+    /// - `BleError::PropertiesError`: If a characteristic on the service has an invalid property.
+    /// - `BleError::ServiceNotFound`: If the service_id doesnt match with the id of a service already set on the server.
     pub fn ble_secure_server(&mut self, advertising_name: String, services: &Vec<Service>, security_config: Security)-> Result<BleServer<'a>, BleError> {
         let ble_device = self.peripherals.get_ble_peripheral().into_ble_device()?;
         self.config_bluetooth_security(ble_device,security_config)?;
@@ -465,6 +531,15 @@ impl <'a>Microcontroller<'a> {
         Ok(ble_server)
     }
 
+    /// Configures a BLE client.
+    /// # Returns
+    ///
+    /// A `Result` containing the new `BleClient` instance, or an `BleError` if the
+    /// initialization fails.
+    ///
+    /// # Errors
+    ///
+    /// - `BleError::PeripheralError`: This error is returned if an issue occurs while initializing the BleDevice.
     pub fn ble_client(&mut self)-> Result<BleClient, BleError> {
         let ble_device = self.peripherals.get_ble_peripheral().into_ble_device()?;
         let ble_client = BleClient::new(ble_device, self.notification.notifier());
@@ -472,12 +547,25 @@ impl <'a>Microcontroller<'a> {
         Ok(ble_client)
     }
     
-    ///TODO: Docu of default space of nvs
+    /// Configures a WIFIDriver. This driver uses the 
+    /// By default this function takes the Non-Volatile Storage of the ESP in order to save
+    /// wifi configuration. This is to improve connection times for future connections 
+    /// to the same network.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the new `WifiDriver` instance, or an `WifiError` if the
+    /// initialization fails.
+    ///
+    /// # Errors
+    ///
+    /// - `WifiError::PeripheralError`: This error is returned if an issue occurs while initializing the WifiModem.
     pub fn get_wifi_driver(&mut self) -> Result<WifiDriver<'a>,WifiError> {
         let modem = self.peripherals.get_wifi_peripheral().into_modem()?;
         WifiDriver::new(self.event_loop.clone(), modem)
     }
 
+    /// TODO!
     pub fn update(&mut self)-> Result<(), Esp32FrameworkError> {
         //timer_drivers must be updated before other drivers since this may efect the other drivers updates
         for timer_driver in &mut self.timer_drivers{
@@ -489,6 +577,7 @@ impl <'a>Microcontroller<'a> {
         Ok(())
     }
     
+    /// TODO!
     fn wait_for_updates_indefinitly(&mut self)-> Result<(), Esp32FrameworkError>{
         loop{
             self.notification.blocking_wait();
@@ -496,6 +585,7 @@ impl <'a>Microcontroller<'a> {
         }
     }
 
+    /// TODO!
     fn wait_for_updates_until(&mut self, miliseconds:u32)-> Result<(), Esp32FrameworkError>{
         let timer_driver = match self.timer_drivers.first_mut(){
             Some(timer_driver) => timer_driver,
@@ -518,6 +608,7 @@ impl <'a>Microcontroller<'a> {
         Ok(())
     }
 
+    /// TODO!
     pub fn wait_for_updates(&mut self, miliseconds:Option<u32>)-> Result<(), Esp32FrameworkError>{
         match miliseconds{
             Some(milis) => self.wait_for_updates_until(milis),
@@ -525,10 +616,12 @@ impl <'a>Microcontroller<'a> {
         }
     }
 
+    /// TODO!
     pub fn sleep(&self, miliseconds:u32){
         FreeRtos::delay_ms(miliseconds)
     }
 
+    /// TODO!
     async fn wait_for_updates_until_finished(&mut self, finished: SharableRef<bool>)-> Result<(), Esp32FrameworkError>{
         while !*finished.deref(){
             self.notification.wait().await;
@@ -540,6 +633,7 @@ impl <'a>Microcontroller<'a> {
         Ok(())
     }
 
+    /// TODO!
     pub fn block_on<F: Future>(&mut self, fut: F)-> Result<F::Output, Esp32FrameworkError>{
         let finished = SharableRef::new_sharable(false);
         let fut = wrap_user_future(self.notification.notifier(), finished.clone(), fut);
@@ -550,11 +644,23 @@ impl <'a>Microcontroller<'a> {
 }
 
 impl<'a> Default for Microcontroller<'a> {
+    /// Creates a new instance of `Microcontroller` with default settings.
+    ///
+    /// This implementation calls the `new()` method to initialize the `Microcontroller`.
+    ///
+    /// # Returns
+    /// 
+    /// The new Microcontroller
+    /// 
+    /// # Panics
+    /// 
+    /// If the take on the EspSystemEventLoop fails. This may happen if it was already taken before
     fn default() -> Self {
     Self::new()
     }
 }
 
+/// TODO!
 async fn wrap_user_future<F: Future>(notifier: Notifier, mut finished: SharableRef<bool>, fut: F)-> F::Output{
     let res = fut.await;
     *finished.deref_mut() = true;
