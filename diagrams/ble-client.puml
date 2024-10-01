@@ -5,12 +5,12 @@ class BleClient {
     + get_all_characteristics()
     + get_characteristic_async()
     + get_all_characteristics_async()
-    + connect_to_device()
-    + connect_to_device_with_service()
-    + connect_to_device_of_name()
-    + connect_to_device_async()
-    + connect_to_device_with_service_async()
-    + connect_to_device_of_name_async()
+    + connect_to_device(Option<Duration>, condition)
+    + connect_to_device_with_service(Option<Duration>, &BleId)
+    + connect_to_device_of_name(Option<Duration>, string)
+    + connect_to_device_async(Option<Duration>, condition)
+    + connect_to_device_with_service_async(Option<Duration>, &BleId)
+    + connect_to_device_of_name_async(ption<Duration>, string)
     + get_all_service_ids()
     + get_all_service_ids_async()
     + disconnect()
@@ -22,19 +22,19 @@ class _BleClient{
     - connected
     - time_between_scans
     - notifier
-    + connect_to_device()
-    + connect_to_device_with_service()
-    + connect_to_device_of_name()
-    + connect_to_device_async()
-    + connect_to_device_with_service_async()
-    + connect_to_device_of_name_async()
+    + connect_to_device(Option<Duration>, condition)
+    + connect_to_device_with_service(Option<Duration>, &BleId)
+    + connect_to_device_of_name(Option<Duration>, string)
+    + connect_to_device_async(Option<Duration>, condition)
+    + connect_to_device_with_service_async(Option<Duration>, &BleId)
+    + connect_to_device_of_name_async(ption<Duration>, string)
     + get_all_service_ids()
     + get_all_service_ids_async()
     + disconnect()
 }
 
 class BleClientUpdater{
-    + add_characteristic()
+    + add_characteristic(&RemoteCharacteristic)
     
 }
 
@@ -53,11 +53,11 @@ class _RemoteCharacteristic{
     + is_writable_no_resp()
     + read_async()
     + read()
-    + write_async()
-    + write()
+    + write_async(&[u8])
+    + write(&[u8])
     + set_notification_on_notify()
-    + get_descriptor()
-    + get_descriptor_async()
+    + get_descriptor(&BleId)
+    + get_descriptor_async(&BleId)
     + get_all_descriptors()
     + get_all_descriptors_async()
 }
@@ -77,16 +77,29 @@ class RemoteDescriptor{
     + id()
     + read_async()
     + read()
-    + write_async()
-    + write()
+    + write_async(&[u8])
+    + write(&[u8])
+}
+
+enum BleId {
+    ByName(String),
+    FromUuid16(u16),
+    FromUuid32(u32),
+    FromUuid128([u8; 16]),
+    StandardService(StandarServiceId),
+    StandarCharacteristic(StandarCharacteristicId),
+    StandarDescriptor(StandarDescriptorId),
 }
 
 BleClient *-- _BleClient 
 BleClient *- BleClientUpdater
 BleClientUpdater *- RemoteCharacteristic
-RemoteCharacteristic *-- RemoteCharacteristicUpdater
+BleClientUpdater -> BleId 
+RemoteCharacteristic *- RemoteCharacteristicUpdater
 RemoteCharacteristic *-- _RemoteCharacteristic
 _RemoteCharacteristic -down-> Notifier
 _RemoteCharacteristic -down-> RemoteDescriptor
+_RemoteCharacteristic --> BleId
 _BleClient --> Notifier
+_BleClient --> BleId
 @enduml

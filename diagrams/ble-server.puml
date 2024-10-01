@@ -2,23 +2,19 @@
 
 
 class BleServer{
-    - take_connection_callbacks()
-    - set_connection_callbacks()
-    + connection_handler()
-    + disconnect_handler()
-    + set_connection_settings()
-    + set_advertising_interval()
+    + connection_handler(handler)
+    + disconnect_handler(handler)
+    + set_connection_settings(ConnectionInformation, u16,u16,u16,u16)
+    + set_advertising_interval(u16,u16)
     + set_high_advertising_duty_cycle()
     + set_low_advertising_duty_cycle()
-    + set_discoverable_mode()
-    + set_connection_mode()
-    + set_service()
-    + set_services()
-    + set_characteristic()
-    - try_to_update_characteristic()
-    + notify_value()
+    + set_discoverable_mode(DiscoverableMode)
+    + set_connection_mode(ConnectionMode)
+    + set_service(&Service)
+    + set_services(&Vec<Service>)
+    + set_characteristic(BleId, &Characteristic)
+    + notify_value(BleId, &Characteristic)
     + start()
-    - create_advertisement_data()
 
 }
 
@@ -26,21 +22,19 @@ class _BleServer{
     - advertising_name: String,
     - ble_server: &'a mut BLEServer,
     - advertisement: &'a Mutex<BLEAdvertising>,
-    + connection_handler()
-    + disconnect_handler()
-    + set_connection_settings()
-    + set_advertising_interval()
+    + connection_handler(handler)
+    + disconnect_handler(handler)
+    + set_connection_settings(ConnectionInformation, u16,u16,u16,u16)
+    + set_advertising_interval(u16,u16)
     + set_high_advertising_duty_cycle()
     + set_low_advertising_duty_cycle()
-    + set_discoverable_mode()
-    + set_connection_mode()
-    + set_service()
-    + set_services()
-    + set_characteristic()
-    - try_to_update_characteristic()
-    + notify_value()
+    + set_discoverable_mode(DiscoverableMode)
+    + set_connection_mode(ConnectionMode)
+    + set_service(&Service)
+    + set_services(&Vec<Service>)
+    + set_characteristic(BleId, &Characteristic)
+    + notify_value(BleId, &Characteristic)
     + start()
-    - create_advertisement_data()
 }
 
 class ConnectionCallback{
@@ -95,10 +89,37 @@ class Descriptor{
     + writeable_author(bool)
 }
 
+enum DiscoverableMode {
+    GeneralDiscoverable(u16, u16),
+    LimitedDiscoverable(u16, u16), 
+    NonDiscoverable()
+}
+
+enum ConnectionMode {
+    DirectedConnectable,
+    NonConnectable,
+    UndirectedConnectable,
+}
+
+enum BleId {
+    ByName(String),
+    FromUuid16(u16),
+    FromUuid32(u32),
+    FromUuid128([u8; 16]),
+    StandardService(StandarServiceId),
+    StandarCharacteristic(StandarCharacteristicId),
+    StandarDescriptor(StandarDescriptorId),
+}
+
 BleServer *-right- _BleServer
-_BleServer "0" *-- "*" Service
-_BleServer "1" *-- "2" ConnectionCallback
-Service "0" *-- "*" Characteristic
-Characteristic "0" *-- "*" Descriptor
+_BleServer *- Service
+_BleServer *-- ConnectionCallback
+Service *-- Characteristic
+Characteristic  *-- Descriptor
+_BleServer --> DiscoverableMode
+_BleServer --> ConnectionMode
+_BleServer --> BleId
+
+
 
 @enduml

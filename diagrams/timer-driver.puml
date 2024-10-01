@@ -58,9 +58,9 @@ class TimeInterrupt{
 }
 
 class Alarm{
-    time: u64,
-    id: u16,
-    alarm_id: usize
+    -time: u64,
+    -id: u16,
+    -alarm_id: usize
     +equals()
 }
 

@@ -4,27 +4,27 @@ Interface READER {
     +read_and_parse()
 }
 Interface WRITER {
-    +parse_and_write()
+    +parse_and_write(u8, &[u8])
 }
 
 class I2CMaster{
     - driver: I2cDriver<'a>
-    + read(u8, [u8], u32) : Result<>
-    + write(u8, [u8], u32) : Result<>
-    + write_read(u8 , [u8], [u8], u32) : Result<>
+    + read(u8, [u8], u32) 
+    + write(u8, [u8], u32) 
+    + write_read(u8 , [u8], [u8], u32) 
 }
 
 class I2CSlave{
     - driver: I2cSlaveDriver<'a>
-    + read([u8], u32): Result<>
-    + write([u8], u32): Result<>
+    + read([u8], u32)
+    + write([u8], u32)
 }
 
 class UART{
     - driver: UartDriver<'a>
-    + write([u8]): Result<>
-    + read([u8]): Result<>
-    +read_with_timeout([u8], u32): Result<>
+    + write([u8])
+    + read([u8])
+    +read_with_timeout([u8], u32)
 }
 
 exception I2CError {

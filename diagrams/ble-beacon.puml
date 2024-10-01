@@ -3,21 +3,78 @@
 class BleBeacon{
     - advertising_name: String,
     - ble_device: &'a mut BLEDevice,
-    - services: SharableRef<HashMap<BleId,Service>>,
     - advertisement: SharableRef<BLEAdvertisementData>,
     - timer_driver: TimerDriver<'a>,
     - time_per_service: Duration,
-    - insert_service(&Service):
-    + set_name(String):
-    + set_service(&Service): 
-    + set_services(Vec<Service>): 
-    + remove_service(&BleId): 
-    + remove_services(Vec<BleId>): 
-    + advertise_service_data(&BleId): 
-    + set_time_per_service(Duration):
-    + advertise_all_service_data(): 
-    + start(): 
-    + stop(): 
+    - insert_service(&Service)
+    + set_name(String)
+    + set_service(&Service)
+    + set_services(Vec<Service>)
+    + remove_service(&BleId)
+    + remove_services(Vec<BleId>)
+    + advertise_service_data(&BleId)
+    + set_time_per_service(Duration
+    + advertise_all_service_data()
+    + start()
+    + stop()
 }
 
+enum BleId {
+    ByName(String),
+    FromUuid16(u16),
+    FromUuid32(u32),
+    FromUuid128([u8; 16]),
+    StandardService(StandarServiceId),
+    StandarCharacteristic(StandarCharacteristicId),
+    StandarDescriptor(StandarDescriptorId),
+}
+
+class Service {
+    - id: BleId
+    - data: Vec<u8>
+    + add_characteristic()
+    
+} 
+
+class Characteristic{
+    - id: BleId
+    - properties: u16
+    - data: Vec<u8>
+    + add_descriptor()
+    + writable(bool)
+    + readeable(bool)
+    + notifiable(bool)
+    + readeable_enc(bool)
+    + readeable_authen(bool)
+    + readeable_author(bool)
+    + writeable_no_rsp(bool)
+    + writeable_enc(bool)
+    + writeable_authen(bool)
+    + writeable_author(bool)
+    + broadcastable(bool)
+    + indicatable(bool)
+    + update_data(bool)
+}
+
+class Descriptor{
+    - id: BleId,
+    - properties: u8
+    - data: Vec<u8>
+    + get_properties()
+    + writable(bool)
+    + readeable(bool)
+    + notifiable(bool)
+    + readeable_enc(bool)
+    + readeable_authen(bool)
+    + readeable_author(bool)
+    + writeable_no_rsp(bool)
+    + writeable_enc(bool)
+    + writeable_authen(bool)
+    + writeable_author(bool)
+}
+
+BleBeacon -> BleId
+BleBeacon -> Service
+Service *-- Characteristic
+Characteristic *-- Descriptor
 @enduml

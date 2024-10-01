@@ -12,14 +12,14 @@ class Wifi_driver{
 }
 
 interface Http{
-    +post(string, vec)
-    +get(string, vec)
-    +put(string, vec)
-    +delete(string, vec)
-    +patch(string, vec)
-    +head(string, vec)
-    +options(string, vec)
-    +response_status(string, vec)
+    +post(string, vec<(&'a str,&'a str)>)
+    +get(string, vec<(&'a str,&'a str)>)
+    +put(string, vec<(&'a str,&'a str)>)
+    +delete(string, vec<(&'a str,&'a str)>)
+    +patch(string, vec<(&'a str,&'a str)>)
+    +head(string, vec<(&'a str,&'a str)>)
+    +options(string, vec<(&'a str,&'a str)>)
+    +response_status(string, vec<(&'a str,&'a str)>)
     +response_status_message()
     +wait_for_response([u8])
 }
