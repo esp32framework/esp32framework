@@ -3,8 +3,7 @@
 //!     - Readable descriptor: Uses an standard descriptor uuid (ValidRange) to inform the valid values the user can write.
 //! - Readable characteristic: Uses a Standar characteristic uuid (BatteryLevel) to inform the level of the battery.
 //! - Notifiable characteristic: Uses an id created from a String to notify an integer value.
-//! Since this server is secure, the clients phone must complete a passkey ('001234') to get access to the information.
-
+//!    Since this server is secure, the clients phone must complete a passkey ('001234') to get access to the information.
 
 use std::sync::Arc;
 
@@ -12,6 +11,8 @@ use esp32_nimble::{
     enums::SecurityIOCap, utilities::{mutex::Mutex, BleUuid}, BLEAdvertisementData, BLECharacteristic, BLEDevice, BLEServer, BLEService, NimbleProperties
   };
 use esp_idf_svc::hal::delay::FreeRtos;
+
+const PASSWORD: &str = "001234";
 
 fn add_handlers_to_server(server: &mut BLEServer){
     server.on_connect(|_server, desc| {
@@ -65,10 +66,10 @@ fn main(){
   
     let device = BLEDevice::take();
     let ble_advertising = device.get_advertising();
-  
+
     device
       .security()
-      .set_passkey(001234)
+      .set_passkey(PASSWORD.parse::<u32>().unwrap())
       .set_io_cap(SecurityIOCap::KeyboardDisplay);
   
     let server = device.get_server();

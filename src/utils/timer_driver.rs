@@ -4,10 +4,8 @@ use std::{
         Arc
     }
 };
-
 use esp_idf_svc::hal::timer;
-use crate::{microcontroller_src::interrupt_driver::InterruptDriver, utils::timer_driver::timer::TimerConfig};
-use crate::microcontroller_src::peripherals::Peripheral;
+use crate::{microcontroller_src::{interrupt_driver::InterruptDriver, peripherals::Peripheral}, utils::timer_driver::timer::TimerConfig};
 use sharable_reference_macro::sharable_reference_wrapper;
 
 use super::{auxiliary::{SharableRef, SharableRefExt}, esp32_framework_error::Esp32FrameworkError, notification::{Notification, Notifier}};
@@ -180,7 +178,7 @@ impl <'a>_TimerDriver<'a>{
     fn new(timer: Peripheral, notifier: Notifier) -> Result<_TimerDriver<'a>, TimerDriverError> {
         let driver = match timer{
             Peripheral::Timer(timer_num) => 
-                match timer_num{
+                match timer_num {
                     0 => timer::TimerDriver::new(unsafe{timer::TIMER00::new()}, &TimerConfig::new()),
                     1 => timer::TimerDriver::new(unsafe{timer::TIMER10::new()}, &TimerConfig::new()),
                     _ => return Err(TimerDriverError::InvalidTimer),

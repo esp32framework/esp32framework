@@ -7,8 +7,8 @@ use esp32framework::Microcontroller;
 fn main(){
 
     let mut micro = Microcontroller::new();
-    let echo = micro.set_pin_as_digital_in(6);
-    let trig = micro.set_pin_as_digital_out(5);
+    let echo = micro.set_pin_as_digital_in(6).unwrap();
+    let trig = micro.set_pin_as_digital_out(5).unwrap();
     let mut sensor = HCSR04::new(trig, echo);
     
     loop {

@@ -1,5 +1,4 @@
 use std::sync::Arc;
-
 use esp_idf_svc::hal::task::{asynch::Notification as AsyncNotif, block_on};
 
 

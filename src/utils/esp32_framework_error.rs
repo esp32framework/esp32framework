@@ -1,3 +1,5 @@
+use esp_idf_svc::sys::EspError;
+
 use crate::{
     ble::BleError, gpio::{
         AnalogInError,
@@ -5,9 +7,8 @@ use crate::{
         AnalogOutError,
         DigitalInError,
         DigitalOutError,
-    }, serial::{I2CError, UARTError},
-    utils::timer_driver::TimerDriverError,
-    wifi::WifiError
+    }, 
+    serial::{I2CError, UARTError}, utils::timer_driver::TimerDriverError, wifi::WifiError
 };
 
 /// Represents various error conditions encountered in the ESP32 framework.
@@ -22,5 +23,26 @@ pub enum Esp32FrameworkError{
     I2c(I2CError),
     TimerDriver(TimerDriverError),
     Uart(UARTError),
-    Wifi(WifiError),
+    Wifi(WifiError)
+}
+
+#[derive(Debug)]
+pub enum AdcDriverError {
+    Code(i32, String),
+    InvalidArgs,
+    NoMemory,
+    AlreadyTaken,
+    ClockError
+}
+
+impl From<EspError> for AdcDriverError{
+    fn from(value: EspError) -> Self {
+        match value.code(){
+            esp_idf_svc::sys::ESP_ERR_INVALID_ARG => AdcDriverError::InvalidArgs,
+            esp_idf_svc::sys::ESP_ERR_NO_MEM => AdcDriverError::NoMemory,
+            esp_idf_svc::sys::ESP_ERR_NOT_FOUND => AdcDriverError::AlreadyTaken,
+            esp_idf_svc::sys::ESP_FAIL => AdcDriverError::ClockError,
+            _  => AdcDriverError::Code(value.code(), value.to_string()),
+        }
+    }
 }

@@ -1,6 +1,6 @@
 use esp32_nimble::BLEError;
 
-use crate::timer_driver::TimerDriverError;
+use crate::{microcontroller_src::peripherals::PeripheralError, timer_driver::TimerDriverError};
 
 const ATTRIBUTE_CANNOT_BE_READ: u32 = 258;
 const ATTRIBUTE_CANNOT_BE_WRITTEN: u32 = 259;
@@ -18,16 +18,19 @@ pub enum BleError {
     Code(u32, String),
     ConnectionError,
     CouldNotConnectToDevice,
+    DeviceNotConnectable,
     DescriptorNotFound,
     DescriptorNotReadable,
     DescriptorNotWritable,
     DeviceNotFound,
     Disconnected,
     IncorrectHandle,
+    InvalidPasskey,
     InvalidParameters,
     NotFound,
     NotReadable,
     NotWritable,
+    PeripheralError(PeripheralError),
     PropertiesError,
     ServiceDoesNotFit,
     ServiceNotFound,
@@ -64,6 +67,18 @@ impl From<BLEError> for BleError {
             esp_idf_svc::sys::BLE_HS_ETIMEOUT  => BleError::TimeOut,
             _ => BleError::Code(value.code(), value.to_string()),
         }
+    }
+}
+
+impl From<TimerDriverError> for BleError{
+    fn from(value: TimerDriverError) -> Self {
+        Self::TimerDriverError(value)
+    }
+}
+
+impl From<PeripheralError> for BleError{
+    fn from(value: PeripheralError) -> Self {
+        Self::PeripheralError(value)
     }
 }
 
@@ -178,6 +193,7 @@ impl BleError {
     fn connection_params_context(self)-> Self{
         match self{
             BleError::DeviceNotFound => BleError::Disconnected,
+            BleError::TimeOut => BleError::ConnectionError,
             _ => self
         }
     }

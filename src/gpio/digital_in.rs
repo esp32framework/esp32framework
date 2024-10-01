@@ -1,8 +1,16 @@
 use esp_idf_svc::hal::gpio::*;
 pub use esp_idf_svc::hal::gpio::InterruptType;
 use std::sync::{atomic::{AtomicU8, Ordering}, Arc};
-use crate::{microcontroller_src::{interrupt_driver::InterruptDriver, peripherals::Peripheral}, utils::auxiliary::{SharableRef, SharableRefExt}};
-use crate::utils::{esp32_framework_error::Esp32FrameworkError, notification::Notifier, timer_driver::{TimerDriver,TimerDriverError}, error_text_parser::map_enable_disable_errors};
+use crate::{
+    microcontroller_src::{interrupt_driver::InterruptDriver, peripherals::{Peripheral, PeripheralError}}, 
+    utils::{
+        auxiliary::{SharableRef, SharableRefExt}, 
+        esp32_framework_error::Esp32FrameworkError, 
+        notification::Notifier, 
+        timer_driver::{TimerDriver,TimerDriverError}, 
+        error_text_parser::map_enable_disable_errors
+    }
+};
 use sharable_reference_macro::sharable_reference_wrapper;
 
 type AtomicInterruptUpdateCode = AtomicU8;
@@ -13,11 +21,11 @@ pub enum DigitalInError {
     CannotSetDebounceOnAnyEdgeInterruptType,
     CannotSetPinAsInput,
     CannotSetPullForPin,
-    InvalidPeripheral,
+    InvalidPeripheral(PeripheralError),
     InvalidPin,
     NoInterruptTypeSet,
     StateAlreadySet,
-    TimerDriverError (TimerDriverError),
+    TimerDriverError (TimerDriverError)
 }
 
 /// Driver for receiving digital inputs from a particular Pin
@@ -88,14 +96,14 @@ impl InterruptUpdate{
     /// 
     /// ```
     /// let interrupt = InterruptUpdate::from_code(1);
-    /// assert_eq!(interrupt, InterruptUpdate::EnableTimerDriver);
+    /// assert_eq!(interrupt, InterruptUpdate::ExecAndEnablePin);
     /// ```
     fn from_code(code:u8)-> Self {
         match code{
-            0 => Self::ExecAndEnablePin,
-            1 => Self::EnableTimerDriver,
-            2 => Self::TimerReached,
-            3 => Self::ExecAndUnsubscribePin,
+            x if x == Self::ExecAndEnablePin.get_code() => Self::ExecAndEnablePin,
+            x if x == Self::EnableTimerDriver.get_code()  => Self::EnableTimerDriver,
+            x if x == Self::TimerReached.get_code()  => Self::TimerReached,
+            x if x == Self::ExecAndUnsubscribePin.get_code()  => Self::ExecAndUnsubscribePin,
             _ => Self::None,
         }
     }
@@ -137,7 +145,7 @@ impl <'a>_DigitalIn<'a> {
     /// 
     /// When setting Down the pull fails
     pub fn new(timer_driver: TimerDriver<'a>, per: Peripheral, notifier: Option<Notifier>) -> Result<_DigitalIn<'a>, DigitalInError> { 
-        let gpio = per.into_any_io_pin().map_err(|_| DigitalInError::InvalidPeripheral)?;
+        let gpio = per.into_any_io_pin().map_err(DigitalInError::InvalidPeripheral)?;
         let pin_driver = PinDriver::input(gpio).map_err(|_| DigitalInError::CannotSetPinAsInput)?;
 
         let mut digital_in = _DigitalIn {
@@ -469,5 +477,11 @@ impl <'a> InterruptDriver for _DigitalIn<'a>{
     /// interrupt when necesary
     fn update_interrupt(&mut self)-> Result<(), Esp32FrameworkError> {
         self._update_interrupt().map_err(Esp32FrameworkError::DigitalIn)
+    }
+}
+
+impl From<TimerDriverError> for DigitalInError{
+    fn from(value: TimerDriverError) -> Self {
+        DigitalInError::TimerDriverError(value)
     }
 }

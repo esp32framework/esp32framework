@@ -1,7 +1,13 @@
 use esp_idf_svc::{hal::{ledc::*, peripheral, prelude::*}, sys::ESP_FAIL};
 use sharable_reference_macro::sharable_reference_wrapper;
-use crate::{microcontroller_src::{interrupt_driver::InterruptDriver, peripherals::Peripheral}, utils::auxiliary::{SharableRef, SharableRefExt}};
-use crate::utils::{esp32_framework_error::Esp32FrameworkError, timer_driver::{TimerDriver, TimerDriverError}};
+use crate::{
+    microcontroller_src::{interrupt_driver::InterruptDriver, peripherals::{Peripheral, PeripheralError}}, 
+    utils::{
+        auxiliary::{SharableRef, SharableRefExt},
+        esp32_framework_error::Esp32FrameworkError, 
+        timer_driver::{TimerDriver, TimerDriverError}
+    }
+};
 use std::{cell::RefCell, rc::Rc, sync::{Arc,atomic::{AtomicU32, Ordering, AtomicBool}}};
 
 /// Enums the different errors possible when working with the analog out
@@ -9,7 +15,7 @@ use std::{cell::RefCell, rc::Rc, sync::{Arc,atomic::{AtomicU32, Ordering, Atomic
 pub enum AnalogOutError{
     ErrorSettingOutput,
     InvalidArg,
-    InvalidPeripheral,
+    InvalidPeripheral(PeripheralError),
     InvalidFrequencyOrDuty,
     TimerDriverError(TimerDriverError),
     TooManyPWMOutputs,
@@ -39,7 +45,7 @@ enum FixedChangeType {
 /// - `fixed_change_increasing`: Arc<AtomicBool> that indicates if a fixed change on the duty is needed
 /// - `fixed_change_type`: An instance of FixedChangeType that indicates the type of duty change
 /// - `amount_of_cycles`: An Option containing an u32 thath indicates the amount of desired cycles 
-pub struct _AnalogOut<'a> {
+struct _AnalogOut<'a> {
     driver: LedcDriver<'a>,
     timer_driver: TimerDriver<'a>,
     duty: Arc<AtomicU32>,
@@ -106,7 +112,6 @@ impl ChangeDutyUpdate{
 
 #[sharable_reference_wrapper]
 impl <'a>_AnalogOut<'a> {
-    //TODO: Dejar elegir al usuario low y high resolution, segun que timer
     
     /// Creates a new _AnalogOut from a pin number, frequency and resolution.
     /// 
@@ -117,7 +122,8 @@ impl <'a>_AnalogOut<'a> {
     /// - `gpio_pin`: A Peripheral capable of being transformed into an AnyIOPin
     /// - `timer_driver`: An instance of a TimerDriver
     /// - `freq_hz`: An u32 representing the frequency in hertz desired for the configuration of the PWMTimer
-    /// - `resolution`: An u32 representing the desired output resolution
+    /// - `resolution`: An u32 that represents the amount of bits in the desired output resolution. If 0 its set to 1 bit, >= 14 
+    ///     14 bits of resolution are set  
     /// 
     /// # Returns
     /// 
@@ -161,9 +167,10 @@ impl <'a>_AnalogOut<'a> {
             Peripheral::PWMTimer(1) => _AnalogOut::create_pwm_driver(peripheral_channel, unsafe{TIMER1::new()}, gpio_pin, config),
             Peripheral::PWMTimer(2) => _AnalogOut::create_pwm_driver(peripheral_channel, unsafe{TIMER2::new()}, gpio_pin, config),
             Peripheral::PWMTimer(3) => _AnalogOut::create_pwm_driver(peripheral_channel, unsafe{TIMER3::new()}, gpio_pin, config),
-            _ => Err(AnalogOutError::InvalidPeripheral)?
+            Peripheral::None => Err(AnalogOutError::InvalidPeripheral(PeripheralError::AlreadyTaken)),
+            _ => Err(AnalogOutError::InvalidPeripheral(PeripheralError::NotAPwmTimer))?
         }?;
-            
+        
         Ok(_AnalogOut{driver: pwm_driver,
             timer_driver, 
             duty: Arc::new(AtomicU32::new(0)), 
@@ -172,11 +179,6 @@ impl <'a>_AnalogOut<'a> {
             fixed_change_type: FixedChangeType::None,
             amount_of_cycles: None,
         })
-    }
-
-    // TODO remove this function
-    pub fn duty(&self)->u32{
-        self.duty.load(Ordering::SeqCst)
     }
 
     /// Creates a new _AnalogOut with a default frecuency of 1000Hz and a resolution of 8bits.
@@ -206,7 +208,7 @@ impl <'a>_AnalogOut<'a> {
     /// 
     /// # Arguments
     /// 
-    /// - `resolution`: An u32 representing the desired resolution. Accpeted values go from 0 to 13
+    /// - `resolution`: An u32 representing the desired resolution. Accepted values go from 0 to 13
     /// 
     /// # Returns
     /// 
@@ -259,14 +261,15 @@ impl <'a>_AnalogOut<'a> {
             _ => AnalogOutError::InvalidArg,
         })?;
 
-        let gpio = gpio_pin.into_any_io_pin().map_err(|_| AnalogOutError::InvalidPeripheral)?;
+        let gpio = gpio_pin.into_any_io_pin().map_err(AnalogOutError::InvalidPeripheral)?;
         
         match peripheral_channel {
             Peripheral::PWMChannel(0) => LedcDriver::new(unsafe {CHANNEL0::new()}, ledc_timer_driver, gpio),
             Peripheral::PWMChannel(1) => LedcDriver::new(unsafe {CHANNEL1::new()}, ledc_timer_driver, gpio),
             Peripheral::PWMChannel(2) => LedcDriver::new(unsafe {CHANNEL2::new()}, ledc_timer_driver, gpio),
             Peripheral::PWMChannel(3) => LedcDriver::new(unsafe {CHANNEL3::new()}, ledc_timer_driver, gpio),
-            _ => return Err(AnalogOutError::InvalidPeripheral),
+            Peripheral::None => return Err(AnalogOutError::InvalidPeripheral(PeripheralError::AlreadyTaken)),
+            _ => return Err(AnalogOutError::InvalidPeripheral(PeripheralError::NotAPwmChannel)),
         }.map_err(|_| AnalogOutError::InvalidArg)
     }
 
@@ -600,15 +603,17 @@ impl<'a> AnalogOut<'a> {
     /// - `gpio_pin`: The gpio pin from which the PWM signal will be output
     /// - `timer_driver`: The TimerDriver instance that will handle the interrupts
     /// - `freq_hz`: The frequency of the PWM signal
-    /// - `resolution`: The resolution of the PWM signal
+    /// - `resolution`: An u32 that represents the amount of bits in the desired output resolution. if 0 its set to 1 bit, >= 14 
+    ///     14 bits of resolution are set  
     /// 
     /// # Returns
     /// A result containing the AnalogOut instance or an AnalogOutError
     /// 
     /// # Errors
-    /// !TODO : cuando puede tirar error? y que error tira?
     /// 
-    /// 
+    /// - `AnalogOutError::InvalidPeripheral`: If any of the peripherals are not from the correct type
+    /// - `AnalogOutError::InvalidFrequencyOrDuty`: If the frequency or duty are not compatible
+    /// - `AnalogOutError::InvalidArg`: If any of the arguments are not of the correct type
     pub fn new(peripheral_channel: Peripheral, timer: Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>, freq_hz: u32, resolution: u32)->Result<AnalogOut<'a>, AnalogOutError>{
         Ok(AnalogOut{inner: SharableRef::new_sharable(_AnalogOut::new(
             peripheral_channel,
@@ -632,9 +637,10 @@ impl<'a> AnalogOut<'a> {
     /// A result containing the AnalogOut instance or an AnalogOutError
     /// 
     /// # Errors
-    /// - AnalogOutError::
-    ///   !TODO : errores???
     /// 
+    /// - `AnalogOutError::InvalidPeripheral`: If any of the peripherals are not from the correct type
+    /// - `AnalogOutError::InvalidFrequencyOrDuty`: If the frequency or duty are not compatible
+    /// - `AnalogOutError::InvalidArg`: If any of the arguments are not of the correct type
     pub fn default(peripheral_channel: Peripheral, timer:Peripheral, gpio_pin: Peripheral, timer_driver: TimerDriver<'a>) -> Result<AnalogOut<'a>, AnalogOutError>{
         Ok(AnalogOut{inner: Rc::new(RefCell::from(_AnalogOut::default(
             peripheral_channel, timer, gpio_pin, timer_driver)?))})
@@ -661,4 +667,10 @@ impl <'a> InterruptDriver for _AnalogOut<'a>{
 /// An u32 value that represents the duty corresponding to the ratio of time the signal is high.  
 fn duty_from_high_ratio(max_duty: u32, high_ratio: f32) -> u32{
     ((max_duty as f32) * high_ratio) as u32
+}
+
+impl From<TimerDriverError> for AnalogOutError{
+    fn from(value: TimerDriverError) -> Self {
+        AnalogOutError::TimerDriverError(value)
+    }
 }
