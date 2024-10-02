@@ -35,7 +35,8 @@ impl<'a> BleBeacon<'a> {
     ///
     /// # Errors
     ///
-    /// Returns the same errors as [Self::set_services]
+    /// - `BleError::PropertiesError`: If a characteristic on the service has an invalid property.
+    /// - `BleError::ServiceNotFound`: If the service_id doesnt match with the id of a service already set on the server.
     pub fn new(
         ble_device: &'a mut BLEDevice,
         timer_driver: TimerDriver<'a>,
@@ -95,6 +96,7 @@ impl<'a> BleBeacon<'a> {
     /// A `Result` with Ok if the update operation completed successfully, or an `BleError` if it fails.
     ///
     /// # Errors
+    ///
     /// - `BleError::ServiceDoesNotFit`: if advertising is too big
     /// - `BleError::Code` on other errors
     fn update_advertisement(&mut self) -> Result<(), BleError> {
@@ -116,7 +118,8 @@ impl<'a> BleBeacon<'a> {
     /// A `Result` containing the `BleBeacon` itself, or a `BleError` if it fails
     ///
     /// # Errors
-    /// Returns the same errors as [Self::update_advertisement]
+    /// - `BleError::ServiceDoesNotFit`: if advertising is too big
+    /// - `BleError::Code` on other errors
     pub fn set_service(&mut self, service: &Service) -> Result<&mut Self, BleError> {
         self.insert_service(service);
         self.update_advertisement()?;
@@ -135,7 +138,8 @@ impl<'a> BleBeacon<'a> {
     /// A `Result` with Ok if the read operation completed successfully, or an `BleError` if it fails.
     ///
     /// # Errors
-    /// Returns the same errors as [Self::update_advertisement]
+    /// - `BleError::ServiceDoesNotFit`: if advertising is too big
+    /// - `BleError::Code` on other errors
     pub fn set_services(&mut self, services: &Vec<Service>) -> Result<(), BleError> {
         for service in services {
             self.insert_service(service)
@@ -151,8 +155,8 @@ impl<'a> BleBeacon<'a> {
     ///
     /// # Errors
     ///
-    /// - `BleError::`:
-    ///   Returns the same errors as [Self::update_advertisement]
+    /// - `BleError::ServiceDoesNotFit`: if advertising is too big
+    /// - `BleError::Code`: on other errors
     fn reset_advertisement(&mut self) -> Result<(), BleError> {
         let mut advertisement = BLEAdvertisementData::new();
         for service in self.services.deref().values() {
@@ -174,8 +178,8 @@ impl<'a> BleBeacon<'a> {
     /// A `Result` containing the `BleBeacon` itself, or a `BleError` if it fails
     ///
     /// # Errors
-    ///
-    /// Returns the same errors as [Self::update_advertisement]
+    /// - `BleError::ServiceDoesNotFit`: if advertising is too big
+    /// - `BleError::Code` on other errors
     pub fn remove_service(&mut self, service_id: &BleId) -> Result<&mut Self, BleError> {
         self.services.deref_mut().remove(service_id);
         self.reset_advertisement()?;
@@ -193,8 +197,8 @@ impl<'a> BleBeacon<'a> {
     /// A `Result` containing the `BleBeacon` itself, or a `BleError` if it fails
     ///
     /// # Errors
-    ///
-    /// Returns the same errors as [Self::update_advertisement]
+    /// - `BleError::ServiceDoesNotFit`: if advertising is too big
+    /// - `BleError::Code` on other errors
     pub fn remove_services(&mut self, service_ids: &Vec<BleId>) -> Result<(), BleError> {
         for service_id in service_ids {
             self.services.deref_mut().remove(service_id);

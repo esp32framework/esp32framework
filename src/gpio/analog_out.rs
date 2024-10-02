@@ -68,8 +68,7 @@ struct _AnalogOut<'a> {
     amount_of_cycles: Option<u32>,
 }
 
-/// Driver to handle a digital output for a particular Pin
-/// Wrapper of [_AnalogOut]
+/// Driver to handle an analog output for a particular pin.
 #[derive(Clone)]
 pub struct AnalogOut<'a> {
     inner: SharableRef<_AnalogOut<'a>>,
@@ -129,12 +128,12 @@ impl<'a> _AnalogOut<'a> {
     ///
     /// # Arguments
     ///
-    /// - `peripheral_channel`: A Peripheral instance of type PWMChannel
-    /// - `timer`: A Peripheral instance of type PWMTimer
-    /// - `gpio_pin`: A Peripheral capable of being transformed into an AnyIOPin
+    /// - `peripheral_channel`: A `Peripheral` instance of type `PWMChannel`
+    /// - `timer`: A `Peripheral` instance of type `PWMTimer`
+    /// - `gpio_pin`: A `Peripheral` capable of being transformed into an `AnyIOPin`
     /// - `timer_driver`: An instance of a TimerDriver
-    /// - `freq_hz`: An u32 representing the frequency in hertz desired for the configuration of the PWMTimer
-    /// - `resolution`: An u32 that represents the amount of bits in the desired output resolution. If 0 its set to 1 bit, >= 14
+    /// - `freq_hz`: An `u32` representing the frequency in hertz desired for the configuration of the `PWMTimer`
+    /// - `resolution`: An `u32` that represents the amount of bits in the desired output resolution. If 0 its set to 1 bit, >= 14
     ///     14 bits of resolution are set  
     ///
     /// # Returns
@@ -162,15 +161,15 @@ impl<'a> _AnalogOut<'a> {
         _AnalogOut::_new(peripheral_channel, timer, gpio_pin, timer_driver, config)
     }
 
-    /// Creates a new _AnalogOut for a specific pin with a given configuration of frecuency and resolution.
+    /// Creates a new `_AnalogOut` for a specific pin with a given configuration of frecuency and resolution.
     ///
     /// # Arguments
     ///
-    /// - `peripheral_channel`: A Peripheral instance of type PWMChannel
-    /// - `timer`: A Peripheral instance of type PWMTimer
-    /// - `gpio_pin`: A Peripheral capable of being transformed into an AnyIOPin
-    /// - `timer_driver`: An instance of a TimerDriver
-    /// - `config`: An instance of TimerConfig with the frequency and resolution already set
+    /// - `peripheral_channel`: A `Peripheral` instance of type `PWMChannel`
+    /// - `timer`: A `Peripheral` instance of type `PWMTimer`
+    /// - `gpio_pin`: A `Peripheral` capable of being transformed into an `AnyIOPin`
+    /// - `timer_driver`: An instance of a `TimerDriver`
+    /// - `config`: An instance of `TimerConfig` with the frequency and resolution already set
     ///
     /// # Returns
     ///
@@ -237,9 +236,9 @@ impl<'a> _AnalogOut<'a> {
     ///
     /// # Arguments
     ///
-    /// - `peripheral_channel`: A Peripheral instance of type PWMChannel
-    /// - `timer`: A Peripheral instance of type PWMTimer
-    /// - `gpio_pin`: A Peripheral capable of being transformed into an AnyIOPin
+    /// - `peripheral_channel`: A `Peripheral` instance of type PWMChannel
+    /// - `timer`: A `Peripheral` instance of type PWMTimer
+    /// - `gpio_pin`: A `Peripheral` capable of being transformed into an AnyIOPin
     /// - `timer_driver`: An instance of a TimerDriver
     ///
     /// # Returns
@@ -267,11 +266,11 @@ impl<'a> _AnalogOut<'a> {
         )
     }
 
-    /// Creates a new Resolution from a u32 value.
+    /// Creates a new Resolution from a `u32` value.
     ///
     /// # Arguments
     ///
-    /// - `resolution`: An u32 representing the desired resolution. Accepted values go from 0 to 13
+    /// - `resolution`: An `u32` representing the desired resolution. Accepted values go from 0 to 13
     ///
     /// # Returns
     ///
@@ -300,9 +299,9 @@ impl<'a> _AnalogOut<'a> {
     ///
     /// # Arguments
     ///
-    /// - `peripheral_channel`: A Peripheral of type PWMChannel
+    /// - `peripheral_channel`: A `Peripheral` of type `PWMChannel`
     /// - `timer`: An esp_idf_svc::peripheral::Peripheral
-    /// - `gpio_pin`: A Peripheral capable of being transformed into an AnyIOPin
+    /// - `gpio_pin`: A `Peripheral` capable of being transformed into an AnyIOPin
     /// - `config`: A TimerConfig
     ///
     /// # Returns
@@ -362,7 +361,7 @@ impl<'a> _AnalogOut<'a> {
     ///
     /// # Arguments
     ///
-    /// - `high_ratio`: An f32 representinf the desired high level ratio
+    /// - `high_ratio`: An `f32` representinf the desired high level ratio
     ///
     /// # Returns
     ///
@@ -383,10 +382,10 @@ impl<'a> _AnalogOut<'a> {
     ///
     /// # Arguments
     ///
-    /// - `fixed_change_type`: A FixedChangeType enum that defines whether the duty cycle should increase or decrease.
-    /// - `increase_after_miliseconds`: An u64 representing the time interval (in milliseconds) after which the duty cycle should change.
-    /// - `increase_by_ratio`: A f32 representing the ratio by which the duty cycle should change.
-    /// - `starting_high_ratio`: A f32 representing the initial high ratio for the duty cycle.
+    /// - `fixed_change_type`: A `FixedChangeType` enum that defines whether the duty cycle should increase or decrease.
+    /// - `increase_after_miliseconds`: An `u64` representing the time interval (in milliseconds) after which the duty cycle should change.
+    /// - `increase_by_ratio`: A `f32` representing the ratio by which the duty cycle should change.
+    /// - `starting_high_ratio`: A `f32` representing the initial high ratio for the duty cycle.
     ///
     /// # Returns
     ///
@@ -444,9 +443,9 @@ impl<'a> _AnalogOut<'a> {
     ///
     /// # Arguments
     ///
-    /// - `increase_after_miliseconds`: An u64 representing the time interval (in milliseconds) after which the duty cycle should increase.
-    /// - `increase_by_ratio`: A f32 representing the ratio by which the duty cycle should increase.
-    /// - `starting_high_ratio`: A f32 representing the initial high ratio for the duty cycle.
+    /// - `increase_after_miliseconds`: An `u64` representing the time interval (in milliseconds) after which the duty cycle should increase.
+    /// - `increase_by_ratio`: A `f32` representing the ratio by which the duty cycle should increase.
+    /// - `starting_high_ratio`: A `f32` representing the initial high ratio for the duty cycle.
     ///
     /// # Returns
     ///
@@ -473,9 +472,9 @@ impl<'a> _AnalogOut<'a> {
     ///
     /// # Arguments
     ///
-    /// - `increase_after_miliseconds`: An u64 representing the time interval (in milliseconds) after which the duty cycle should decrease.
-    /// - `decrease_by_ratio`: A f32 representing the ratio by which the duty cycle should decrease.
-    /// - `starting_high_ratio`: A f32 representing the initial high ratio for the duty cycle.
+    /// - `increase_after_miliseconds`: An `u64` representing the time interval (in milliseconds) after which the duty cycle should decrease.
+    /// - `decrease_by_ratio`: A `f32` representing the ratio by which the duty cycle should decrease.
+    /// - `starting_high_ratio`: A `f32` representing the initial high ratio for the duty cycle.
     ///
     /// # Returns
     ///
@@ -498,16 +497,16 @@ impl<'a> _AnalogOut<'a> {
         )
     }
 
-    /// Increases the PWM signal ratio by 'increase_by_ratio', starting from 'starting_high_ratio' value until it reaches the maximum ratio possible.
-    /// Once the maximum is reached, it bounces back and starts to decrease until the minimum value is reached. Direction changes 'amount_of_bounces' times
-    /// unless that parameter is set to None, meaning it will do it indefinitely.
+    /// Increases the PWM signal ratio by `increase_by_ratio`, starting from `starting_high_ratio` value until it reaches the maximum ratio possible.
+    /// Once the maximum is reached, it bounces back and starts to decrease until the minimum value is reached. Direction changes `amount_of_bounces` times
+    /// unless that parameter is set to `None`, meaning it will do it indefinitely.
     ///
     /// # Arguments
     ///
-    /// - `increase_after_miliseconds`: An u64 representing the time interval (in milliseconds) after which the duty cycle should increase.
-    /// - `increase_by_ratio`: A f32 representing the ratio by which the duty cycle should increase.
-    /// - `starting_high_ratio`: A f32 representing the initial high ratio for the duty cycle.
-    /// - `amount_of_bounces`: An Option<u32> representing the number of bounce-backs before stopping, or None for continuous bouncing.
+    /// - `increase_after_miliseconds`: An `u64` representing the time interval (in milliseconds) after which the duty cycle should increase.
+    /// - `increase_by_ratio`: A `f32` representing the ratio by which the duty cycle should increase.
+    /// - `starting_high_ratio`: A `f32` representing the initial high ratio for the duty cycle.
+    /// - `amount_of_bounces`: An `Option<u32>` representing the number of bounce-backs before stopping, or None for continuous bouncing.
     ///
     /// # Returns
     ///
@@ -538,10 +537,10 @@ impl<'a> _AnalogOut<'a> {
     ///
     /// # Arguments
     ///
-    /// - `increase_after_miliseconds`: An u64 representing the time interval (in milliseconds) after which the duty cycle should decrease.
-    /// - `decrease_by_ratio`: A f32 representing the ratio by which the duty cycle should decrease.
-    /// - `starting_high_ratio`: A f32 representing the initial high ratio for the duty cycle.
-    /// - `amount_of_bounces`: An Option<u32> representing the number of bounce-backs before stopping, or None for continuous bouncing.
+    /// - `increase_after_miliseconds`: An `u64` representing the time interval (in milliseconds) after which the duty cycle should decrease.
+    /// - `decrease_by_ratio`: A `f32` representing the ratio by which the duty cycle should decrease.
+    /// - `starting_high_ratio`: A `f32` representing the initial high ratio for the duty cycle.
+    /// - `amount_of_bounces`: An `Option<u32>` representing the number of bounce-backs before stopping, or None for continuous bouncing.
     ///
     /// # Returns
     ///
@@ -566,16 +565,16 @@ impl<'a> _AnalogOut<'a> {
         )
     }
 
-    /// Increses the PWM signal ratio by 'increase_by_ratio', starting from 'starting_high_ratio' value until it reaches the maximum ratio possible.
-    /// Once the maximum is reached, it goes back to the 'starting_high_ratio' and starts to increase once again. This is done 'amount_of_resets' times
+    /// Increses the PWM signal ratio by `increase_by_ratio`, starting from `starting_high_ratio` value until it reaches the maximum ratio possible.
+    /// Once the maximum is reached, it goes back to the `starting_high_ratio` and starts to increase once again. This is done `amount_of_resets` times
     /// unless that parameter is set to None, meaning it will do it indefinitely.
     ///  
     /// # Arguments
     ///
-    /// - `increase_after_miliseconds`: A u64 representing the time interval (in milliseconds) after which the duty cycle should increase.
-    /// - `increase_by_ratio`: A f32 representing the ratio by which the duty cycle should increase.
-    /// - `starting_high_ratio`: A f32 representing the initial high ratio for the duty cycle.
-    /// - `amount_of_resets`: An Option<u32> representing the number of resets before stopping, or None for continuous resetting.
+    /// - `increase_after_miliseconds`: A `u64` representing the time interval (in milliseconds) after which the duty cycle should increase.
+    /// - `increase_by_ratio`: A `f32` representing the ratio by which the duty cycle should increase.
+    /// - `starting_high_ratio`: A `f32` representing the initial high ratio for the duty cycle.
+    /// - `amount_of_resets`: An `Option<u32>` representing the number of resets before stopping, or None for continuous resetting.
     ///
     /// # Returns
     ///

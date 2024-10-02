@@ -21,18 +21,17 @@ use super::{
 const MICRO_IN_SEC: u64 = 1000000;
 const MAX_CHILDREN: u16 = u8::MAX as u16;
 
-/// Wrapper of _TimerDriver, handling the coordination of multiple references to the inner driver,
+/// Wrapper that handles the coordination of multiple references to the inner driver,
 /// in order to allow for interrupts to be set per timer resource.
-///
-/// Each reference has a unique id and can create one interrupt each.
-/// In order to see the documentation of wrapper functions see [_TimerDriver]
 pub struct TimerDriver<'a> {
     inner: SharableRef<_TimerDriver<'a>>,
     id: u16,
     next_child: u16,
 }
 
-/// Driver for handling the timer resource, allowing for multiple interrupts to be set
+/// Driver for handling the timer resource, allowing for multiple interrupts to be set, deppending on the id received.
+/// Each reference has a unique id and can create one interrupt each. This is the inner of [TimerDriver] which toghether
+/// give the ilution of multiple timer resources when in reality there is only one.
 struct _TimerDriver<'a> {
     driver: timer::TimerDriver<'a>,
     interrupt_update: InterruptUpdate,
