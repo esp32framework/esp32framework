@@ -1,7 +1,12 @@
 //! Example using pin GPIO5 (sda) and GPIO6 (scl) with i2c to communicate
 //! with a ds3231 sensor. Then it will ask the sensor temperature and print it every second.
 
-use esp_idf_svc::hal::{delay::{FreeRtos, BLOCK},i2c::*,peripherals::Peripherals,prelude::*};
+use esp_idf_svc::hal::{
+    delay::{FreeRtos, BLOCK},
+    i2c::*,
+    peripherals::Peripherals,
+    prelude::*,
+};
 
 const DS3231_ADDR: u8 = 0x68;
 
@@ -30,10 +35,10 @@ fn main() {
         ds3231.read(DS3231_ADDR, &mut buffer, BLOCK).unwrap();
 
         let temp_lsb = buffer[1] >> 6; // We only need the 2 most significant bits of the LSB
-    
+
         // Get the MSB part
         let temp_integer = twos_complement_to_decimal(buffer[0]);
-    
+
         // Transform the LSB part
         let temp_fractional = twos_complement_to_decimal(temp_lsb) as f32 * 0.25;
         let temperature = temp_integer as f32 + temp_fractional;

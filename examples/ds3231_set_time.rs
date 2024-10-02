@@ -1,9 +1,14 @@
-//! Example using pin GPIO5 (sda) and GPIO6 (scl) with i2c to set 
+//! Example using pin GPIO5 (sda) and GPIO6 (scl) with i2c to set
 //! a date and time in a ds3231 sensor. Then it will ask the sensor
 //! for the time and print it in the screen.
 
+use esp_idf_svc::hal::{
+    delay::{FreeRtos, BLOCK},
+    i2c::*,
+    peripherals::Peripherals,
+    prelude::*,
+};
 use std::collections::HashMap;
-use esp_idf_svc::hal::{delay::{FreeRtos, BLOCK}, i2c::* , peripherals::Peripherals, prelude::*};
 
 const DS3231_ADDR: u8 = 0x68;
 
@@ -48,9 +53,7 @@ fn decimal_to_bcd(decimal: u8) -> u8 {
 
 fn write_clock(clock: &mut I2cDriver, time: u8, addr: u8) {
     let bcd_time = decimal_to_bcd(time);
-    clock
-        .write(DS3231_ADDR, &[addr, bcd_time], BLOCK)
-        .unwrap();
+    clock.write(DS3231_ADDR, &[addr, bcd_time], BLOCK).unwrap();
 }
 
 fn set_time(clock: &mut I2cDriver, date_time: DateTime) {
@@ -63,11 +66,11 @@ fn set_time(clock: &mut I2cDriver, date_time: DateTime) {
     write_clock(clock, date_time.yr, Ds3231RegDir::Year as u8);
 }
 
-fn parse_read_data(data: [u8; 13] )-> HashMap<String, String>{
+fn parse_read_data(data: [u8; 13]) -> HashMap<String, String> {
     let mut res = HashMap::new();
-    let secs = bcd_to_decimal(data[0] & 0x7f);  // 0 1 1 1 1 1 1 1
+    let secs = bcd_to_decimal(data[0] & 0x7f); // 0 1 1 1 1 1 1 1
     let mins = bcd_to_decimal(data[1]);
-    let hrs = bcd_to_decimal(data[2] & 0x3f);   // 0 0 1 1 1 1 1 1
+    let hrs = bcd_to_decimal(data[2] & 0x3f); // 0 0 1 1 1 1 1 1
     let day_number = bcd_to_decimal(data[4]);
     let month = bcd_to_decimal(data[5]);
     let yr = bcd_to_decimal(data[6]);
@@ -113,7 +116,7 @@ fn main() {
         month: 7,
         yr: 24,
     };
-    
+
     set_time(&mut ds3231, start_dt);
 
     loop {
@@ -127,9 +130,16 @@ fn main() {
 
         let parsed_data = parse_read_data(data);
 
-        println!("{}, {}/{}/20{}, {:02}:{:02}:{:02}", parsed_data["dow"], parsed_data["day_number"],
-                                                      parsed_data["month"], parsed_data["year"], parsed_data["hrs"], 
-                                                      parsed_data["min"], parsed_data["secs"]);
+        println!(
+            "{}, {}/{}/20{}, {:02}:{:02}:{:02}",
+            parsed_data["dow"],
+            parsed_data["day_number"],
+            parsed_data["month"],
+            parsed_data["year"],
+            parsed_data["hrs"],
+            parsed_data["min"],
+            parsed_data["secs"]
+        );
 
         FreeRtos::delay_ms(1000_u32);
     }

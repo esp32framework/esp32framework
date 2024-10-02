@@ -1,10 +1,13 @@
 //! Example using pin GPIO5 as analog in to read the intensity of a signal.
-//! This value is obtained by reading 'SAMPLING_QUANTITY' times and then 
+//! This value is obtained by reading 'SAMPLING_QUANTITY' times and then
 //! printing its average.
 
+use esp_idf_svc::hal::adc::{
+    attenuation::DB_11,
+    oneshot::{config::AdcChannelConfig, AdcChannelDriver, AdcDriver},
+};
 use esp_idf_svc::hal::delay::FreeRtos;
 use esp_idf_svc::hal::prelude::Peripherals;
-use esp_idf_svc::hal::adc::{oneshot::{AdcChannelDriver, AdcDriver,config::AdcChannelConfig}, attenuation::DB_11};
 
 const SAMPLING_QUANTITY: u16 = 10;
 
@@ -27,7 +30,10 @@ fn main() {
         }
         smooth_read /= SAMPLING_QUANTITY;
 
-        println!("ADC value with {:?} amount of reads: {:?}",SAMPLING_QUANTITY, smooth_read);
+        println!(
+            "ADC value with {:?} amount of reads: {:?}",
+            SAMPLING_QUANTITY, smooth_read
+        );
 
         FreeRtos::delay_ms(1000);
     }
