@@ -2,31 +2,31 @@
 //! of the colours Red of a RGB led. The intensity should "bounce" when it reaches
 //! the maximum and minimum level.
 
+use esp_idf_svc::hal::{ledc::*, peripherals::Peripherals, prelude::*};
 use std::rc::Rc;
-use std::{thread,cmp,time::Duration};
-use esp_idf_svc::hal::{ledc::*,peripherals::Peripherals,prelude::*};
+use std::{cmp, thread, time::Duration};
 
-fn duty_from_high_ratio(max_duty: u32, high_ratio: f32) -> u32{
+fn duty_from_high_ratio(max_duty: u32, high_ratio: f32) -> u32 {
     ((max_duty as f32) * high_ratio) as u32
 }
 
-fn get_next_red_level(led: &LedcDriver , increasing: &mut bool, change_ratio: f32) -> u32 {
+fn get_next_red_level(led: &LedcDriver, increasing: &mut bool, change_ratio: f32) -> u32 {
     let current_duty_level = led.get_duty();
     let duty_step = duty_from_high_ratio(led.get_max_duty(), change_ratio).max(1);
-    if current_duty_level >= led.get_max_duty(){
+    if current_duty_level >= led.get_max_duty() {
         *increasing = false;
-    }else if current_duty_level == 0{
+    } else if current_duty_level == 0 {
         *increasing = true;
     }
-    if *increasing{
-        return cmp::min(current_duty_level + duty_step ,led.get_max_duty());
+    if *increasing {
+        return cmp::min(current_duty_level + duty_step, led.get_max_duty());
     }
-    
+
     if current_duty_level < duty_step {
         return 0;
     }
     current_duty_level - duty_step
-}   
+}
 
 fn main() {
     esp_idf_svc::sys::link_patches();
@@ -34,7 +34,7 @@ fn main() {
     let config = config::TimerConfig::new().frequency(1.kHz().into());
     let timer = Rc::new(LedcTimerDriver::new(peripherals.ledc.timer0, &config).unwrap());
     let mut increasing: bool = true;
-    
+
     let mut red_pwm = LedcDriver::new(
         peripherals.ledc.channel0,
         timer.clone(),

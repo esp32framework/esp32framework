@@ -1,6 +1,6 @@
 use esp32_nimble::utilities::BleUuid;
-use uuid::Uuid;
 use std::hash::Hash;
+use uuid::Uuid;
 
 use super::{StandarCharacteristicId, StandarDescriptorId, StandarServiceId};
 
@@ -20,59 +20,62 @@ pub enum BleId {
     StandarDescriptor(StandarDescriptorId),
 }
 
-
 impl Hash for BleId {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.to_uuid().to_string().hash(state)
     }
 }
 
-impl From<BleUuid> for BleId{
+impl From<BleUuid> for BleId {
     fn from(value: BleUuid) -> Self {
-        match value{
+        match value {
             BleUuid::Uuid16(id) => BleId::FromUuid16(id),
             BleUuid::Uuid32(id) => {
-                let mut output: [u8; 16] = [0;16];
+                let mut output: [u8; 16] = [0; 16];
                 let input = id.to_le_bytes();
                 output[..4].copy_from_slice(&input);
                 BleId::FromUuid128(output)
-            },
+            }
             BleUuid::Uuid128(id) => BleId::FromUuid128(id),
         }
     }
 }
 
-impl From<&BleUuid> for BleId{
+impl From<&BleUuid> for BleId {
     fn from(value: &BleUuid) -> Self {
         Self::from(*value)
     }
 }
 
-
 impl BleId {
     /// Creates a BleUuid from a BleId
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The corresponfing BleUuid
     pub fn to_uuid(&self) -> BleUuid {
         match self {
-            BleId::StandardService(service) => {BleUuid::from_uuid16(*service as u16)},
-            BleId::StandarCharacteristic(characteristic) => {BleUuid::from_uuid16(*characteristic as u16)},
-            BleId::StandarDescriptor(descriptor) => {BleUuid::from_uuid16(*descriptor as u16)},
+            BleId::StandardService(service) => BleUuid::from_uuid16(*service as u16),
+            BleId::StandarCharacteristic(characteristic) => {
+                BleUuid::from_uuid16(*characteristic as u16)
+            }
+            BleId::StandarDescriptor(descriptor) => BleUuid::from_uuid16(*descriptor as u16),
             BleId::FromUuid16(uuid) => BleUuid::from_uuid16(*uuid),
             BleId::FromUuid128(uuid) => BleUuid::from_uuid128(*uuid),
             BleId::ByName(name) => {
-                let arr: [u8;4] = Uuid::new_v3(&Uuid::NAMESPACE_OID, name.as_bytes()).into_bytes()[0..4].try_into().unwrap();
+                let arr: [u8; 4] = Uuid::new_v3(&Uuid::NAMESPACE_OID, name.as_bytes()).into_bytes()
+                    [0..4]
+                    .try_into()
+                    .unwrap();
                 BleUuid::from_uuid32(u32::from_be_bytes(arr))
-            },
+            }
         }
     }
 
     /// Gets the byte size
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The usize representing the byte size
     pub fn byte_size(&self) -> usize {
         match self {

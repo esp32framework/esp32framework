@@ -4,10 +4,12 @@
 
 use esp32framework::Microcontroller;
 
-fn main(){
+fn main() {
     let mut micro = Microcontroller::new();
     let mut red_analog_out = micro.set_pin_as_default_analog_out(3).unwrap();
-    red_analog_out.start_increasing_bounce_back(100, 0.05, 0.0, None).unwrap();
+    red_analog_out
+        .start_increasing_bounce_back(100, 0.05, 0.0, None)
+        .unwrap();
 
     micro.wait_for_updates(None).unwrap();
 }

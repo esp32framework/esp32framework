@@ -1,5 +1,5 @@
-use esp_idf_svc::sys::{EspError, ESP_ERR_INVALID_STATE};
 use crate::gpio::DigitalInError;
+use esp_idf_svc::sys::{EspError, ESP_ERR_INVALID_STATE};
 
 // pub fn err_code_to_text(err_code: i32, context: &str) -> String {
 //     match err_code {
@@ -20,7 +20,7 @@ use crate::gpio::DigitalInError;
 /// A `DigitalInError` variant representing the translated error:
 /// - `DigitalInError::StateAlreadySet`.
 /// - `DigitalInError::InvalidPin`.
-pub fn map_enable_disable_errors(err: EspError)-> DigitalInError{
+pub fn map_enable_disable_errors(err: EspError) -> DigitalInError {
     match err.code() {
         ESP_ERR_INVALID_STATE => DigitalInError::StateAlreadySet,
         _ => DigitalInError::InvalidPin,

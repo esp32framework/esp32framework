@@ -1,12 +1,12 @@
-use esp_idf_svc::hal::{
-    gpio::{Gpio0, Gpio1},
-    delay::BLOCK, 
-    uart::{config, UartDriver, UART0, UART1}, 
-    units::Hertz
-};
 use crate::{
-    microcontroller_src::peripherals::{Peripheral, PeripheralError}, 
-    utils::auxiliary::micro_to_ticks
+    microcontroller_src::peripherals::{Peripheral, PeripheralError},
+    utils::auxiliary::micro_to_ticks,
+};
+use esp_idf_svc::hal::{
+    delay::BLOCK,
+    gpio::{Gpio0, Gpio1},
+    uart::{config, UartDriver, UART0, UART1},
+    units::Hertz,
 };
 
 const DEFAULT_BAUDRATE: u32 = 115_200;
@@ -31,7 +31,7 @@ pub enum StopBit {
 }
 
 /// Represents the parity settings for UART communication.
-pub enum Parity{
+pub enum Parity {
     Even,
     Odd,
     None,
@@ -42,7 +42,7 @@ pub struct UART<'a> {
     driver: UartDriver<'a>,
 }
 
-impl <'a>UART<'a> {
+impl<'a> UART<'a> {
     /// Creates a new UART driver.
     ///
     /// # Arguments
@@ -64,36 +64,43 @@ impl <'a>UART<'a> {
     /// - `UARTError::InvalidPin`: If either the TX or RX pins cannot be converted to IO pins.
     /// - `UARTError::InvalidUartNumber`: If an unsupported UART peripheral is selected.
     /// - `UARTError::DriverError`: If there is an error initializing the driver.
-    pub fn new(tx: Peripheral, rx: Peripheral, uart_peripheral: Peripheral, baudrate: u32, parity: Parity, stopbit: StopBit) -> Result<UART<'a>, UARTError > {
+    pub fn new(
+        tx: Peripheral,
+        rx: Peripheral,
+        uart_peripheral: Peripheral,
+        baudrate: u32,
+        parity: Parity,
+        stopbit: StopBit,
+    ) -> Result<UART<'a>, UARTError> {
         let rx_peripheral = rx.into_any_io_pin().map_err(UARTError::InvalidPeripheral)?;
         let tx_peripheral = tx.into_any_io_pin().map_err(UARTError::InvalidPeripheral)?;
         let config = set_config(baudrate, parity, stopbit)?;
 
         let driver = match uart_peripheral {
-            Peripheral::Uart(0) => {UartDriver::new(
-                unsafe{ UART0::new()},
+            Peripheral::Uart(0) => UartDriver::new(
+                unsafe { UART0::new() },
                 tx_peripheral,
                 rx_peripheral,
                 Option::<Gpio0>::None,
                 Option::<Gpio1>::None,
                 &config,
-            ).map_err(|_| UARTError::DriverError)?},
-            Peripheral::Uart(1) => {
-                UartDriver::new(
-                    unsafe{ UART1::new()},
-                    tx_peripheral,
-                    rx_peripheral,
-                    Option::<Gpio0>::None,
-                    Option::<Gpio1>::None,
-                    &config,
-                ).map_err(|_| UARTError::DriverError)?
-            },
+            )
+            .map_err(|_| UARTError::DriverError)?,
+            Peripheral::Uart(1) => UartDriver::new(
+                unsafe { UART1::new() },
+                tx_peripheral,
+                rx_peripheral,
+                Option::<Gpio0>::None,
+                Option::<Gpio1>::None,
+                &config,
+            )
+            .map_err(|_| UARTError::DriverError)?,
             _ => return Err(UARTError::InvalidUartNumber),
         };
-        
-        Ok(UART{driver})
+
+        Ok(UART { driver })
     }
-    
+
     /// Creates a UART driver with default baudrate of 115200 Hz, none parity and one bit stop bit.
     ///
     /// # Arguments
@@ -112,11 +119,22 @@ impl <'a>UART<'a> {
     /// - `UARTError::InvalidPin`: If either the TX or RX pins cannot be converted to IO pins.
     /// - `UARTError::InvalidUartNumber`: If an unsupported UART peripheral is selected.
     /// - `UARTError::DriverError`: If there is an error initializing the driver.
-    pub fn default(tx: Peripheral, rx: Peripheral, uart_peripheral: Peripheral) -> Result<UART<'a>, UARTError > {
-        UART::new(tx,rx,uart_peripheral, DEFAULT_BAUDRATE, Parity::None, StopBit::One)
+    pub fn default(
+        tx: Peripheral,
+        rx: Peripheral,
+        uart_peripheral: Peripheral,
+    ) -> Result<UART<'a>, UARTError> {
+        UART::new(
+            tx,
+            rx,
+            uart_peripheral,
+            DEFAULT_BAUDRATE,
+            Parity::None,
+            StopBit::One,
+        )
     }
-    
-    /// Write multiple bytes from a slice. Returns how many bytes were written or an error 
+
+    /// Write multiple bytes from a slice. Returns how many bytes were written or an error
     /// if the write operation fails.
     ///
     /// # Arguments
@@ -125,17 +143,19 @@ impl <'a>UART<'a> {
     ///
     /// # Returns
     ///
-    /// A `Result` with the size of the write data if the operation completed successfully, or 
+    /// A `Result` with the size of the write data if the operation completed successfully, or
     /// an `UARTError` if it fails.
     ///
     /// # Errors
     ///
     /// - `UARTError::WriteError`: If the write operation failed.
     pub fn write(&mut self, bytes_to_write: &[u8]) -> Result<usize, UARTError> {
-        self.driver.write(bytes_to_write).map_err(|_| UARTError::WriteError)
+        self.driver
+            .write(bytes_to_write)
+            .map_err(|_| UARTError::WriteError)
     }
 
-    /// Reads from the UART buffer without a timeout. This means that the function will be blocking 
+    /// Reads from the UART buffer without a timeout. This means that the function will be blocking
     /// until the buffer passed gets full. If the buffer never gets full, the function will never return.
     ///
     /// # Arguments
@@ -144,14 +164,16 @@ impl <'a>UART<'a> {
     ///
     /// # Returns
     ///
-    /// A `Result` with the size of the read data if the operation completed successfully, or 
+    /// A `Result` with the size of the read data if the operation completed successfully, or
     /// an `UARTError` if it fails.
     ///
     /// # Errors
     ///
     /// - `UARTError::ReadError`: If the read operation failed.
     pub fn read(&mut self, buffer: &mut [u8]) -> Result<usize, UARTError> {
-        self.driver.read(buffer, BLOCK).map_err(|_| UARTError::ReadError)
+        self.driver
+            .read(buffer, BLOCK)
+            .map_err(|_| UARTError::ReadError)
     }
 
     /// Reads from the UART buffer with a timeout in us (microsec). The function will
@@ -163,15 +185,21 @@ impl <'a>UART<'a> {
     ///
     /// # Returns
     ///
-    /// A `Result` with the size of the read data if the operation completed successfully, or 
+    /// A `Result` with the size of the read data if the operation completed successfully, or
     /// an `UARTError` if it fails.
     ///
     /// # Errors
     ///
     /// - `UARTError::ReadError`: If the read operation failed.
-    pub fn read_with_timeout(&mut self, buffer: &mut [u8], timeout_us: u32) -> Result<usize, UARTError> {
+    pub fn read_with_timeout(
+        &mut self,
+        buffer: &mut [u8],
+        timeout_us: u32,
+    ) -> Result<usize, UARTError> {
         let timeout: u32 = micro_to_ticks(timeout_us);
-        self.driver.read(buffer, timeout).map_err(|_| UARTError::ReadError)
+        self.driver
+            .read(buffer, timeout)
+            .map_err(|_| UARTError::ReadError)
     }
 }
 
@@ -190,7 +218,11 @@ impl <'a>UART<'a> {
 /// # Errors
 ///
 /// - `UARTError::BaudrateConversionError`: If there's an issue converting the baudrate to Hz.
-fn set_config(baudrate: u32, parity: Parity, stopbit: StopBit) -> Result<config::Config, UARTError >{
+fn set_config(
+    baudrate: u32,
+    parity: Parity,
+    stopbit: StopBit,
+) -> Result<config::Config, UARTError> {
     let bd = baudrate_to_hertz(baudrate)?;
     let mut config = config::Config::new().baudrate(bd);
     config = match parity {
@@ -207,20 +239,20 @@ fn set_config(baudrate: u32, parity: Parity, stopbit: StopBit) -> Result<config:
 }
 
 /// Converts a baudrate value to its corresponding Hertz frequency.
-/// 
+///
 /// # Parameters
 ///
 /// * `baudrate`: The input baudrate value.
 ///
 /// # Returns
-/// 
+///
 /// A `Result` containing a Hertz(freq) if successful  or an `UARTError` if it fails.
 ///
 /// # Errors
 ///
 /// - `UARTError::InvalidBaudrate`: If there's an issue converting the baudrate to Hz.
 fn baudrate_to_hertz(baudrate: u32) -> Result<Hertz, UARTError> {
-    match baudrate{
+    match baudrate {
         110 => Ok(Hertz(110)),
         300 => Ok(Hertz(300)),
         600 => Ok(Hertz(600)),

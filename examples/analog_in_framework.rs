@@ -4,8 +4,7 @@
 
 use esp32framework::Microcontroller;
 
-fn main(){
-
+fn main() {
     let mut micro = Microcontroller::new();
     let mut sound_in = micro.set_pin_as_analog_in_no_atten(5).unwrap();
     micro.wait_for_updates(Some(2000)).unwrap();
@@ -13,10 +12,10 @@ fn main(){
     println!("Value of first second #{first_second}");
     micro.wait_for_updates(Some(2000)).unwrap();
 
-    for _ in 0..10{
+    for _ in 0..10 {
         let sound = sound_in.smooth_read_during(1000).unwrap() as f32;
-        let louder = (sound - first_second)* 100.0 /first_second;
-        println!("sound in is #{louder} % louder than first second" );
+        let louder = (sound - first_second) * 100.0 / first_second;
+        println!("sound in is #{louder} % louder than first second");
         micro.wait_for_updates(Some(100)).unwrap();
     }
     println!("\n End of example");

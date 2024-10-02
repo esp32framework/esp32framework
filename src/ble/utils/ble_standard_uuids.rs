@@ -74,13 +74,12 @@ pub enum StandarServiceId {
 }
 
 impl StandarServiceId {
-
     /// Byte size of the StandarServiceId
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// An usize representing the size
-    pub fn byte_size(&self)-> usize{
+    pub fn byte_size(&self) -> usize {
         2
     }
 }
@@ -88,7 +87,7 @@ impl StandarServiceId {
 /// Enums the UUIDs of standard Bluetooth Low Energy (BLE) characteristics.
 /// Each variant corresponds to a specific characteristic defined by the Bluetooth Special Interest Group (SIG).
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum StandarCharacteristicId{
+pub enum StandarCharacteristicId {
     DeviceName = 0x10752,
     Appearance = 0x10753,
     PeripheralPrivacyFlag = 0x10754,
@@ -542,18 +541,16 @@ pub enum StandarCharacteristicId{
     Percentage8Steps = 0x11269,
 }
 
-impl StandarCharacteristicId{
-
+impl StandarCharacteristicId {
     /// Byte size of the StandarCharacteristicId
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// An usize representing the size
-    pub fn byte_size(&self)-> usize{
+    pub fn byte_size(&self) -> usize {
         2
     }
 }
-
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum StandarDescriptorId {
@@ -577,8 +574,8 @@ pub enum StandarDescriptorId {
     ValidRangeandAccuracy = 10513,
 }
 
-impl StandarDescriptorId{
-    pub fn byte_size(&self) -> usize{
+impl StandarDescriptorId {
+    pub fn byte_size(&self) -> usize {
         2
     }
 }
