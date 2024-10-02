@@ -697,12 +697,13 @@ impl<'a> Microcontroller<'a> {
     ///
     /// # Returns
     ///
-    /// A `Result` with Ok if the operation completed successfully, or an `Esp32FrameworkError` instance if it fails.
+    /// A `Result` with Ok if all driver updates completed successfully, or an `Esp32FrameworkError` instance if it fails.
     ///
     /// # Errors
     ///
-    /// - `Esp32FrameworkError::TimerDriverError`: If an error occurs while updating the timer driver.
-    /// - Depending of the nature of the updated driver, other errors as `Esp32FrameworkError::AnalogOut` may be returned.
+    /// If an error occurs `Esp32FrameworkError` variant is returned which corresponds to the failing update driver type.
+    /// For example if a `TimerDriver` failed while updating the variant `Esp32FrameworkError::TimerDriverError` will be 
+    /// returned
     pub fn update(&mut self) -> Result<(), Esp32FrameworkError> {
         //timer_drivers must be updated before other drivers since this may efect the other drivers updates
         for timer_driver in &mut self.timer_drivers {
@@ -714,15 +715,15 @@ impl<'a> Microcontroller<'a> {
         Ok(())
     }
 
-    /// TODO!
+    /// Indefinitly blocking version of [Self::wait_for_updates]
     fn wait_for_updates_indefinitely(&mut self) -> Result<(), Esp32FrameworkError> {
         loop {
             self.notification.blocking_wait();
             self.update()?;
         }
     }
-
-    /// TODO!
+    
+    /// Limited blocking version of [Self::wait_for_updates]
     fn wait_for_updates_until(&mut self, miliseconds: u32) -> Result<(), Esp32FrameworkError> {
         let timer_driver = match self.timer_drivers.first_mut() {
             Some(timer_driver) => timer_driver,
@@ -745,7 +746,24 @@ impl<'a> Microcontroller<'a> {
         Ok(())
     }
 
-    /// TODO!
+    /// Blocking function that will block for a specified time while keeping updated the microcontroller and other drivers.
+    /// It is necesary to call this function from time to time, so that any interrupt that was set on any driver can be 
+    /// executed properly. Another way to avoid calling this function is to use an asynchronouse aproach, see [Self::block_on]
+    /// 
+    /// # Arguments
+    /// - milioseconds: Amount of miliseconds for which this function will at least block. If None is received then this 
+    ///   function will block for ever
+    /// 
+    /// # Returns
+    ///
+    /// A `Result` with Ok if all driver updates completed successfully, or an `Esp32FrameworkError` instance if 
+    /// any update failed.
+    ///
+    /// # Errors
+    ///
+    /// If an error occurs an `Esp32FrameworkError` variant is returned which corresponds to the failing update driver type.
+    /// For example if a `TimerDriver` failed while updating the variant `Esp32FrameworkError::TimerDriverError` will be 
+    /// returned
     pub fn wait_for_updates(
         &mut self,
         miliseconds: Option<u32>,
@@ -756,12 +774,33 @@ impl<'a> Microcontroller<'a> {
         }
     }
 
-    /// TODO!
+    /// This will block the current thread for at least the specified amount of microseconds. Take into account this 
+    /// also means moast interrupts wont trigger, so if you need to block the thread while having driver interrupts
+    /// take a look at [Self::wait_for_updates] 
+    /// 
+    /// # Arguments
+    /// - miliseconds: The amount of miliseconds for which this function will at least block
     pub fn sleep(&self, miliseconds: u32) {
         FreeRtos::delay_ms(miliseconds)
     }
 
-    /// TODO!
+    /// Async function that will block waiting for notifications and calling [Self::update] until a signal is received.
+    /// This fucntions is the concurrent task that is executed along side with the user callback in [Self::block_on]
+    /// 
+    /// # Arguments
+    /// - finished: A `SharableRef` to a `bool`, that informs us when to stop waiting. On top of setting finished as `true`
+    ///   a notification must me sent to
+    /// 
+    /// # Returns
+    ///
+    /// A `Result` with Ok if all driver updates completed successfully, or an `Esp32FrameworkError` instance if 
+    /// any update failed.
+    ///
+    /// # Errors
+    ///
+    /// If an error occurs an `Esp32FrameworkError` variant is returned which corresponds to the failing update driver type.
+    /// For example if a `TimerDriver` failed while updating the variant `Esp32FrameworkError::TimerDriverError` will be 
+    /// returned
     async fn wait_for_updates_until_finished(
         &mut self,
         finished: SharableRef<bool>,
@@ -776,16 +815,20 @@ impl<'a> Microcontroller<'a> {
         Ok(())
     }
 
-    /// This functions works in a similar way to the block_on function from the futures crate. It blocks the current thread until the future is finished.
+    /// This functions works in a similar way to the block_on function from the futures crate. 
+    /// It blocks the current thread until the future is finished. Aditionally it will execute concurrently 
+    /// another task that will make sure to keep the microcontroller and created drivers updated.
     ///
     /// # Arguments
     /// - `fut`: The future to be executed.
     ///
     /// # Returns
-    /// A `result` containing the output of the future or an `Esp32FrameworkError` if the future fails.
+    /// A `result` containing the output of the future or an `Esp32FrameworkError` if the aditional updating task fails.
     ///
     /// # Errors
-    ///  TODO!
+    /// If an error occurs an `Esp32FrameworkError` variant is returned which corresponds to the failing update driver type.
+    /// For example if a `TimerDriver` failed while updating the variant `Esp32FrameworkError::TimerDriverError` will be 
+    /// returned
     pub fn block_on<F: Future>(&mut self, fut: F) -> Result<F::Output, Esp32FrameworkError> {
         let finished = SharableRef::new_sharable(false);
         let fut = wrap_user_future(self.notification.notifier(), finished.clone(), fut);
@@ -812,7 +855,18 @@ impl<'a> Default for Microcontroller<'a> {
     }
 }
 
-/// TODO!
+
+/// Wrapps fut into a new futere. The new future will await the original future and then will communicate when it 
+/// finishes by sending a notification and seting finished. Finally it returns the original future output.
+/// 
+/// # Arguments
+/// - fut: `Future` to wrap
+/// - notifier: After executing fut, it will send a notification threw this `Notifier`
+/// - finished: A `SharableRef<bool>` that will be set to true after finishing.
+/// 
+/// # Returns
+/// 
+/// The original future output
 async fn wrap_user_future<F: Future>(
     notifier: Notifier,
     mut finished: SharableRef<bool>,
