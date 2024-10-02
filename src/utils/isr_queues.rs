@@ -147,6 +147,7 @@ pub trait ISRQueueTrait<T> {
     ///  # Errors
     ///
     /// - `ISRQueueError::Timeout`: If the operation fails.
+    #[allow(dead_code)]
     fn try_send(&mut self, item: T) -> Result<(), ISRQueueError> {
         self.send_timeout(item, 0).map_err(|_| ISRQueueError::Empty)
     }
@@ -156,6 +157,7 @@ pub trait ISRQueueTrait<T> {
     /// # Returns
     ///
     /// The received item from the queue.
+    #[allow(dead_code)]
     fn receive(&mut self) -> T {
         self.receive_timeout(BLOCK).unwrap()
     }

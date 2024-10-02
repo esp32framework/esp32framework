@@ -2,7 +2,10 @@ use esp_idf_svc::sys::EspError;
 
 use crate::{
     ble::BleError,
-    gpio::{digital::{DigitalInError, DigitalOutError}, analog::{AnalogInError, AnalogInPwmError, AnalogOutError}},
+    gpio::{
+        analog::{AnalogInError, AnalogInPwmError, AnalogOutError},
+        digital::{DigitalInError, DigitalOutError},
+    },
     serial::{i2c::I2CError, uart::UARTError},
     utils::timer_driver::TimerDriverError,
     wifi::WifiError,

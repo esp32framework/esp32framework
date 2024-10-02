@@ -1,7 +1,7 @@
 //! Example using pin GPIO9 as digital in to count the amount of times a button
 //! is pressed. The signal is configured with a debounce time of 200msec.
 
-use esp32framework::{gpio::InterruptType, Microcontroller};
+use esp32framework::{gpio::digital::InterruptType, Microcontroller};
 
 fn main() {
     let mut micro = Microcontroller::new();

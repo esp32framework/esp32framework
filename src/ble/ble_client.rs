@@ -14,7 +14,7 @@ use crate::{
     InterruptDriver,
 };
 
-use super::utils::{RemoteCharacteristic, BleAdvertisedDevice, BleError, BleId};
+use super::utils::{BleAdvertisedDevice, BleError, BleId, RemoteCharacteristic};
 
 /// Driver responsible for handling the client-end of ble connections. Can be used to read, write or notify
 /// on characteristics of services of connected clients

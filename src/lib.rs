@@ -1,7 +1,7 @@
 #![allow(clippy::await_holding_refcell_ref)]
 
-mod utils;
 mod microcontroller_src;
+mod utils;
 
 pub mod ble;
 pub mod gpio;
@@ -12,5 +12,5 @@ pub mod wifi;
 pub(crate) use microcontroller_src::interrupt_driver::InterruptDriver;
 
 pub use microcontroller_src::Microcontroller;
-pub use utils::timer_driver;
 pub use utils::esp32_framework_error;
+pub use utils::timer_driver;

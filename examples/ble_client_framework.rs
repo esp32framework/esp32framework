@@ -7,7 +7,7 @@
 use std::sync::mpsc::{self, Receiver};
 
 use esp32framework::{
-    ble::{BleError, BleId, RemoteCharacteristic},
+    ble::{utils::RemoteCharacteristic, BleError, BleId},
     timer_driver::TimerDriver,
     Microcontroller,
 };

@@ -6,8 +6,11 @@
 
 use esp32framework::{
     ble::{
-        BleId, BleServer, Characteristic, IOCapabilities, Security, Service,
-        StandarCharacteristicId, StandarServiceId,
+        utils::{
+            ble_standard_uuids::{StandarCharacteristicId, StandarServiceId},
+            Characteristic, IOCapabilities, Security, Service,
+        },
+        BleId, BleServer,
     },
     Microcontroller,
 };

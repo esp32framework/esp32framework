@@ -2,7 +2,7 @@
 //! its data each 10 seconds.
 
 use esp32framework::{
-    ble::{BleId, Service},
+    ble::{utils::Service, BleId},
     Microcontroller,
 };
 

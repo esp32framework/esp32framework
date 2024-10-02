@@ -1,11 +1,6 @@
 use esp_idf_svc::hal::task::{asynch::Notification as AsyncNotif, block_on};
 use std::sync::Arc;
 
-#[derive(Debug)]
-pub enum NotificationError {
-    NoOneToNotify,
-}
-
 pub struct Notification {
     notif: Arc<AsyncNotif>,
 }

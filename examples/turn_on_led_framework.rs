@@ -2,7 +2,7 @@
 //! is pressed and to turn ON and OFF the led connected in GPIO3.
 //! The signal is configured with a debounce time of 200msec.
 
-use esp32framework::{gpio::InterruptType, Microcontroller};
+use esp32framework::{gpio::digital::InterruptType, Microcontroller};
 
 fn main() {
     let mut micro = Microcontroller::new();

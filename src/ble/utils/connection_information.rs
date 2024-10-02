@@ -1,6 +1,5 @@
 use esp32_nimble::{BLEAddress, BLEConnDesc, BLEError};
 
-
 /// Contains information about the new client connected that can be user on
 /// connection or disconnection callbacks.
 ///

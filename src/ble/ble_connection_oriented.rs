@@ -1,4 +1,7 @@
-use super::utils::{BleError, BleId, Characteristic, ConnectionMode, DiscoverableMode, Service, ConnectionInformation};
+use super::utils::{
+    BleError, BleId, Characteristic, ConnectionInformation, ConnectionMode, DiscoverableMode,
+    Service,
+};
 use crate::{
     utils::{
         auxiliary::{SharableRef, SharableRefExt},
@@ -9,8 +12,8 @@ use crate::{
     InterruptDriver,
 };
 use esp32_nimble::{
-    utilities::mutex::Mutex, BLEAddress, BLEAdvertisementData, BLEAdvertising, BLEConnDesc,
-    BLEDevice, BLEError, BLEServer, BLEService, NimbleProperties,
+    utilities::mutex::Mutex, BLEAdvertisementData, BLEAdvertising, BLEDevice, BLEServer,
+    BLEService, NimbleProperties,
 };
 use esp_idf_svc::hal::task;
 use sharable_reference_macro::sharable_reference_wrapper;
