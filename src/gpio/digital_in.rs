@@ -53,7 +53,6 @@ struct _DigitalIn<'a> {
 }
 
 /// Driver for receiving digital inputs from a particular Pin
-/// Wrapper of [_DigitalIn]
 #[derive(Clone)]
 pub struct DigitalIn<'a> {
     inner: SharableRef<_DigitalIn<'a>>,

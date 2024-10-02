@@ -74,13 +74,12 @@ impl _BleClient {
     ///
     /// - `timeout`: A duration in which the client will attempt to connect to a device that fullfills the condition. If it is None then
     /// the client will attempt to connect indefinitly
-    /// - `condition`: A closure that receives a [&BleAdvertisedDevice], and returns a bool. The client will connect to any device where applying
+    /// - `condition`: A closure that receives a `&BleAdvertisedDevice`, and returns a bool. The client will connect to any device where applying
     /// this clossure returns true. This way the client can connect to any device that advertises itslef in a certain way.
     ///
     /// # Returns
     ///
-    /// A `Ok(BleAdvertisedDevice)` if it was able to find a device that satisfice the condition before `timeout`, or a `Err(BleError)` if non
-    /// can be found before the `timeout`
+    /// A `Result` with BleAdvertisedDevice if the search is completed successfully, or an `BleError` if it fails.
     ///
     /// # Errors
     ///
@@ -123,13 +122,16 @@ impl _BleClient {
     ///
     /// - `timeout`: A duration in which the client will attempt to connect to a device that fullfills the condition. If it is None then
     /// the client will attempt to connect indefinitly
-    /// - `service_id`: A [&BleId] that a advertising devise must advertise in order for the client to connect to it
+    /// - `service_id`: A `&BleId` that a advertising devise must advertise in order for the client to connect to it
     ///
     /// # Returns
-    /// Same return type as [Self::find_device]
+    ///
+    /// A `Result` with BleAdvertisedDevice if the search is completed successfully, or an `BleError` if it fails.
     ///
     /// # Errors
-    /// Same erros as [Self::find_device]
+    ///
+    /// - `BleError::DeviceNotFound`: if didnt find any device that meets condition in `timeout`
+    /// - `BleError::Code`: on other errors
     pub fn find_device_with_service(
         &mut self,
         timeout: Option<Duration>,
@@ -142,15 +144,18 @@ impl _BleClient {
     ///
     /// # Arguments
     ///
-    /// - `timeout`: A duration in which the client will attempt to connect to a device that fullfills the condition. If it is None then
-    /// the client will attempt to connect indefinitly
+    /// - `timeout`: A duration in which the client will attempt to connect to a device that fullfills the condition.
+    /// If it is None then the client will attempt to connect indefinitly
     /// - `name`: A name that a advertising devise must have in order for the client to connect to it
     ///
     /// # Returns
-    /// Same return type as [Self::find_device]
+    ///
+    /// A `Result` with BleAdvertisedDevice if the search is completed successfully, or an `BleError` if it fails.
     ///
     /// # Errors
-    /// Same erros as [Self::find_device]
+    ///
+    /// - `BleError::DeviceNotFound`: if didnt find any device that meets condition in `timeout`
+    /// - `BleError::Code`: on other errors
     pub fn find_device_of_name(
         &mut self,
         timeout: Option<Duration>,
@@ -185,7 +190,7 @@ impl _BleClient {
     ///
     /// - `timeout`: A duration in which the client will attempt to connect to a device that fullfills the condition. If it is None then
     /// the client will attempt to connect indefinitely
-    /// - `condition`: A closure that receives a [&BleAdvertisedDevice], and returns a bool. The client will connect to any device where applying
+    /// - `condition`: A closure that receives a `&BleAdvertisedDevice`, and returns a bool. The client will connect to any device where applying
     /// this clossure returns true. This way the client can connect to any device that advertises itslef in a certain way.
     ///
     /// # Returns

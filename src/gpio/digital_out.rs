@@ -28,7 +28,7 @@ pub enum DigitalOutError {
 /// Driver to handle a digital output for a particular Pin
 /// - `pin_driver`: A PinDriver instance that handles the output signals
 /// - `timer_driver`: A TimerDriver instance
-/// - `interrupt_update_code`: An Arc<AtomicInterruptUpdateCode> to handle interrupts
+/// - `interrupt_update_code`: An `Arc<AtomicInterruptUpdateCode>` to handle interrupts
 pub struct _DigitalOut<'a> {
     pin_driver: PinDriver<'a, AnyIOPin, Output>,
     timer_driver: TimerDriver<'a>,

@@ -8,8 +8,8 @@ use super::{StandarCharacteristicId, StandarDescriptorId, StandarServiceId};
 /// - `StandardService`: The UUIDs of standard Bluetooth Low Energy (BLE) services.
 /// - `StandarCharacteristic`: The UUIDs of standard Bluetooth Low Energy (BLE) characteristics.
 /// - `ByName`: A string that can be made into a BLE id.
-/// - `FromUuid16`: A way to get a BLE id from an u16.
-/// - `FromUuid128`: A way to get a BLE id from an [u8;16].
+/// - `FromUuid16`: A way to get a BLE id from an `u16`.
+/// - `FromUuid128`: A way to get a BLE id from an `[u8;16]`.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum BleId {
     ByName(String),

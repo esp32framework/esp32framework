@@ -16,7 +16,7 @@ pub enum ISRQueueError {
     Empty,
 }
 
-/// A wrapper of `ISRQueue` to share Vec<u8> easily.
+/// A wrapper of `ISRQueue` to share `Vec<u8>` easily.
 #[derive(Clone)]
 pub struct ISRByteArrayQueue {
     q: ISRQueue<Option<u8>>,
