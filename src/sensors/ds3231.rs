@@ -1,4 +1,4 @@
-use crate::serial::{I2CError, I2CMaster, READER};
+use crate::serial::{i2c::{I2CError, I2CMaster}, READER};
 use esp_idf_svc::hal::delay::BLOCK;
 use std::collections::HashMap;
 

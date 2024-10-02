@@ -1,8 +1,8 @@
 use crate::{
-    ble::{ble_client::BleClient, BleBeacon, BleError, BleServer, Security, Service},
-    gpio::*,
+    ble::{BleClient, BleBeacon, BleError, BleServer, utils::{Security, Service}},
+    gpio::{digital::*, analog::*},
     microcontroller_src::{interrupt_driver::InterruptDriver, peripherals::*},
-    serial::{I2CError, I2CMaster, I2CSlave, Parity, StopBit, UARTError, UART},
+    serial::{uart::*, i2c::*},
     timer_driver::TimerDriverError,
     utils::{
         auxiliary::{SharableRef, SharableRefExt},

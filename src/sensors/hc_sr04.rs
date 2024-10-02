@@ -1,4 +1,4 @@
-use crate::gpio::{DigitalIn, DigitalOut, DigitalOutError};
+use crate::gpio::digital::{DigitalIn, DigitalOut, DigitalOutError};
 use esp_idf_svc::{hal::delay::Delay, sys::esp_timer_get_time};
 use std::sync::{atomic::AtomicU32, Arc};
 

@@ -2,8 +2,8 @@ use esp_idf_svc::sys::EspError;
 
 use crate::{
     ble::BleError,
-    gpio::{AnalogInError, AnalogInPwmError, AnalogOutError, DigitalInError, DigitalOutError},
-    serial::{I2CError, UARTError},
+    gpio::{digital::{DigitalInError, DigitalOutError}, analog::{AnalogInError, AnalogInPwmError, AnalogOutError}},
+    serial::{i2c::I2CError, uart::UARTError},
     utils::timer_driver::TimerDriverError,
     wifi::WifiError,
 };

@@ -1,5 +1,4 @@
 use esp32framework::Microcontroller;
-
 fn main() {
     let mut micro = Microcontroller::new();
     let mut timer = micro.get_timer_driver().unwrap();
