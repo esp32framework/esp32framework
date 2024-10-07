@@ -2,7 +2,7 @@ use esp32_nimble::utilities::BleUuid;
 use std::hash::Hash;
 use uuid::Uuid;
 
-use super::{StandarCharacteristicId, StandarDescriptorId, StandarServiceId};
+use super::ble_standard_uuids::{StandarCharacteristicId, StandarDescriptorId, StandarServiceId};
 
 /// Enums the possible types of Ids:
 /// - `StandardService`: The UUIDs of standard Bluetooth Low Energy (BLE) services.

@@ -1,4 +1,4 @@
-use crate::gpio::DigitalInError;
+use crate::gpio::digital::DigitalInError;
 use esp_idf_svc::sys::{EspError, ESP_ERR_INVALID_STATE};
 
 // pub fn err_code_to_text(err_code: i32, context: &str) -> String {

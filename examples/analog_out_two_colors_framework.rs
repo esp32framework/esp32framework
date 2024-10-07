@@ -12,5 +12,5 @@ fn main() {
         .start_decreasing_bounce_back(100, 0.05, 0.0, None)
         .unwrap();
 
-    micro.wait_for_updates(None).unwrap();
+    micro.wait_for_updates(None);
 }

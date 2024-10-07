@@ -1,5 +1,5 @@
 use crate::{
-    gpio::digital_in::{DigitalIn, DigitalInError},
+    gpio::digital::{DigitalIn, DigitalInError},
     microcontroller_src::peripherals::Peripheral,
     timer_driver::TimerDriverError,
     utils::timer_driver::TimerDriver,
