@@ -55,19 +55,43 @@ impl<'a> Microcontroller<'a> {
     ///
     /// # Panics
     ///
-    /// If the take on the EspSystemEventLoop fails. This may happen if it was already taken before
+    /// This maay panic if the initialization fails, leaving the microcontroller in an invalid state.
     pub fn new() -> Self {
         esp_idf_svc::sys::link_patches();
-        let peripherals = Peripherals::new();
+        let mut peripherals = Peripherals::new();
+        let notification = Notification::new();
+        let timer_drivers =
+            Microcontroller::initialize_timer_drivers(&mut peripherals, &notification).unwrap();
 
         Microcontroller {
             peripherals,
-            timer_drivers: vec![],
+            timer_drivers,
             interrupt_drivers: Vec::new(),
             adc_driver: None,
-            notification: Notification::new(),
+            notification,
             event_loop: EspSystemEventLoop::take().expect("Error creating microcontroller"),
         }
+    }
+
+    /// Creates the timer_drivers for all timer groups
+    ///
+    /// #Returns
+    ///
+    /// A `Result` containing the timer drivers or an instance or a `TimerDriverError` if the creation fails.
+    ///
+    /// # Errors
+    ///
+    /// - `TimerDriverError::InvalidTimer`: If the peripheral used is not a Peripheral::Timer  
+    fn initialize_timer_drivers(
+        peripherals: &mut Peripherals,
+        notification: &Notification,
+    ) -> Result<Vec<TimerDriver<'a>>, TimerDriverError> {
+        let mut timer_drivers = Vec::new();
+        for i in 0..TIMER_GROUPS {
+            let timer = peripherals.get_timer(i);
+            timer_drivers.push(TimerDriver::new(timer, notification.notifier())?);
+        }
+        Ok(timer_drivers)
     }
 
     /// Retrieves a TimerDriver instance.
@@ -77,21 +101,12 @@ impl<'a> Microcontroller<'a> {
     /// A `Result` containing a new `TimerDriver` instance or a `TimerDriverError` if the creation fails.
     ///
     /// A `TimerDriver` instance can be used to manage timers in the microcontroller.
-    /// If the number of existing `TimerDriver`s is less than 2, a new one is created and added to the list.
-    /// Otherwise, the first driver in the list is reused.
     ///
     /// # Errors
     ///
-    /// - `TimerDriverError::InvalidTimer`: If the peripheral used is not a Peripheral::Timer
-    /// - `TimerDriverError::OnlyOriginalCopyCanCreateChildren`: // TODO: Why can this happen?  
+    /// - `TimerDriverError::TooManyChildren`: If too many timer drivers have been created
     pub fn get_timer_driver(&mut self) -> Result<TimerDriver<'a>, TimerDriverError> {
-        let mut timer_driver = if self.timer_drivers.len() < TIMER_GROUPS {
-            let timer = self.peripherals.get_timer(self.timer_drivers.len());
-            TimerDriver::new(timer, self.notification.notifier())?
-        } else {
-            self.timer_drivers.swap_remove(0)
-        };
-
+        let mut timer_driver = self.timer_drivers.swap_remove(0);
         let timer_driver_copy = timer_driver.create_child_copy()?;
         self.timer_drivers.push(timer_driver);
         Ok(timer_driver_copy)
@@ -702,7 +717,7 @@ impl<'a> Microcontroller<'a> {
     /// # Errors
     ///
     /// If an error occurs `Esp32FrameworkError` variant is returned which corresponds to the failing update driver type.
-    /// For example if a `TimerDriver` failed while updating the variant `Esp32FrameworkError::TimerDriverError` will be 
+    /// For example if a `TimerDriver` failed while updating the variant `Esp32FrameworkError::TimerDriverError` will be
     /// returned
     pub fn update(&mut self) -> Result<(), Esp32FrameworkError> {
         //timer_drivers must be updated before other drivers since this may efect the other drivers updates
@@ -716,19 +731,16 @@ impl<'a> Microcontroller<'a> {
     }
 
     /// Indefinitly blocking version of [Self::wait_for_updates]
-    fn wait_for_updates_indefinitely(&mut self) -> Result<(), Esp32FrameworkError> {
+    fn wait_for_updates_indefinitely(&mut self) {
         loop {
             self.notification.blocking_wait();
-            self.update()?;
+            self.update().unwrap();
         }
     }
-    
+
     /// Limited blocking version of [Self::wait_for_updates]
-    fn wait_for_updates_until(&mut self, miliseconds: u32) -> Result<(), Esp32FrameworkError> {
-        let timer_driver = match self.timer_drivers.first_mut() {
-            Some(timer_driver) => timer_driver,
-            None => &mut self.get_timer_driver().unwrap(),
-        };
+    fn wait_for_updates_until(&mut self, miliseconds: u32) {
+        let timer_driver = self.timer_drivers.first_mut().unwrap();
 
         let timed_out = SharableRef::new_sharable(false);
         let mut timed_out_ref = timed_out.clone();
@@ -741,43 +753,33 @@ impl<'a> Microcontroller<'a> {
 
         while !*timed_out.deref() {
             self.notification.blocking_wait();
-            self.update()?;
+            self.update().unwrap();
         }
-        Ok(())
     }
 
     /// Blocking function that will block for a specified time while keeping updated the microcontroller and other drivers.
-    /// It is necesary to call this function from time to time, so that any interrupt that was set on any driver can be 
+    /// It is necesary to call this function from time to time, so that any interrupt that was set on any driver can be
     /// executed properly. Another way to avoid calling this function is to use an asynchronouse aproach, see [Self::block_on]
-    /// 
+    ///
     /// # Arguments
-    /// - milioseconds: Amount of miliseconds for which this function will at least block. If None is received then this 
+    /// - milioseconds: Amount of miliseconds for which this function will at least block. If None is received then this
     ///   function will block for ever
-    /// 
-    /// # Returns
     ///
-    /// A `Result` with Ok if all driver updates completed successfully, or an `Esp32FrameworkError` instance if 
-    /// any update failed.
+    /// # Panics
     ///
-    /// # Errors
-    ///
-    /// If an error occurs an `Esp32FrameworkError` variant is returned which corresponds to the failing update driver type.
-    /// For example if a `TimerDriver` failed while updating the variant `Esp32FrameworkError::TimerDriverError` will be 
-    /// returned
-    pub fn wait_for_updates(
-        &mut self,
-        miliseconds: Option<u32>,
-    ) -> Result<(), Esp32FrameworkError> {
+    /// This function will panic if an update fails. This is considered to leave the microcontroller in an invalid state
+    /// so all execution is stopped inmediatly by panicking
+    pub fn wait_for_updates(&mut self, miliseconds: Option<u32>) {
         match miliseconds {
             Some(milis) => self.wait_for_updates_until(milis),
             None => self.wait_for_updates_indefinitely(),
         }
     }
 
-    /// This will block the current thread for at least the specified amount of microseconds. Take into account this 
+    /// This will block the current thread for at least the specified amount of microseconds. Take into account this
     /// also means moast interrupts wont trigger, so if you need to block the thread while having driver interrupts
-    /// take a look at [Self::wait_for_updates] 
-    /// 
+    /// take a look at [Self::wait_for_updates]
+    ///
     /// # Arguments
     /// - miliseconds: The amount of miliseconds for which this function will at least block
     pub fn sleep(&self, miliseconds: u32) {
@@ -786,55 +788,39 @@ impl<'a> Microcontroller<'a> {
 
     /// Async function that will block waiting for notifications and calling [Self::update] until a signal is received.
     /// This fucntions is the concurrent task that is executed along side with the user callback in [Self::block_on]
-    /// 
+    ///
     /// # Arguments
     /// - finished: A `SharableRef` to a `bool`, that informs us when to stop waiting. On top of setting finished as `true`
     ///   a notification must me sent to
-    /// 
-    /// # Returns
     ///
-    /// A `Result` with Ok if all driver updates completed successfully, or an `Esp32FrameworkError` instance if 
-    /// any update failed.
+    /// # Panics
     ///
-    /// # Errors
-    ///
-    /// If an error occurs an `Esp32FrameworkError` variant is returned which corresponds to the failing update driver type.
-    /// For example if a `TimerDriver` failed while updating the variant `Esp32FrameworkError::TimerDriverError` will be 
-    /// returned
-    async fn wait_for_updates_until_finished(
-        &mut self,
-        finished: SharableRef<bool>,
-    ) -> Result<(), Esp32FrameworkError> {
+    /// This function will panic if an update fails. This is considered to leave the microcontroller in an invalid state
+    /// so all execution is stopped inmediatly by panicking
+    async fn wait_for_updates_until_finished(&mut self, finished: SharableRef<bool>) {
         while !*finished.deref() {
             self.notification.wait().await;
-            self.update().map_err(|err| {
-                println!("{:?}", err);
-                err
-            })?
+            self.update().unwrap()
         }
-        Ok(())
     }
 
-    /// This functions works in a similar way to the block_on function from the futures crate. 
-    /// It blocks the current thread until the future is finished. Aditionally it will execute concurrently 
+    /// This functions works in a similar way to the block_on function from the futures crate.
+    /// It blocks the current thread until the future is finished. Aditionally it will execute concurrently
     /// another task that will make sure to keep the microcontroller and created drivers updated.
     ///
     /// # Arguments
     /// - `fut`: The future to be executed.
     ///
-    /// # Returns
-    /// A `result` containing the output of the future or an `Esp32FrameworkError` if the aditional updating task fails.
-    ///
     /// # Errors
-    /// If an error occurs an `Esp32FrameworkError` variant is returned which corresponds to the failing update driver type.
-    /// For example if a `TimerDriver` failed while updating the variant `Esp32FrameworkError::TimerDriverError` will be 
-    /// returned
-    pub fn block_on<F: Future>(&mut self, fut: F) -> Result<F::Output, Esp32FrameworkError> {
+    ///
+    /// # Panics
+    ///
+    /// If the concurrently updating task fails, the microcontroller is considered to be in an invalid state
+    /// and will stop execution inmidiatly by panicking
+    pub fn block_on<F: Future>(&mut self, fut: F) -> F::Output {
         let finished = SharableRef::new_sharable(false);
         let fut = wrap_user_future(self.notification.notifier(), finished.clone(), fut);
-        let res = block_on(join(fut, self.wait_for_updates_until_finished(finished)));
-        res.1?;
-        Ok(res.0)
+        block_on(join(fut, self.wait_for_updates_until_finished(finished))).0
     }
 }
 
@@ -855,17 +841,16 @@ impl<'a> Default for Microcontroller<'a> {
     }
 }
 
-
-/// Wrapps fut into a new futere. The new future will await the original future and then will communicate when it 
+/// Wrapps fut into a new futere. The new future will await the original future and then will communicate when it
 /// finishes by sending a notification and seting finished. Finally it returns the original future output.
-/// 
+///
 /// # Arguments
 /// - fut: `Future` to wrap
 /// - notifier: After executing fut, it will send a notification threw this `Notifier`
 /// - finished: A `SharableRef<bool>` that will be set to true after finishing.
-/// 
+///
 /// # Returns
-/// 
+///
 /// The original future output
 async fn wrap_user_future<F: Future>(
     notifier: Notifier,

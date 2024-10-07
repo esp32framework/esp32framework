@@ -5,5 +5,5 @@ fn main() {
     timer.interrupt_after(2000000, || println!("el timer esta bien"));
     timer.enable().unwrap();
 
-    micro.wait_for_updates(None).unwrap();
+    micro.wait_for_updates(None);
 }

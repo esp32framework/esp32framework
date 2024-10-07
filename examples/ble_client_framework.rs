@@ -34,7 +34,7 @@ fn get_characteristics(micro: &mut Microcontroller) -> Vec<RemoteCharacteristic>
     client.connect_to_device(device).unwrap();
 
     println!("Connected");
-    micro.wait_for_updates(Some(2000)).unwrap();
+    micro.wait_for_updates(Some(2000));
 
     client.get_all_characteristics(&service_id).unwrap()
 }

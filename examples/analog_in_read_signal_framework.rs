@@ -16,6 +16,6 @@ fn main() {
             "ADC value with {:?} amount of reads: {:?}",
             SAMPLING_QUANTITY, smooth_read
         );
-        micro.wait_for_updates(Some(1000)).unwrap();
+        micro.wait_for_updates(Some(1000));
     }
 }

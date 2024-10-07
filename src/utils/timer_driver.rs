@@ -1,5 +1,8 @@
 use crate::{
-    microcontroller_src::{interrupt_driver::InterruptDriver, peripherals::{Peripheral, PeripheralError}},
+    microcontroller_src::{
+        interrupt_driver::InterruptDriver,
+        peripherals::{Peripheral, PeripheralError},
+    },
     utils::timer_driver::timer::TimerConfig,
 };
 use esp_idf_svc::hal::timer;
@@ -135,7 +138,7 @@ impl TimeInterrupt {
         }
     }
 
-    /// Creates the corresponding alarm 
+    /// Creates the corresponding alarm
     fn get_alarm(&self, current_time: u64) -> Alarm {
         Alarm::new(self.id, self.current_alarm_id, self.after + current_time)
     }
@@ -211,11 +214,23 @@ impl<'a> _TimerDriver<'a> {
             Peripheral::Timer(timer_num) => match timer_num {
                 0 => timer::TimerDriver::new(unsafe { timer::TIMER00::new() }, &TimerConfig::new()),
                 1 => timer::TimerDriver::new(unsafe { timer::TIMER10::new() }, &TimerConfig::new()),
-                _ => return Err(TimerDriverError::InvalidPeripheral(PeripheralError::NotATimerGroup)),
+                _ => {
+                    return Err(TimerDriverError::InvalidPeripheral(
+                        PeripheralError::NotATimerGroup,
+                    ))
+                }
             }
             .map_err(|_| TimerDriverError::InvalidPeripheral(PeripheralError::NotATimerGroup))?,
-            Peripheral::None => return Err(TimerDriverError::InvalidPeripheral(PeripheralError::AlreadyTaken)),
-            _ => return Err(TimerDriverError::InvalidPeripheral(PeripheralError::NotATimerGroup)),
+            Peripheral::None => {
+                return Err(TimerDriverError::InvalidPeripheral(
+                    PeripheralError::AlreadyTaken,
+                ))
+            }
+            _ => {
+                return Err(TimerDriverError::InvalidPeripheral(
+                    PeripheralError::NotATimerGroup,
+                ))
+            }
         };
 
         let mut timer = _TimerDriver {
@@ -259,9 +274,9 @@ impl<'a> _TimerDriver<'a> {
 
     /// Sets an interrupt that triggers once after "microseconds". For this to start working [Self::enable()]
     /// must be called. After the interrupt has been trigger it can be reset by calling [Self::enable()]
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     //   - `id`: id by which the interrupt will be identified. This corresponds to the id of the wrapper [TimerDriver]
     ///  - `micro_seconds`: time after which the interrupt will trigger
     ///  - `callback`: callback to be executed when the interrupt triggers
@@ -278,14 +293,14 @@ impl<'a> _TimerDriver<'a> {
     /// triggers indefinitely. If autoenable is set, after triggering the callback, it will be set again
     /// if not it will have to be reenabled manually by caling [Self::enable()]. For this to start working
     /// [Self::enable()] must be called.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     //   - `id`: id by which the interrupt will be identified. This corresponds to the id of the wrapper [TimerDriver]
     ///  - `micro_seconds`: time after which the interrupt will trigger
     ///  - `amount_of_triggers`: amount of times the interrupt will trigger, if None it will trigger indefinitely
     ///  - `auto_reenable`: true if the interrupt will be reenabled after triggering
-    ///  - `callback`: callback to be executed each time the interrupt triggers 
+    ///  - `callback`: callback to be executed each time the interrupt triggers
     pub fn interrupt_after_n_times<F: FnMut() + 'static>(
         &mut self,
         id: u16,
@@ -315,16 +330,16 @@ impl<'a> _TimerDriver<'a> {
 
     /// Activates the timeInterrupt corresponding to "id". By setting the interrupt status as `TimerInterruptStatus::Enabled`
     /// and making sure the interrupt has an alarm
-    /// 
+    ///
     /// # Arguments
     ///   - `id`: id by which the interrupt will be identified. This corresponds to the id of the wrapper [TimerDriver]
-    /// 
-    /// # Returns 
-    /// 
+    ///
+    /// # Returns
+    ///
     /// A `Result` with `Ok` if the activation was completed succesfully or an Err(TimerDriverError) if it failed
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// - TimerDriverError::ErrorReadingTimer: if it fails when trying to get the current time
     fn activate(&mut self, id: u16) -> Result<(), TimerDriverError> {
         if let Some(interrupt) = self.interrupts.get_mut(&id) {
@@ -342,7 +357,7 @@ impl<'a> _TimerDriver<'a> {
 
     /// Deactivates the timeInterrupt corresponding to "id", by setting interrupt status as `TimerInterruptStatus::Disabled`
     /// and making sure all previouse alarms of the interrupt are ignored
-    /// 
+    ///
     /// # Arguments
     ///   - `id`: id by which the interrupt will be identified. This corresponds to the id of the wrapper [TimerDriver]
     fn deactivate(&mut self, id: u16) {
@@ -364,16 +379,16 @@ impl<'a> _TimerDriver<'a> {
     /// Enables or disables the interrupt corresponding to "id". If the interrupt is enabled, and it
     /// is the new lowest time, the soonest alarm is updated. When the first interrupt is enabled, or the last
     /// disabled the timer is started or stoped accordingly
-    /// 
+    ///
     /// # Arguments
     /// - `id`: id by which the interrupt will be identified. This corresponds to the id of the wrapper [TimerDriver]
     /// - `enable`: if set true, enable interrupt, if set false, disable it
     ///
     /// # Returns
     /// A `Result` containing `Ok` if interrupt was inabled or `Err(TimerDriverError)` if it failed
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// - `TimerDriverError::CouldNotSetTimer`: if it fails trying to set an alarm for the interrupt
     /// - `TimerDriverError::ErrorReadingTimer`: if it fails when trying to get the current time
     /// - `TimerDriverError::ErrorReadingAlarm`: failure getting current alarm time
@@ -408,15 +423,15 @@ impl<'a> _TimerDriver<'a> {
     }
 
     /// Enables the interrupt if it has been set.
-    /// 
+    ///
     // # Arguments
     // - `id`: id by which the interrupt will be identified. This corresponds to the id of the wrapper [TimerDriver]
     ///
     /// # Returns
     /// A `Result` containing `Ok` if interrupt was inabled or `Err(TimerDriverError)` if it failed
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// - `TimerDriverError::CouldNotSetTimer`: if it fails trying to set an alarm for the interrupt
     /// - `TimerDriverError::ErrorReadingTimer`: if it fails when trying to get the current time
     /// - `TimerDriverError::ErrorReadingAlarm`: failure getting current alarm time
@@ -425,15 +440,15 @@ impl<'a> _TimerDriver<'a> {
     }
 
     /// Disables the interrupt if it has been set.
-    /// 
+    ///
     // # Arguments
-    // - `id`: id by which the interrupt will be identified. This corresponds to the id of the wrapper [TimerDriver] 
+    // - `id`: id by which the interrupt will be identified. This corresponds to the id of the wrapper [TimerDriver]
     ///
     /// # Returns
     /// A `Result` containing `Ok` if interrupt was inabled or `Err(TimerDriverError)` if it failed
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// - `TimerDriverError::CouldNotSetTimer`: if it fails trying to set an alarm for the interrupt
     /// - `TimerDriverError::ErrorReadingTimer`: if it fails when trying to get the current time
     /// - `TimerDriverError::ErrorReadingAlarm`: failure getting current alarm time
@@ -443,15 +458,15 @@ impl<'a> _TimerDriver<'a> {
     }
 
     /// Removes the interrupt if it has been set.
-    /// 
+    ///
     // # Arguments
-    // - `id`: id by which the interrupt will be identified. This corresponds to the id of the wrapper [TimerDriver] 
+    // - `id`: id by which the interrupt will be identified. This corresponds to the id of the wrapper [TimerDriver]
     ///
     /// # Returns
     /// A `Result` containing `Ok` if interrupt was inabled or `Err(TimerDriverError)` if it failed
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// - `TimerDriverError::CouldNotSetTimer`: if it fails trying to set an alarm for the interrupt
     /// - `TimerDriverError::ErrorReadingTimer`: if it fails when trying to get the current time
     /// - `TimerDriverError::ErrorReadingAlarm`: failure getting current alarm time
@@ -465,13 +480,13 @@ impl<'a> _TimerDriver<'a> {
     }
 
     /// Sets the interrupt to trigger on the soonest alarm
-    /// 
-    /// # Returns 
-    /// 
+    ///
+    /// # Returns
+    ///
     /// A `Result` with `Ok` if it was able to set the lowest alarm or `Err(TimerDriverError)` on failure
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// - `TimerDriverError::ErrorReadingAlarm`: failure getting current alarm time
     /// - `TimerDriverError::CouldNotSetTimer``: if it fails trying to set an alarm for the interrupt
     fn set_lowest_alarm(&mut self) -> Result<(), TimerDriverError> {
@@ -494,17 +509,17 @@ impl<'a> _TimerDriver<'a> {
     }
 
     /// Triggers the callback of a `TimeInterrupt` if there is one enabled interrupt with the same alarm id as `alarm`
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// - alarm: The alarm that triggered and may make an interrupt trigger its callback
-    /// 
-    /// # Returns 
-    /// 
+    ///
+    /// # Returns
+    ///
     /// A `Result` with `Ok` if the alarm was handled, triggering the interrupt if conditions are met or an Err(TimerDriverError) if it failed
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// - `TimerDriverError::ErrorReadingTimer`: if it fails when trying to get the current time
     fn handle_alarm_update(&mut self, alarm: Alarm) -> Result<(), TimerDriverError> {
         if let Some(interrupt) = self.interrupts.get_mut(&alarm.id) {
@@ -528,13 +543,13 @@ impl<'a> _TimerDriver<'a> {
 
     /// Handles the updates of any alarms which have gone off by calling `Self::handle_alarm_update` on any of them, and triggering interrupt callbacks
     /// when needed
-    /// 
-    /// # Returns 
-    /// 
+    ///
+    /// # Returns
+    ///
     /// A `Result` with `Ok` if all the alarms were handled correctly or an Err(TimerDriverError) if it failed
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// - `TimerDriverError::ErrorReadingTimer`: if it fails when trying to get the current time
     /// - `TimerDriverError::CouldNotSetTimer`: if it fails trying to set an alarm for the interrupt
     fn _update_interrupt(&mut self) -> Result<(), TimerDriverError> {
@@ -567,13 +582,13 @@ impl<'a> TimerDriver<'a> {
 
     /// This function can only be called by the original TimerDriver creater with new(). This creates a
     /// copy of the _timer_driver reference and sets a unique id for the child reference.
-    /// 
-    /// # Returns 
-    /// 
+    ///
+    /// # Returns
+    ///
     /// A `Result` with `Ok` if all the alarms were handled correctly or an Err(TimerDriverError) if it failed
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// - `TimerDriverError::OnlyOriginalCopyCanCreateChildren`: if attempting to call this function from a copy which is not the original
     /// - `TimerDriverError::TooManyChildren`: if it too many children are created
     pub(crate) fn create_child_copy(&mut self) -> Result<TimerDriver<'a>, TimerDriverError> {
@@ -593,16 +608,16 @@ impl<'a> TimerDriver<'a> {
     }
 
     /// Async function to sleep on a task
-    /// 
+    ///
     /// # Arguments
     /// - mili_secs: Amount of miliseconds for which the task will at least sleep for
-    /// 
-    /// # Returns 
-    /// 
+    ///
+    /// # Returns
+    ///
     /// A `Result` with `Ok` if all the delay worked correctly or an Err(TimerDriverError) if it failed
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// - `TimerDriverError::ErrorSettingUpForDelay` if the timer driver could not set up in order to execute the delay
     pub async fn delay(&mut self, mili_secs: u32) -> Result<(), TimerDriverError> {
         let notification = Notification::new();
@@ -614,7 +629,10 @@ impl<'a> TimerDriver<'a> {
             .interrupt_after(delay_id, mili_secs as u64 * 1000, move || {
                 notifier.notify();
             });
-        self.inner.deref_mut().enable(delay_id).map_err(|_| TimerDriverError::ErrorSettingUpForDelay)?;
+        self.inner
+            .deref_mut()
+            .enable(delay_id)
+            .map_err(|_| TimerDriverError::ErrorSettingUpForDelay)?;
 
         notification.wait().await;
         Ok(())

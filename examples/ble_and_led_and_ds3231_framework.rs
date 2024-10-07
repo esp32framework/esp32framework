@@ -77,6 +77,6 @@ fn main() {
         } else {
             sent = false;
         }
-        micro.wait_for_updates(Some(300)).unwrap();
+        micro.wait_for_updates(Some(300));
     }
 }

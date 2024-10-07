@@ -16,5 +16,5 @@ fn main() {
     button
         .trigger_on_interrupt(callback, InterruptType::NegEdge)
         .unwrap();
-    micro.wait_for_updates(None).unwrap();
+    micro.wait_for_updates(None);
 }

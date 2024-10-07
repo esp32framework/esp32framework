@@ -43,5 +43,5 @@ fn main() {
     }
 
     println!("End of example");
-    micro.wait_for_updates(None).unwrap();
+    micro.wait_for_updates(None);
 }

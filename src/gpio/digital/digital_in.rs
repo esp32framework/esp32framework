@@ -142,7 +142,7 @@ impl<'a> _DigitalIn<'a> {
     ///
     /// # Errors
     ///
-    /// - `DigitalInError::InvalidPeripheral`: If per parameter is not capable of transforming into an AnyIOPin, 
+    /// - `DigitalInError::InvalidPeripheral`: If per parameter is not capable of transforming into an AnyIOPin,
     ///   or pin has already been used for another driver.
     /// - `DigitalInError::CannotSetPinAsInput`: If the per parameter is not capable of soportin input
     ///

@@ -21,7 +21,7 @@ pub enum PeripheralError {
     NotAPin,
     NotAPwmTimer,
     NotAPwmChannel,
-    NotATimerGroup
+    NotATimerGroup,
 }
 
 /// Represents the esp32 Peripheral allowing to instanciate diferent Peripheral Types
