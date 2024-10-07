@@ -18,7 +18,6 @@ fn main() {
     let mut wifi = micro.get_wifi_driver().unwrap();
     micro
         .block_on(wifi.connect(SSID, Some(PASSWORD.to_string())))
-        .unwrap()
         .unwrap();
 
     // HTTP
