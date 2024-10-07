@@ -7,7 +7,7 @@
 use std::sync::mpsc::{self, Receiver};
 
 use esp32framework::{
-    ble::{utils::RemoteCharacteristic, BleError, BleId},
+    ble::{BleError, BleId, RemoteCharacteristic},
     timer_driver::TimerDriver,
     Microcontroller,
 };
@@ -21,7 +21,8 @@ fn main() {
     let timer_driver = set_periodical_timer_driver_interrupts(&mut micro, 2000);
 
     micro
-        .block_on(main_loop(timer_driver, characteristics, receiver));
+        .block_on(main_loop(timer_driver, characteristics, receiver))
+        .unwrap();
 }
 
 fn get_characteristics(micro: &mut Microcontroller) -> Vec<RemoteCharacteristic> {
@@ -33,7 +34,7 @@ fn get_characteristics(micro: &mut Microcontroller) -> Vec<RemoteCharacteristic>
     client.connect_to_device(device).unwrap();
 
     println!("Connected");
-    micro.wait_for_updates(Some(2000));
+    micro.wait_for_updates(Some(2000)).unwrap();
 
     client.get_all_characteristics(&service_id).unwrap()
 }

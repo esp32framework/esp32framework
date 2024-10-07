@@ -3,11 +3,8 @@
 //! it through the BLE beacon. At the same time, a lede on pin 15 blinks twice.
 
 use esp32framework::{
-    ble::{
-        utils::{ble_standard_uuids::StandarServiceId, Service},
-        BleBeacon, BleId,
-    },
-    gpio::digital::DigitalOut,
+    ble::{BleBeacon, BleId, Service, StandarServiceId},
+    gpio::DigitalOut,
     sensors::{DateTime, DS3231},
     Microcontroller,
 };
@@ -77,6 +74,6 @@ fn main() {
         } else {
             sent = false;
         }
-        micro.wait_for_updates(Some(300));
+        micro.wait_for_updates(Some(300)).unwrap();
     }
 }

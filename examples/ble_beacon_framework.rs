@@ -2,7 +2,7 @@
 //! its data each 10 seconds.
 
 use esp32framework::{
-    ble::{utils::Service, BleId},
+    ble::{BleId, Service},
     Microcontroller,
 };
 
@@ -22,19 +22,19 @@ fn main() {
     beacon.start().unwrap();
 
     println!("Advertising services 1 and 2");
-    micro.wait_for_updates(Some(10000));
+    micro.wait_for_updates(Some(10000)).unwrap();
 
     println!("Advertising services 1, 2, 4 and 8");
     beacon.set_services(&services2).unwrap();
-    micro.wait_for_updates(Some(10000));
+    micro.wait_for_updates(Some(10000)).unwrap();
 
     println!("Advertising services 4 and 8");
     beacon
         .remove_services(&vec![BleId::FromUuid16(1), BleId::FromUuid16(2)])
         .unwrap();
-    micro.wait_for_updates(Some(10000));
+    micro.wait_for_updates(Some(10000)).unwrap();
 
     println!("stop");
     beacon.stop().unwrap();
-    micro.wait_for_updates(None);
+    micro.wait_for_updates(None).unwrap();
 }

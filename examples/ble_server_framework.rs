@@ -6,11 +6,8 @@
 
 use esp32framework::{
     ble::{
-        utils::{
-            ble_standard_uuids::{StandarCharacteristicId, StandarServiceId},
-            Characteristic, IOCapabilities, Security, Service,
-        },
-        BleId, BleServer,
+        BleId, BleServer, Characteristic, IOCapabilities, Security, Service,
+        StandarCharacteristicId, StandarServiceId,
     },
     Microcontroller,
 };
@@ -80,7 +77,7 @@ fn main() {
         server
             .notify_value(service_id.clone(), &notifiable_characteristic)
             .unwrap();
-        micro.wait_for_updates(Some(1000));
+        micro.wait_for_updates(Some(1000)).unwrap();
         counter += 1;
     }
 }

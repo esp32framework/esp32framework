@@ -6,6 +6,7 @@ const BLOCK: i32 = i32::MAX;
 const MS_BETWEEN_SCANS: u16 = 100;
 
 use crate::{
+    ble::RemoteCharacteristic,
     utils::{
         auxiliary::{SharableRef, SharableRefExt},
         esp32_framework_error::Esp32FrameworkError,
@@ -14,7 +15,7 @@ use crate::{
     InterruptDriver,
 };
 
-use super::utils::{BleAdvertisedDevice, BleError, BleId, RemoteCharacteristic};
+use super::{BleAdvertisedDevice, BleError, BleId};
 
 /// Driver responsible for handling the client-end of ble connections. Can be used to read, write or notify
 /// on characteristics of services of connected clients
@@ -53,7 +54,7 @@ impl _BleClient {
     /// # Arguments
     ///
     /// - `ble_device`: A BLEDevice needed to get the BLEScan
-    /// - `notifier`: A notifier in order to wake up the [crate::Microcontroller] after an interrupt
+    /// - `notifier`: A notifier in order to wake up the [crate::Microcontroller]
     ///
     /// # Returns
     /// A [_BleClient] with the default time_between_scans `TIME_BETWEEN_SCANS`, ready to connect to a ble server
@@ -372,7 +373,7 @@ impl BleClient {
     /// # Arguments
     ///
     /// - `ble_device`: A BLEDevice needed to get the BLEScan
-    /// - `notifier`: A notifier in order to wake up the [crate::Microcontroller] after an interrupt
+    /// - `notifier`: A notifier in order to wake up the [crate::Microcontroller]
     ///
     /// # Returns
     /// A [BleClient] with the default time_between_scans, ready to connect to a ble server

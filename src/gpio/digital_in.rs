@@ -41,7 +41,7 @@ pub enum DigitalInError {
 /// - `interrupt_update_code`: Arc<AtomicInterruptUpdateCode> that indicates how to handle the interrupt
 /// - `user_callback`: A closure to execute when the interrupt activates
 /// - `debounce_ms`: An Option containing an u64 representing the debounce time in milliseconds
-/// - `notifier`: An Option<notifier> in order to wake up the [crate::Microcontroller] after an interrupt
+/// - `notifier`: An Option<Notifier>, used to notify
 struct _DigitalIn<'a> {
     pub pin_driver: PinDriver<'a, AnyIOPin, Input>,
     timer_driver: TimerDriver<'a>,
@@ -134,7 +134,7 @@ impl<'a> _DigitalIn<'a> {
     ///
     /// - `timer_driver`: A TimerDriver that manages timing-related operations.
     /// - `per`: A Peripheral capable of transforming into an AnyIOPin.
-    /// - `notifier`: A notifier in order to wake up the [crate::Microcontroller] after an interrupt
+    /// - `notifier`: An optional `Notifier` to handle notifications after interrupts.
     ///
     /// # Returns
     ///
@@ -142,8 +142,7 @@ impl<'a> _DigitalIn<'a> {
     ///
     /// # Errors
     ///
-    /// - `DigitalInError::InvalidPeripheral`: If per parameter is not capable of transforming into an AnyIOPin,
-    ///   or pin has already been used for another driver.
+    /// - `DigitalInError::InvalidPeripheral`: If per parameter is not capable of transforming into an AnyIOPin
     /// - `DigitalInError::CannotSetPinAsInput`: If the per parameter is not capable of soportin input
     ///
     /// # Panics
@@ -522,7 +521,7 @@ impl<'a> DigitalIn<'a> {
     ///
     /// - `timer_driver`: A TimerDriver that manages timing-related operations.
     /// - `per`: A Peripheral capable of transforming into an AnyIOPin.
-    /// - `notifier`: A notifier in order to wake up the [crate::Microcontroller] after an interrupt
+    /// - `notifier`: An optional `Notifier` to handle notifications after interrupts.
     ///
     /// # Returns
     ///
@@ -530,8 +529,7 @@ impl<'a> DigitalIn<'a> {
     ///
     /// # Errors
     ///
-    /// - `DigitalInError::InvalidPeripheral`: If per parameter is not capable of transforming into an AnyIOPin,
-    ///   or pin has already been used for another driver.
+    /// - `DigitalInError::InvalidPeripheral`: If per parameter is not capable of transforming into an AnyIOPin
     /// - `DigitalInError::CannotSetPinAsInput`: If the per parameter is not capable of soportin input
     ///
     /// # Panics

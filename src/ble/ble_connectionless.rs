@@ -1,4 +1,4 @@
-use super::utils::{BleError, BleId, Service};
+use super::{BleError, BleId, Service};
 use crate::utils::{
     auxiliary::{SharableRef, SharableRefExt},
     timer_driver::TimerDriver,

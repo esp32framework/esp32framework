@@ -1,4 +1,4 @@
 pub mod http;
-mod wifi_driver;
+pub mod wifi_driver;
 
 pub use wifi_driver::*;

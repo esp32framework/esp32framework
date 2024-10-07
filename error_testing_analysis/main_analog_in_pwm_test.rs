@@ -65,7 +65,7 @@ fn main(){
         micro.sleep(SLEEP_TIME);
     }
 
-    micro.wait_for_updates(None);
+    micro.wait_for_updates(None).unwrap();
 }
 
 /// Returns analog_in_1, analog_in_2, analog_out_1, analog_out_2
