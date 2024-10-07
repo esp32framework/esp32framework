@@ -15,12 +15,13 @@ const UART_BOUNDS: (usize, usize) = (0, 1);
 /// Error types related to microcontroller peripheral operations.
 #[derive(Debug)]
 pub enum PeripheralError {
-    NotAPin,
-    NotAnI2CPeripheral,
+    AlreadyTaken,
     NotABleDevicePeripheral,
+    NotAnI2CPeripheral,
+    NotAPin,
     NotAPwmTimer,
     NotAPwmChannel,
-    AlreadyTaken,
+    NotATimerGroup
 }
 
 /// Represents the esp32 Peripheral allowing to instanciate diferent Peripheral Types
