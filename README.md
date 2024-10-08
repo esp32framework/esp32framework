@@ -6,8 +6,8 @@ A Esp32 Framework for developing IoT applications in a straightforward manner, r
 In this section, we specify the type of projects that are compatible with our framework. This takes into considerations technical specifications such as the protocols used and the overall project context.
 
 #### Who is this for
-This Framework is designed for anyone looking to create a project with a high level of abstraction. These pre-build abstractions facilitate the rapid use of multiple protocols with minimum technical knowledge about it. Depending on the project, this can save hundreds of hours that would otherwise be spent reading technical documentation, such as datasheets.  
-However, this framework does not aim to optimize microcontroller resources. Therefore, projects that rely on memory usage optimizations may not be suitable for development within this framework.
+This Framework is designed for anyone looking to create a project with a high level of abstraction. These pre-build abstractions facilitate the rapid use of multiple protocols with minimum technical knowledge about it. Depending on the project, this can save multiples hours that would otherwise be spent reading technical documentation, such as datasheets.  
+However, this framework does not aim to optimize microcontroller resources. Therefore, projects that rely on memory usage optimizations, low power consumtion, or are extremely time sensitive may not be suitable for development within this framework.
 
 #### Protocols & Technologies
 - GPIO: 
@@ -17,7 +17,7 @@ However, this framework does not aim to optimize microcontroller resources. Ther
     - Analogic in using PWM (Pulse Width Modulation) signals
     - Analogic out using PWM (Pulse Width Modulation) signals 
 
-- TimerDriver:
+- TimerDriver: (Driver for timer resource, allows for multiple interrupts per timer)
 
 - Serial:
     - I2C
