@@ -36,7 +36,6 @@ struct _DigitalOut<'a> {
 }
 
 /// Driver to handle a digital output for a particular Pin
-/// Wrapper of [_DigitalOut]
 #[derive(Clone)]
 pub struct DigitalOut<'a> {
     inner: SharableRef<_DigitalOut<'a>>,
@@ -284,7 +283,10 @@ impl<'a> DigitalOut<'a> {
     ///
     /// - `DigitalOutError::InvalidPeripheral`: If the peripheral cannot be converted into an AnyIOPin.
     /// - `DigitalOutError::CannotSetPinAsOutput`: If the pin cannot be set as an output.
-    pub(crate) fn new(timer_driver: TimerDriver, per: Peripheral) -> Result<DigitalOut, DigitalOutError> {
+    pub(crate) fn new(
+        timer_driver: TimerDriver,
+        per: Peripheral,
+    ) -> Result<DigitalOut, DigitalOutError> {
         Ok(DigitalOut {
             inner: SharableRef::new_sharable(_DigitalOut::new(timer_driver, per)?),
         })

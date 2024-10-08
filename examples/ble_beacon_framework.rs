@@ -7,7 +7,7 @@ use esp32framework::{
 };
 
 fn main() {
-    let mut micro = Microcontroller::new();
+    let mut micro = Microcontroller::take();
     let mut services1 = vec![];
     let mut services2 = vec![];
     for i in 1..3 {

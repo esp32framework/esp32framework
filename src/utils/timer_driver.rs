@@ -572,7 +572,10 @@ impl<'a> InterruptDriver for _TimerDriver<'a> {
 }
 
 impl<'a> TimerDriver<'a> {
-    pub(crate) fn new(timer: Peripheral, notifier: Notifier) -> Result<TimerDriver<'a>, TimerDriverError> {
+    pub(crate) fn new(
+        timer: Peripheral,
+        notifier: Notifier,
+    ) -> Result<TimerDriver<'a>, TimerDriverError> {
         Ok(TimerDriver {
             inner: SharableRef::new_sharable(_TimerDriver::new(timer, notifier)?),
             id: 0,

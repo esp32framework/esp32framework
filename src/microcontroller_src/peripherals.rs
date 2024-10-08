@@ -205,7 +205,7 @@ impl Peripherals {
     }
 
     /// Creates the peripherls corresponding to the pwm timers
-    fn new_pwm_timers()->[Peripheral; PWM_COUNT]{
+    fn new_pwm_timers() -> [Peripheral; PWM_COUNT] {
         [
             Peripheral::PWMTimer(0),
             Peripheral::PWMTimer(1),
@@ -215,7 +215,7 @@ impl Peripherals {
     }
 
     /// Creates the peripherls corresponding to the pwm channels
-    fn new_pwm_channels()->[Peripheral; PWM_COUNT]{
+    fn new_pwm_channels() -> [Peripheral; PWM_COUNT] {
         [
             Peripheral::PWMChannel(0),
             Peripheral::PWMChannel(1),
@@ -225,7 +225,7 @@ impl Peripherals {
     }
 
     /// Creates the peripherls corresponding to the pins
-    fn new_pins()->[Peripheral; PIN_COUNT]{
+    fn new_pins() -> [Peripheral; PIN_COUNT] {
         [
             Peripheral::Pin(0),
             Peripheral::Pin(1),

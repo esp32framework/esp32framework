@@ -11,7 +11,10 @@ use crate::{
     },
 };
 pub use esp_idf_svc::hal::gpio::InterruptType;
-use esp_idf_svc::{hal::gpio::*, sys::{EspError, ESP_ERR_INVALID_STATE}};
+use esp_idf_svc::{
+    hal::gpio::*,
+    sys::{EspError, ESP_ERR_INVALID_STATE},
+};
 use sharable_reference_macro::sharable_reference_wrapper;
 use std::sync::{
     atomic::{AtomicU8, Ordering},
@@ -574,7 +577,7 @@ impl From<TimerDriverError> for DigitalInError {
 /// A `DigitalInError` variant representing the translated error:
 /// - `DigitalInError::StateAlreadySet`.
 /// - `DigitalInError::InvalidPin`.
-impl DigitalInError{
+impl DigitalInError {
     fn from_enable_disable_errors(err: EspError) -> DigitalInError {
         match err.code() {
             ESP_ERR_INVALID_STATE => DigitalInError::StateAlreadySet,

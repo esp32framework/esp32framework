@@ -394,12 +394,14 @@ impl<'a> _BleServer<'a> {
         let server_service =
             task::block_on(async { self.ble_server.get_service(service_id.to_uuid()).await });
 
-        match server_service{
-            Some(service) => match self.try_to_update_characteristic(service, characteristic, false) {
-                Ok(_) => Ok(()),
-                Err(_) => self.create_new_characteristic(characteristic, service)
-            },
-            None => Err(BleError::ServiceNotFound)
+        match server_service {
+            Some(service) => {
+                match self.try_to_update_characteristic(service, characteristic, false) {
+                    Ok(_) => Ok(()),
+                    Err(_) => self.create_new_characteristic(characteristic, service),
+                }
+            }
+            None => Err(BleError::ServiceNotFound),
         }
     }
 
@@ -408,7 +410,7 @@ impl<'a> _BleServer<'a> {
     /// # Arguments
     ///
     /// - `service`: The service to which the characteristic will be added
-    /// - `characteristic`: A Characteristic struct that will contain all the onformation of the characteristic 
+    /// - `characteristic`: A Characteristic struct that will contain all the onformation of the characteristic
     ///   that wants to be set
     ///
     /// # Returns
@@ -418,7 +420,11 @@ impl<'a> _BleServer<'a> {
     /// # Errors
     ///
     /// - `BleError::PropertiesError`: If a characteristic on the service has an invalid property
-    fn create_new_characteristic(&self, characteristic: &Characteristic, service: &Arc<Mutex<BLEService>>)-> Result<(), BleError> {
+    fn create_new_characteristic(
+        &self,
+        characteristic: &Characteristic,
+        service: &Arc<Mutex<BLEService>>,
+    ) -> Result<(), BleError> {
         match NimbleProperties::from_bits(characteristic.properties.to_le()) {
             Some(properties) => {
                 let charac = service
@@ -438,9 +444,9 @@ impl<'a> _BleServer<'a> {
                     };
                 }
 
-                return Ok(());
+                Ok(())
             }
-            None => return Err(BleError::PropertiesError),
+            None => Err(BleError::PropertiesError),
         }
     }
 
