@@ -255,37 +255,40 @@ pub trait WRITER {
     }
 }
 
-/// The function loops indefinitely, writting each time `operation_key` is found in the parsed data .
-///
-/// Note: The function runs indefinitely, ensure that `condition_closure` eventually returns `true`.
-///
-/// # Parameters
-///
-/// * `data_reader`: A mutable reference to an object implementing both the `READER` and `WRITER` traits.
-/// * `operation_key`: The key to search for in the parsed data.
-/// * `ms_between_reads`: The number of milliseconds between each read operation.
-/// * `addr`: The destination memory address.
-/// * `bytes_to_write`: A slice of bytes to write when the condition is met.
-///
-/// # Returns
-///
-/// A `Result` with Ok if the operation completed successfully, or a `SerialError` if it fails.
-///
-/// # Errors
-///
-/// - `SerialError::ErrorInReadValue`: Thrown when parse_and_read operation fails.
-pub fn write_when_true(
-    data_reader: &mut (impl READER + WRITER),
-    operation_key: String,
-    ms_between_reads: u32,
-    addr: u8,
-    bytes_to_write: &[u8],
-) -> Result<(), SerialError> {
-    loop {
-        let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
-        if parsed_data.contains_key(&operation_key) {
-            data_reader.parse_and_write(addr, bytes_to_write)?;
+
+pub trait ReaderWriter: READER + WRITER{
+    /// The function loops indefinitely, writting each time `operation_key` is found in the parsed data .
+    ///
+    /// Note: The function runs indefinitely, ensure that `condition_closure` eventually returns `true`.
+    ///
+    /// # Parameters
+    ///
+    /// * `data_reader`: A mutable reference to an object implementing both the `READER` and `WRITER` traits.
+    /// * `operation_key`: The key to search for in the parsed data.
+    /// * `ms_between_reads`: The number of milliseconds between each read operation.
+    /// * `addr`: The destination memory address.
+    /// * `bytes_to_write`: A slice of bytes to write when the condition is met.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` with Ok if the operation completed successfully, or a `SerialError` if it fails.
+    ///
+    /// # Errors
+    ///
+    /// - `SerialError::ErrorInReadValue`: Thrown when parse_and_read operation fails.
+    fn write_when_true(
+        &mut self,
+        operation_key: String,
+        ms_between_reads: u32,
+        addr: u8,
+        bytes_to_write: &[u8],
+    ) -> Result<(), SerialError> {
+        loop {
+            let parsed_data: HashMap<String, String> = self.read_and_parse();
+            if parsed_data.contains_key(&operation_key) {
+                self.parse_and_write(addr, bytes_to_write)?;
+            }
+            FreeRtos::delay_ms(ms_between_reads);
         }
-        FreeRtos::delay_ms(ms_between_reads);
     }
 }
