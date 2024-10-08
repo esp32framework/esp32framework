@@ -376,7 +376,7 @@ impl BleClient {
     ///
     /// # Returns
     /// A [BleClient] with the default time_between_scans, ready to connect to a ble server
-    pub fn new(ble_device: &mut BLEDevice, notifier: Notifier) -> Self {
+    pub(crate) fn new(ble_device: &mut BLEDevice, notifier: Notifier) -> Self {
         Self {
             inner: SharableRef::new_sharable(_BleClient::new(ble_device, notifier)),
             updater: SharableRef::new_sharable(BleClientUpdater::default()),

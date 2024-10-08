@@ -181,7 +181,7 @@ impl Peripherals {
     /// # Returns
     ///
     /// The new Peripherals instance with every Peripheral available
-    pub fn new() -> Peripherals {
+    pub(crate) fn new() -> Peripherals {
         let pins = Self::new_pins();
         let timers: [Peripheral; TIMERS_COUNT] = [Peripheral::Timer(0), Peripheral::Timer(1)];
         let pwm_channels = Self::new_pwm_channels();

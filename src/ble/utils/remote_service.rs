@@ -66,7 +66,7 @@ impl RemoteCharacteristic {
     ///
     /// # Returns
     /// A [RemoteCharacteristic]
-    pub fn new(characteristic: &mut BLERemoteCharacteristic, notifier: Notifier) -> Self {
+    pub(crate) fn new(characteristic: &mut BLERemoteCharacteristic, notifier: Notifier) -> Self {
         Self {
             inner: SharableRef::new_sharable(_RemoteCharacteristic::new(characteristic, notifier)),
             updater: SharableRef::new_sharable(RemoteCharacteristicUpdater::default()),

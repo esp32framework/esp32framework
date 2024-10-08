@@ -775,7 +775,7 @@ impl<'a> AnalogOut<'a> {
     /// - `AnalogOutError::InvalidPeripheral`: If any of the peripherals are not from the correct type
     /// - `AnalogOutError::InvalidFrequencyOrDuty`: If the frequency or duty are not compatible
     /// - `AnalogOutError::InvalidArg`: If any of the arguments are not of the correct type
-    pub fn new(
+    pub(crate) fn new(
         peripheral_channel: Peripheral,
         timer: Peripheral,
         gpio_pin: Peripheral,

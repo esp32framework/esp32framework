@@ -51,7 +51,7 @@ impl<'a> I2CMaster<'a> {
     /// - `I2CError::InvalidPin`: If either the SDA or SCL pins cannot be converted to IO pins.
     /// - `I2CError::InvalidArg`: If an invalid argument is passed.
     /// - `I2CError::DriverError`: If there is an error initializing the driver.
-    pub fn new(
+    pub(crate) fn new(
         sda_per: Peripheral,
         scl_per: Peripheral,
         i2c_per: Peripheral,
@@ -195,7 +195,7 @@ impl<'a> I2CSlave<'a> {
     /// # Errors
     ///
     /// - `I2CError::InvalidPin`: If either the SDA or SCL pins cannot be converted to IO pins.
-    pub fn new(
+    pub(crate) fn new(
         sda_per: Peripheral,
         scl_per: Peripheral,
         i2c_per: Peripheral,

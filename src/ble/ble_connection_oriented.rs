@@ -588,7 +588,7 @@ impl<'a> BleServer<'a> {
     ///
     /// - `BleError::PropertiesError`: If a characteristic on the service has an invalid property.
     /// - `BleError::ServiceNotFound`: If the service_id doesnt match with the id of a service already set on the server.
-    pub fn new(
+    pub(crate) fn new(
         name: String,
         ble_device: &mut BLEDevice,
         services: &Vec<Service>,

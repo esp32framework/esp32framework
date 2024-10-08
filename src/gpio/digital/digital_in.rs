@@ -536,7 +536,7 @@ impl<'a> DigitalIn<'a> {
     /// # Panics
     ///
     /// When setting Down the pull fails
-    pub fn new(
+    pub(crate) fn new(
         timer_driver: TimerDriver,
         per: Peripheral,
         notifier: Option<Notifier>,
