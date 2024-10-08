@@ -8,6 +8,7 @@ pub enum SerialError {
 }
 
 /// Trait for performing reading and parsing operations.
+/// To use this trait, the `read_and_parse` function must be implemented, since it is used in every other function of the trait.
 pub trait READER {
     /// Reads data and parses it into a `HashMap<String, String>`.
     fn read_and_parse(&mut self) -> HashMap<String, String>;
@@ -68,7 +69,6 @@ pub trait READER {
     ) -> Result<f32, SerialError> {
         let mut total = 0.0;
         for _ in 0..times {
-            // let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
             let parsed_data: HashMap<String, String> = self.read_and_parse();
             match parsed_data.get(&operation_key) {
                 Some(data) => {
@@ -105,7 +105,6 @@ pub trait READER {
     /// - `SerialError::ErrorInReadValue`: Thrown when the operation key is not found in any of the parsed data or
     ///   when it can not be parsed into a f32 value.
     fn read_n_times_and_avg(
-        // data_reader: &mut impl READER,
         &mut self,
         operation_key: String,
         times: usize,
@@ -149,7 +148,6 @@ pub trait READER {
     ///
     /// - `SerialError::ErrorInReadValue`: Thrown when the operation key is not found in any of the parsed data.
     fn read_n_times_and_aggregate<C, T>(
-        // data_reader: &mut impl READER,
         &mut self,
         operation_key: String,
         times: usize,
@@ -196,7 +194,6 @@ pub trait READER {
     ///
     /// - `SerialError::ErrorInReadValue`: Thrown when the operation key is not found in any of the parsed data.
     fn execute_when_true<C1, C2>(
-        // data_reader: &mut impl READER,
         &mut self,
         operation_key: String,
         ms_between_reads: u32,
@@ -246,7 +243,6 @@ pub trait WRITER {
     ///
     /// - `SerialError::ErrorInReadValue`: Thrown when parse_and_read operation fails.
     fn write_with_frecuency(
-        // data_reader: &mut impl WRITER,
         &mut self,
         ms_between_writes: u32,
         addr: u8,
