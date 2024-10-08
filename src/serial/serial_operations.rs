@@ -2,6 +2,7 @@ use esp_idf_svc::hal::delay::FreeRtos;
 use std::collections::HashMap;
 
 /// Error types related to serial operations.
+#[derive(Debug)]
 pub enum SerialError {
     ErrorInReadValue,
 }
@@ -26,8 +27,8 @@ pub trait READER {
     /// # Errors
     ///
     /// - `SerialError::ErrorInReadValue`: Thrown when the operation key is not found in the parsed data.
-    pub fn show_data(data_reader: &mut impl READER, operation_key: String) -> Result<(), SerialError> {
-        let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
+    fn show_data(&mut self, operation_key: String) -> Result<(), SerialError> {
+        let parsed_data: HashMap<String, String> = self.read_and_parse();
         match parsed_data.get(&operation_key) {
             Some(data) => println!("The content is: {:?}", data),
             None => {
@@ -58,15 +59,17 @@ pub trait READER {
     ///
     /// - `SerialError::ErrorInReadValue`: Thrown when the operation key is not found in any of the parsed data or
     ///   when it can not be parsed into a f32 value.
-    pub fn read_n_times_and_sum(
-        data_reader: &mut impl READER,
+    fn read_n_times_and_sum(
+        // data_reader: &mut impl READER,
+        &mut self,
         operation_key: String,
         times: usize,
         ms_between_reads: u32,
     ) -> Result<f32, SerialError> {
         let mut total = 0.0;
         for _ in 0..times {
-            let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
+            // let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
+            let parsed_data: HashMap<String, String> = self.read_and_parse();
             match parsed_data.get(&operation_key) {
                 Some(data) => {
                     total += data
@@ -101,15 +104,16 @@ pub trait READER {
     ///
     /// - `SerialError::ErrorInReadValue`: Thrown when the operation key is not found in any of the parsed data or
     ///   when it can not be parsed into a f32 value.
-    pub fn read_n_times_and_avg(
-        data_reader: &mut impl READER,
+    fn read_n_times_and_avg(
+        // data_reader: &mut impl READER,
+        &mut self,
         operation_key: String,
         times: usize,
         ms_between_reads: u32,
     ) -> Result<f32, SerialError> {
         let mut total = 0.0;
         for _ in 0..times {
-            let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
+            let parsed_data: HashMap<String, String> = self.read_and_parse();
             match parsed_data.get(&operation_key) {
                 Some(data) => {
                     total += data
@@ -144,8 +148,9 @@ pub trait READER {
     /// # Errors
     ///
     /// - `SerialError::ErrorInReadValue`: Thrown when the operation key is not found in any of the parsed data.
-    pub fn read_n_times_and_aggregate<C, T>(
-        data_reader: &mut impl READER,
+    fn read_n_times_and_aggregate<C, T>(
+        // data_reader: &mut impl READER,
+        &mut self,
         operation_key: String,
         times: usize,
         ms_between_reads: u32,
@@ -156,7 +161,7 @@ pub trait READER {
     {
         let mut read_values: Vec<String> = vec![];
         for _ in 0..times {
-            let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
+            let parsed_data: HashMap<String, String> = self.read_and_parse();
             match parsed_data.get(&operation_key) {
                 Some(data) => {
                     println!("{:?}", data);
@@ -190,8 +195,9 @@ pub trait READER {
     /// # Errors
     ///
     /// - `SerialError::ErrorInReadValue`: Thrown when the operation key is not found in any of the parsed data.
-    pub fn execute_when_true<C1, C2>(
-        data_reader: &mut impl READER,
+    fn execute_when_true<C1, C2>(
+        // data_reader: &mut impl READER,
+        &mut self,
         operation_key: String,
         ms_between_reads: u32,
         condition_closure: C1,
@@ -202,7 +208,7 @@ pub trait READER {
         C2: Fn(HashMap<String, String>),
     {
         loop {
-            let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
+            let parsed_data: HashMap<String, String> = self.read_and_parse();
             match parsed_data.get(&operation_key) {
                 Some(data) => {
                     if condition_closure(data.clone()) {
@@ -239,14 +245,15 @@ pub trait WRITER {
     /// # Errors
     ///
     /// - `SerialError::ErrorInReadValue`: Thrown when parse_and_read operation fails.
-    pub fn write_with_frecuency(
-        data_reader: &mut impl WRITER,
+    fn write_with_frecuency(
+        // data_reader: &mut impl WRITER,
+        &mut self,
         ms_between_writes: u32,
         addr: u8,
         bytes_to_write: &[u8],
     ) -> Result<(), SerialError> {
         loop {
-            data_reader.parse_and_write(addr, bytes_to_write)?;
+            self.parse_and_write(addr, bytes_to_write)?;
             FreeRtos::delay_ms(ms_between_writes);
         }
     }
