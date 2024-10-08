@@ -182,7 +182,51 @@ impl Peripherals {
     ///
     /// The new Peripherals instance with every Peripheral available
     pub fn new() -> Peripherals {
-        let pins: [Peripheral; PIN_COUNT] = [
+        let pins = Self::new_pins();
+        let timers: [Peripheral; TIMERS_COUNT] = [Peripheral::Timer(0), Peripheral::Timer(1)];
+        let pwm_channels = Self::new_pwm_channels();
+        let pwm_timers = Self::new_pwm_timers();
+        let adc: Peripheral = Peripheral::Adc;
+        let i2c: Peripheral = Peripheral::I2C;
+        let uart: [Peripheral; UART_COUNT] = [Peripheral::Uart(0), Peripheral::Uart(1)];
+        let ble_device = Peripheral::BleDevice;
+        let modem = Peripheral::Modem;
+        Peripherals {
+            pins,
+            timers,
+            pwm_channels,
+            pwm_timers,
+            adc,
+            i2c,
+            uart,
+            ble_device,
+            modem,
+        }
+    }
+
+    /// Creates the peripherls corresponding to the pwm timers
+    fn new_pwm_timers()->[Peripheral; PWM_COUNT]{
+        [
+            Peripheral::PWMTimer(0),
+            Peripheral::PWMTimer(1),
+            Peripheral::PWMTimer(2),
+            Peripheral::PWMTimer(3),
+        ]
+    }
+
+    /// Creates the peripherls corresponding to the pwm channels
+    fn new_pwm_channels()->[Peripheral; PWM_COUNT]{
+        [
+            Peripheral::PWMChannel(0),
+            Peripheral::PWMChannel(1),
+            Peripheral::PWMChannel(2),
+            Peripheral::PWMChannel(3),
+        ]
+    }
+
+    /// Creates the peripherls corresponding to the pins
+    fn new_pins()->[Peripheral; PIN_COUNT]{
+        [
             Peripheral::Pin(0),
             Peripheral::Pin(1),
             Peripheral::Pin(2),
@@ -207,36 +251,7 @@ impl Peripherals {
             Peripheral::Pin(21),
             Peripheral::Pin(22),
             Peripheral::Pin(23),
-        ];
-        let timers: [Peripheral; TIMERS_COUNT] = [Peripheral::Timer(0), Peripheral::Timer(1)];
-        let pwm_channels: [Peripheral; PWM_COUNT] = [
-            Peripheral::PWMChannel(0),
-            Peripheral::PWMChannel(1),
-            Peripheral::PWMChannel(2),
-            Peripheral::PWMChannel(3),
-        ];
-        let pwm_timers: [Peripheral; PWM_COUNT] = [
-            Peripheral::PWMTimer(0),
-            Peripheral::PWMTimer(1),
-            Peripheral::PWMTimer(2),
-            Peripheral::PWMTimer(3),
-        ];
-        let adc: Peripheral = Peripheral::Adc;
-        let i2c: Peripheral = Peripheral::I2C;
-        let uart: [Peripheral; UART_COUNT] = [Peripheral::Uart(0), Peripheral::Uart(1)];
-        let ble_device = Peripheral::BleDevice;
-        let modem = Peripheral::Modem;
-        Peripherals {
-            pins,
-            timers,
-            pwm_channels,
-            pwm_timers,
-            adc,
-            i2c,
-            uart,
-            ble_device,
-            modem,
-        }
+        ]
     }
 
     /// Gets the desired pin Peripheral

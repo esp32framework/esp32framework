@@ -117,7 +117,7 @@ impl<'a> _BleServer<'a> {
     ///
     /// - `BleError::PropertiesError`: If a characteristic on the service has an invalid property.
     /// - `BleError::ServiceNotFound`: If the service_id doesnt match with the id of a service already set on the server.
-    pub fn new(
+    fn new(
         name: String,
         ble_device: &mut BLEDevice,
         services: &Vec<Service>,
@@ -394,39 +394,54 @@ impl<'a> _BleServer<'a> {
         let server_service =
             task::block_on(async { self.ble_server.get_service(service_id.to_uuid()).await });
 
-        // Check if there is a service with 'service_id' as its id.
-        if let Some(service) = server_service {
-            match self.try_to_update_characteristic(service, characteristic, false) {
-                Ok(_) => return Ok(()),
-                Err(_) => {
-                    // Create a new characteristic
-                    match NimbleProperties::from_bits(characteristic.properties.to_le()) {
-                        Some(properties) => {
-                            let charac = service
-                                .lock()
-                                .create_characteristic(characteristic.id.to_uuid(), properties);
-                            let mut unlocked_char = charac.lock();
-                            unlocked_char.set_value(&characteristic.data);
-
-                            for descriptor in &characteristic.descriptors {
-                                match descriptor.get_properties() {
-                                    Ok(properties) => {
-                                        let ble_descriptor = unlocked_char
-                                            .create_descriptor(descriptor.id.to_uuid(), properties);
-                                        ble_descriptor.lock().set_value(&descriptor.data);
-                                    }
-                                    Err(_) => return Err(BleError::PropertiesError),
-                                };
-                            }
-
-                            return Ok(());
-                        }
-                        None => return Err(BleError::PropertiesError),
-                    }
-                }
-            }
+        match server_service{
+            Some(service) => match self.try_to_update_characteristic(service, characteristic, false) {
+                Ok(_) => Ok(()),
+                Err(_) => self.create_new_characteristic(characteristic, service)
+            },
+            None => Err(BleError::ServiceNotFound)
         }
-        Err(BleError::ServiceNotFound)
+    }
+
+    /// Set a new characteristic
+    ///
+    /// # Arguments
+    ///
+    /// - `service`: The service to which the characteristic will be added
+    /// - `characteristic`: A Characteristic struct that will contain all the onformation of the characteristic 
+    ///   that wants to be set
+    ///
+    /// # Returns
+    ///  
+    /// A `Result` with Ok if the operation completed successfully, or an `BleError` if it fails.
+    ///
+    /// # Errors
+    ///
+    /// - `BleError::PropertiesError`: If a characteristic on the service has an invalid property
+    fn create_new_characteristic(&self, characteristic: &Characteristic, service: &Arc<Mutex<BLEService>>)-> Result<(), BleError> {
+        match NimbleProperties::from_bits(characteristic.properties.to_le()) {
+            Some(properties) => {
+                let charac = service
+                    .lock()
+                    .create_characteristic(characteristic.id.to_uuid(), properties);
+                let mut unlocked_char = charac.lock();
+                unlocked_char.set_value(&characteristic.data);
+
+                for descriptor in &characteristic.descriptors {
+                    match descriptor.get_properties() {
+                        Ok(properties) => {
+                            let ble_descriptor = unlocked_char
+                                .create_descriptor(descriptor.id.to_uuid(), properties);
+                            ble_descriptor.lock().set_value(&descriptor.data);
+                        }
+                        Err(_) => return Err(BleError::PropertiesError),
+                    };
+                }
+
+                return Ok(());
+            }
+            None => return Err(BleError::PropertiesError),
+        }
     }
 
     /// Checks if there is a BLECharacteristic on the BLEService with the corresponding id. If it exists, it updates its value. Apart from that,

@@ -27,7 +27,7 @@ use std::rc::Rc;
 
 const TIMER_GROUPS: usize = 2;
 
-pub type SharableAdcDriver<'a> = Rc<AdcDriver<'a, ADC1>>;
+pub(crate) type SharableAdcDriver<'a> = Rc<AdcDriver<'a, ADC1>>;
 
 /// Primary abstraction for interacting with the microcontroller, providing access to peripherals and drivers
 /// required for configuring pins and other functionalities.

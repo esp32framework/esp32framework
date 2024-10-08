@@ -90,7 +90,7 @@ impl BleError {
     /// # Returns
     ///
     /// The new BleError
-    pub fn from_service_context(err: BLEError) -> Self {
+    pub(crate) fn from_service_context(err: BLEError) -> Self {
         Self::from(err).service_context()
     }
 
@@ -103,7 +103,7 @@ impl BleError {
     /// # Returns
     ///
     /// The new BleError
-    pub fn from_characteristic_context(err: BLEError) -> Self {
+    pub(crate) fn from_characteristic_context(err: BLEError) -> Self {
         Self::from(err).characteristic_context()
     }
 
@@ -116,7 +116,7 @@ impl BleError {
     /// # Returns
     ///
     /// The new BleError
-    pub fn from_connection_context(err: BLEError) -> Self {
+    pub(crate) fn from_connection_context(err: BLEError) -> Self {
         Self::from(err).connection_params_context()
     }
 
@@ -129,7 +129,7 @@ impl BleError {
     /// # Returns
     ///
     /// The new BleError
-    pub fn from_connection_params_context(err: BLEError) -> Self {
+    pub(crate) fn from_connection_params_context(err: BLEError) -> Self {
         Self::from(err).connection_context()
     }
 
@@ -142,7 +142,7 @@ impl BleError {
     /// # Returns
     ///
     /// The new BleError
-    pub fn from_descriptors_context(err: BLEError) -> Self {
+    pub(crate) fn from_descriptors_context(err: BLEError) -> Self {
         Self::from(err).descriptor_context()
     }
 

@@ -146,7 +146,7 @@ impl<'a> _AnalogOut<'a> {
     /// - `AnalogOutError::InvalidPeripheral`: If any of the peripherals are not from the correct type
     /// - `AnalogOutError::InvalidFrequencyOrDuty`: If the frequency or duty are not compatible
     /// - `AnalogOutError::InvalidArg`: If any of the arguments are not of the correct type
-    pub fn new(
+    fn new(
         peripheral_channel: Peripheral,
         timer: Peripheral,
         gpio_pin: Peripheral,
@@ -181,7 +181,7 @@ impl<'a> _AnalogOut<'a> {
     /// - `AnalogOutError::InvalidPeripheral`: If any of the peripherals are not from the correct type
     /// - `AnalogOutError::InvalidFrequencyOrDuty`: If the frequency or duty are not compatible
     /// - `AnalogOutError::InvalidArg`: If any of the arguments are not of the correct type
-    pub fn _new(
+    fn _new(
         peripheral_channel: Peripheral,
         timer: Peripheral,
         gpio_pin: Peripheral,
@@ -251,7 +251,7 @@ impl<'a> _AnalogOut<'a> {
     /// - `AnalogOutError::InvalidPeripheral`: If any of the peripherals are not from the correct type
     /// - `AnalogOutError::InvalidFrequencyOrDuty`: If the frequency or duty are not compatible
     /// - `AnalogOutError::InvalidArg`: If any of the arguments are not of the correct type
-    pub fn default(
+    fn default(
         peripheral_channel: Peripheral,
         timer: Peripheral,
         gpio_pin: Peripheral,

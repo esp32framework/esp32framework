@@ -29,7 +29,7 @@ pub enum DigitalOutError {
 /// - `pin_driver`: A PinDriver instance that handles the output signals
 /// - `timer_driver`: A TimerDriver instance
 /// - `interrupt_update_code`: An `Arc<AtomicInterruptUpdateCode>` to handle interrupts
-pub struct _DigitalOut<'a> {
+struct _DigitalOut<'a> {
     pin_driver: PinDriver<'a, AnyIOPin, Output>,
     timer_driver: TimerDriver<'a>,
     interrupt_update_code: Arc<AtomicInterruptUpdateCode>,
@@ -114,7 +114,7 @@ impl<'a> _DigitalOut<'a> {
     ///
     /// - `DigitalOutError::InvalidPeripheral`: If the peripheral cannot be converted into an AnyIOPin.
     /// - `DigitalOutError::CannotSetPinAsOutput`: If the pin cannot be set as an output.
-    pub fn new(
+    fn new(
         timer_driver: TimerDriver<'a>,
         per: Peripheral,
     ) -> Result<_DigitalOut<'a>, DigitalOutError> {
@@ -255,7 +255,7 @@ impl<'a> _DigitalOut<'a> {
     /// # Errors
     ///
     /// - `DigitalOutError::InvalidPin`: If the pin level cannot be toggled.
-    pub fn _update_interrupt(&mut self) -> Result<(), DigitalOutError> {
+    fn _update_interrupt(&mut self) -> Result<(), DigitalOutError> {
         let interrupt_update =
             InterruptUpdate::from_atomic_code(self.interrupt_update_code.clone());
         self.interrupt_update_code

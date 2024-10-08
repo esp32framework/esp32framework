@@ -47,9 +47,9 @@ impl IOCapabilities {
 /// - `auth_mode`: An u8 representing the combination of authorization modes
 /// - `io_capabilities`: An IOCapabilities instance
 pub struct Security {
-    pub passkey: u32,
-    pub auth_mode: u8,
-    pub io_capabilities: IOCapabilities,
+    pub(crate) passkey: u32,
+    pub(crate) auth_mode: u8,
+    pub(crate) io_capabilities: IOCapabilities,
 }
 
 impl Security {
