@@ -163,11 +163,11 @@ where
 {
     let mut read_values: Vec<String> = vec![];
     for _ in 0..times {
-        let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
-        match parsed_data.get(&operation_key) {
+        let mut parsed_data: HashMap<String, String> = data_reader.read_and_parse();
+        match parsed_data.remove(&operation_key) {
             Some(data) => {
                 println!("{:?}", data);
-                read_values.push(data.clone());
+                read_values.push(data);
             }
             None => return Err(SerialError::ErrorInReadValue),
         }
@@ -209,10 +209,10 @@ where
     C2: Fn(HashMap<String, String>),
 {
     loop {
-        let parsed_data: HashMap<String, String> = data_reader.read_and_parse();
-        match parsed_data.get(&operation_key) {
+        let mut parsed_data: HashMap<String, String> = data_reader.read_and_parse();
+        match parsed_data.remove(&operation_key) {
             Some(data) => {
-                if condition_closure(data.clone()) {
+                if condition_closure(data) {
                     execute_closure(parsed_data);
                 }
             }

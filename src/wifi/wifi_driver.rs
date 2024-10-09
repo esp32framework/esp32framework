@@ -58,7 +58,7 @@ impl<'a> WifiDriver<'a> {
             controller: AsyncWifi::wrap(
                 EspWifi::new(modem, event_loop.clone(), Some(nvs))
                     .map_err(|_| WifiError::StartingError)?,
-                event_loop.clone(),
+                event_loop,
                 timer_service,
             )
             .map_err(|_| WifiError::StartingError)?,
