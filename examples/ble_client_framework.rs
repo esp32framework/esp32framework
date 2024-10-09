@@ -44,7 +44,7 @@ fn set_notify_callback_for_characteristics(
     let (sender, receiver) = mpsc::channel();
 
     for characteristic in characteristics {
-        let s = sender;
+        let s = sender.clone();
         _ = characteristic.on_notify(move |data| {
             println!("Received_notif mult {}", data[0]);
             s.send(data[0]).unwrap();
