@@ -247,6 +247,10 @@ impl<'a> DS3231<'a> {
     /// # Returns
     ///
     /// A `DateTime` struct representing the current date and time.
+    /// 
+    /// # Panics
+    /// 
+    /// If the parsing of the components fails.
     pub fn get_date_time(&mut self) -> DateTime {
         let date_time = self.read_and_parse();
         DateTime {
@@ -650,16 +654,21 @@ impl<'a> DS3231<'a> {
     /// # Returns
     ///
     /// The temperature in degrees Celsius as a floating-point value as a f32.
-    pub fn get_temperature(&mut self) -> f32 {
+    /// 
+    /// # Errors
+    /// 
+    /// - `I2CError::InvalidArg`: If an invalid argument is passed.
+    /// - `I2CError::BufferTooSmall`: If the buffer is too small.
+    /// - `I2CError::NoMoreHeapMemory`: If there isn't enough heap memory to perform the operation.
+    pub fn get_temperature(&mut self) -> Result<f32, I2CError> {
         let mut buffer: [u8; 2] = [0; 2];
         self.i2c
-            .write_read(DS3231_ADDR, &[TEMP_ADDR], &mut buffer, BLOCK)
-            .unwrap();
+            .write_read(DS3231_ADDR, &[TEMP_ADDR], &mut buffer, BLOCK)?;
 
         let temp_integer = self.twos_complement_to_decimal(buffer[0]);
         let temp_fractional = self.twos_complement_to_decimal(buffer[1] >> 6) * 0.25; // We only need the 2 most significant bits of the register
 
-        temp_integer + temp_fractional
+        Ok(temp_integer + temp_fractional)
     }
 }
 

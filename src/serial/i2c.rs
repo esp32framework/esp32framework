@@ -7,7 +7,7 @@ use esp_idf_svc::{
         i2c::{I2cConfig, I2cDriver, I2cSlaveConfig, I2cSlaveDriver},
         units::FromValueType,
     },
-    sys::{ESP_ERR_INVALID_ARG, ESP_ERR_NO_MEM, ESP_ERR_TIMEOUT},
+    sys::{EspError, ESP_ERR_INVALID_ARG, ESP_ERR_NO_MEM, ESP_ERR_TIMEOUT},
 };
 
 const DEFAULT_BAUDRATE: u32 = 100;
@@ -66,10 +66,7 @@ impl<'a> I2CMaster<'a> {
 
         let config = I2cConfig::new().baudrate(DEFAULT_BAUDRATE.kHz().into());
         let driver =
-            I2cDriver::new(i2c, sda, scl, &config).map_err(|error| match error.code() {
-                ESP_ERR_INVALID_ARG => I2CError::InvalidArg,
-                _ => I2CError::DriverError,
-            })?;
+            I2cDriver::new(i2c, sda, scl, &config).map_err(I2CError::from_driver_context)?;
 
         Ok(I2CMaster { driver })
     }
@@ -195,6 +192,7 @@ impl<'a> I2CSlave<'a> {
     /// # Errors
     ///
     /// - `I2CError::InvalidPin`: If either the SDA or SCL pins cannot be converted to IO pins.
+    /// - `I2CError::DriverError`: If there is an error initializing the driver.
     pub(crate) fn new(
         sda_per: Peripheral,
         scl_per: Peripheral,
@@ -210,7 +208,7 @@ impl<'a> I2CSlave<'a> {
         let i2c = i2c_per.into_i2c0().map_err(I2CError::PeripheralError)?;
 
         let config = I2cSlaveConfig::new(); // TODO: Check if the default values work. It has the buffers on 0. Maybe this should be choosen by the user
-        let driver = I2cSlaveDriver::new(i2c, sda, scl, addr, &config).unwrap();
+        let driver = I2cSlaveDriver::new(i2c, sda, scl, addr, &config).map_err(I2CError::from_driver_context)?;
 
         Ok(I2CSlave { driver })
     }
@@ -267,5 +265,23 @@ impl<'a> I2CSlave<'a> {
                 ESP_ERR_TIMEOUT => I2CError::TimeoutError,
                 _ => I2CError::InvalidArg,
             })
+    }
+}
+
+impl I2CError{
+    /// Creates a new I2CError from an EspError.
+    ///
+    /// # Arguments
+    ///
+    /// - `error`: Source code.
+    ///
+    /// # Returns
+    ///
+    /// The I2cError instance that corresponds to the EspError received
+    pub fn from_driver_context(error: EspError)->Self{
+        match error.code() {
+            ESP_ERR_INVALID_ARG => I2CError::InvalidArg,
+            _ => I2CError::DriverError,
+        }
     }
 }

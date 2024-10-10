@@ -147,10 +147,7 @@ impl<'a> _DigitalIn<'a> {
     /// - `DigitalInError::InvalidPeripheral`: If per parameter is not capable of transforming into an AnyIOPin,
     ///   or pin has already been used for another driver.
     /// - `DigitalInError::CannotSetPinAsInput`: If the per parameter is not capable of soportin input
-    ///
-    /// # Panics
-    ///
-    /// When setting Down the pull fails
+    /// - `DigitalInError::CannotSetPullForPin`: If the pin driver is unable to support a setting of the pull
     fn new(
         timer_driver: TimerDriver<'a>,
         per: Peripheral,
@@ -171,7 +168,7 @@ impl<'a> _DigitalIn<'a> {
             notifier,
         };
 
-        digital_in.set_pull(Pull::Down).unwrap();
+        digital_in.set_pull(Pull::Down)?;
         Ok(digital_in)
     }
 
