@@ -34,7 +34,7 @@ struct _RemoteCharacteristic {
 impl RemoteCharacteristicUpdater {
     /// If a ble notify was triggered by a ble server of this characteristic, then executes the
     /// user callback if it has been set
-    pub fn execute_if_notified(&mut self) {
+    pub(crate) fn execute_if_notified(&mut self) {
         if let Some(queue) = self.notify_queue.as_mut() {
             while let Ok(byte_array) = queue.try_recv() {
                 if let Some(callback) = self.notify_callback.as_mut() {
@@ -66,7 +66,7 @@ impl RemoteCharacteristic {
     ///
     /// # Returns
     /// A [RemoteCharacteristic]
-    pub fn new(characteristic: &mut BLERemoteCharacteristic, notifier: Notifier) -> Self {
+    pub(crate) fn new(characteristic: &mut BLERemoteCharacteristic, notifier: Notifier) -> Self {
         Self {
             inner: SharableRef::new_sharable(_RemoteCharacteristic::new(characteristic, notifier)),
             updater: SharableRef::new_sharable(RemoteCharacteristicUpdater::default()),
@@ -97,7 +97,7 @@ impl RemoteCharacteristic {
     }
 
     /// Efectibly clones the remote characteristic, but is only allowed in the crate
-    pub(crate) fn duplicate(&self) -> Self {
+    pub(crate) fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
             updater: self.updater.clone(),
@@ -106,7 +106,7 @@ impl RemoteCharacteristic {
 
     /// if a user callback has been set and a notification has been received, then the user
     /// callback will be executed
-    pub fn execute_if_notified(&mut self) {
+    pub(crate) fn execute_if_notified(&mut self) {
         self.updater.borrow_mut().execute_if_notified()
     }
 }
@@ -197,7 +197,7 @@ impl _RemoteCharacteristic {
     }
 
     /// Attempts to write the characteristic value. The write will wait for a response or not depending if the characterisitc
-    /// [Self::is_writable_no_resp], or not.
+    /// is [Self::is_writable_no_resp], or not.
     ///
     /// # Returns
     ///

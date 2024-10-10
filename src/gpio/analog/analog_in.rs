@@ -56,7 +56,7 @@ impl<'a> AnalogIn<'a> {
     /// # Errors
     ///
     /// - `AnalogInError::InvalidPin`: If the pin Peripheral is not valid
-    pub fn new(
+    pub(crate) fn new(
         pin: Peripheral,
         adc_driver: SharableAdcDriver<'a>,
         attenuation: adc_atten_t,

@@ -4,7 +4,7 @@
 use esp32framework::Microcontroller;
 
 fn main() {
-    let mut micro = Microcontroller::new();
+    let mut micro = Microcontroller::take();
     let mut red_analog_out = micro.set_pin_as_default_analog_out(2).unwrap();
     let mut blue_analog_out = micro.set_pin_as_default_analog_out(3).unwrap();
     red_analog_out.start_increasing(100, 0.05, 0.0).unwrap();

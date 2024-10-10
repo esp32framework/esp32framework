@@ -34,7 +34,7 @@ struct BleClientUpdater {
 impl BleClientUpdater {
     fn add_characteristic(&mut self, characteristic: &RemoteCharacteristic) {
         self.remote_characteristics
-            .insert(characteristic.id(), characteristic.duplicate());
+            .insert(characteristic.id(), characteristic.clone());
     }
 }
 
@@ -57,7 +57,7 @@ impl _BleClient {
     ///
     /// # Returns
     /// A [_BleClient] with the default time_between_scans `TIME_BETWEEN_SCANS`, ready to connect to a ble server
-    pub fn new(ble_device: &mut BLEDevice, notifier: Notifier) -> Self {
+    fn new(ble_device: &mut BLEDevice, notifier: Notifier) -> Self {
         _BleClient {
             ble_client: BLEClient::new(),
             ble_scan: ble_device.get_scan(),
@@ -376,7 +376,7 @@ impl BleClient {
     ///
     /// # Returns
     /// A [BleClient] with the default time_between_scans, ready to connect to a ble server
-    pub fn new(ble_device: &mut BLEDevice, notifier: Notifier) -> Self {
+    pub(crate) fn new(ble_device: &mut BLEDevice, notifier: Notifier) -> Self {
         Self {
             inner: SharableRef::new_sharable(_BleClient::new(ble_device, notifier)),
             updater: SharableRef::new_sharable(BleClientUpdater::default()),

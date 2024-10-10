@@ -93,7 +93,7 @@ impl Service {
 #[derive(Clone)]
 pub struct Characteristic {
     pub id: BleId,
-    pub properties: u16,
+    pub(crate) properties: u16,
     pub data: Vec<u8>,
     pub descriptors: Vec<Descriptor>,
 }
@@ -394,7 +394,7 @@ impl Characteristic {
 #[derive(Debug, Clone)]
 pub struct Descriptor {
     pub id: BleId,
-    pub properties: u8,
+    pub(crate) properties: u8,
     pub data: Vec<u8>,
 }
 

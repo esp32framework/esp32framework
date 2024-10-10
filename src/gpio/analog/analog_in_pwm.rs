@@ -41,7 +41,7 @@ impl<'a> AnalogInPwm<'a> {
     /// # Errors
     ///
     /// - `AnalogInPwmError::DigitalDriverError`: If the creation of the DigitalIn fails
-    pub fn new(
+    pub(crate) fn new(
         timer_driver: TimerDriver<'a>,
         per: Peripheral,
         frequency_hz: u32,
