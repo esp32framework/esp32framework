@@ -89,9 +89,9 @@ impl<'a> Microcontroller<'a> {
     /// # Errors
     ///
     /// - `Esp32FrameworkError::CantHaveMoreThanOneMicrocontroller`: If an instance of microcontroller already exists.
-    fn assert_uniqueness()->Result<(), Esp32FrameworkError> {
+    fn assert_uniqueness() -> Result<(), Esp32FrameworkError> {
         if TAKEN.load(Ordering::SeqCst) {
-            return Err(Esp32FrameworkError::CantHaveMoreThanOneMicrocontroller)
+            return Err(Esp32FrameworkError::CantHaveMoreThanOneMicrocontroller);
         }
         TAKEN.store(true, Ordering::Relaxed);
         Ok(())

@@ -208,7 +208,8 @@ impl<'a> I2CSlave<'a> {
         let i2c = i2c_per.into_i2c0().map_err(I2CError::PeripheralError)?;
 
         let config = I2cSlaveConfig::new(); // TODO: Check if the default values work. It has the buffers on 0. Maybe this should be choosen by the user
-        let driver = I2cSlaveDriver::new(i2c, sda, scl, addr, &config).map_err(I2CError::from_driver_context)?;
+        let driver = I2cSlaveDriver::new(i2c, sda, scl, addr, &config)
+            .map_err(I2CError::from_driver_context)?;
 
         Ok(I2CSlave { driver })
     }
@@ -268,7 +269,7 @@ impl<'a> I2CSlave<'a> {
     }
 }
 
-impl I2CError{
+impl I2CError {
     /// Creates a new I2CError from an EspError.
     ///
     /// # Arguments
@@ -278,7 +279,7 @@ impl I2CError{
     /// # Returns
     ///
     /// The I2cError instance that corresponds to the EspError received
-    pub fn from_driver_context(error: EspError)->Self{
+    pub fn from_driver_context(error: EspError) -> Self {
         match error.code() {
             ESP_ERR_INVALID_ARG => I2CError::InvalidArg,
             _ => I2CError::DriverError,

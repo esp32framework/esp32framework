@@ -295,12 +295,6 @@ impl<'a> _BleServer<'a> {
             DiscoverableMode::NonDiscoverable => {
                 self.advertisement.lock().disc_mode(disc_mode.get_code())
             }
-            DiscoverableMode::LimitedDiscoverable(min_interval, max_interval) => self
-                .advertisement
-                .lock()
-                .disc_mode(disc_mode.get_code())
-                .min_interval(min_interval)
-                .max_interval(max_interval),
             DiscoverableMode::GeneralDiscoverable(min_interval, max_interval) => self
                 .advertisement
                 .lock()
@@ -539,6 +533,15 @@ impl<'a> _BleServer<'a> {
             .lock()
             .start()
             .map_err(|_| BleError::StartingAdvertisementError)
+    }
+
+    pub fn restart(&mut self) -> Result<(), BleError> {
+        self.create_advertisement_data()?;
+
+        self.advertisement
+            .lock()
+            .stop()
+            .map_err(|_| BleError::StoppingFailure)
     }
 
     /// Creates the necessary advertisement data with the user settings

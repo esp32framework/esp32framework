@@ -67,7 +67,7 @@ fn main() {
         let date_time = ds3231.get_date_time();
         if date_time.second % 5 == 0 {
             if !sent {
-                let temp = ds3231.get_temperature();
+                let temp = ds3231.get_temperature().unwrap();
                 println!("Temperature: {:?}", temp);
                 service.data = parse_temperature(temp);
                 beacon.set_service(&service).unwrap();
