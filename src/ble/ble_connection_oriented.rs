@@ -566,7 +566,6 @@ impl<'a> _BleServer<'a> {
     }
 }
 
-// TODO: refactor this!
 impl<'a> InterruptDriver for BleServer<'a> {
     fn update_interrupt(&mut self) -> Result<(), Esp32FrameworkError> {
         let (mut user_on_connection, mut user_on_disconnection) = self.take_connection_callbacks();

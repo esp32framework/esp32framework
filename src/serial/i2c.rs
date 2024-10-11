@@ -207,7 +207,7 @@ impl<'a> I2CSlave<'a> {
             .map_err(I2CError::PeripheralError)?;
         let i2c = i2c_per.into_i2c0().map_err(I2CError::PeripheralError)?;
 
-        let config = I2cSlaveConfig::new(); // TODO: Check if the default values work. It has the buffers on 0. Maybe this should be choosen by the user
+        let config = I2cSlaveConfig::new();
         let driver = I2cSlaveDriver::new(i2c, sda, scl, addr, &config)
             .map_err(I2CError::from_driver_context)?;
 
