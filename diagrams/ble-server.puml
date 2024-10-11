@@ -87,12 +87,10 @@ class Descriptor{
 
 enum DiscoverableMode {
     GeneralDiscoverable(u16, u16),
-    LimitedDiscoverable(u16, u16), 
     NonDiscoverable()
 }
 
 enum ConnectionMode {
-    DirectedConnectable,
     NonConnectable,
     UndirectedConnectable,
 }

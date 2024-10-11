@@ -247,9 +247,9 @@ impl<'a> DS3231<'a> {
     /// # Returns
     ///
     /// A `DateTime` struct representing the current date and time.
-    /// 
+    ///
     /// # Panics
-    /// 
+    ///
     /// If the parsing of the components fails.
     pub fn get_date_time(&mut self) -> DateTime {
         let date_time = self.read_and_parse();
@@ -654,9 +654,9 @@ impl<'a> DS3231<'a> {
     /// # Returns
     ///
     /// The temperature in degrees Celsius as a floating-point value as a f32.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// - `I2CError::InvalidArg`: If an invalid argument is passed.
     /// - `I2CError::BufferTooSmall`: If the buffer is too small.
     /// - `I2CError::NoMoreHeapMemory`: If there isn't enough heap memory to perform the operation.

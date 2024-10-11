@@ -96,25 +96,32 @@ impl<'a> AnalogIn<'a> {
         let adc_channel_driver: AnalogChannels<'a> = match pin {
             Peripheral::Pin(pin_num) => match pin_num {
                 0 => AnalogChannels::Channel0(
-                    AdcChannelDriver::new(sharable_adc_driver, unsafe { Gpio0::new() }, &config).map_err(|_| AnalogInError::ChannelCreationError)?
+                    AdcChannelDriver::new(sharable_adc_driver, unsafe { Gpio0::new() }, &config)
+                        .map_err(|_| AnalogInError::ChannelCreationError)?,
                 ),
                 1 => AnalogChannels::Channel1(
-                    AdcChannelDriver::new(sharable_adc_driver, unsafe { Gpio1::new() }, &config).map_err(|_| AnalogInError::ChannelCreationError)?
+                    AdcChannelDriver::new(sharable_adc_driver, unsafe { Gpio1::new() }, &config)
+                        .map_err(|_| AnalogInError::ChannelCreationError)?,
                 ),
                 2 => AnalogChannels::Channel2(
-                    AdcChannelDriver::new(sharable_adc_driver, unsafe { Gpio2::new() }, &config).map_err(|_| AnalogInError::ChannelCreationError)?
+                    AdcChannelDriver::new(sharable_adc_driver, unsafe { Gpio2::new() }, &config)
+                        .map_err(|_| AnalogInError::ChannelCreationError)?,
                 ),
                 3 => AnalogChannels::Channel3(
-                    AdcChannelDriver::new(sharable_adc_driver, unsafe { Gpio3::new() }, &config).map_err(|_| AnalogInError::ChannelCreationError)?
+                    AdcChannelDriver::new(sharable_adc_driver, unsafe { Gpio3::new() }, &config)
+                        .map_err(|_| AnalogInError::ChannelCreationError)?,
                 ),
                 4 => AnalogChannels::Channel4(
-                    AdcChannelDriver::new(sharable_adc_driver, unsafe { Gpio4::new() }, &config).map_err(|_| AnalogInError::ChannelCreationError)?
+                    AdcChannelDriver::new(sharable_adc_driver, unsafe { Gpio4::new() }, &config)
+                        .map_err(|_| AnalogInError::ChannelCreationError)?,
                 ),
                 5 => AnalogChannels::Channel5(
-                    AdcChannelDriver::new(sharable_adc_driver, unsafe { Gpio5::new() }, &config).map_err(|_| AnalogInError::ChannelCreationError)?
+                    AdcChannelDriver::new(sharable_adc_driver, unsafe { Gpio5::new() }, &config)
+                        .map_err(|_| AnalogInError::ChannelCreationError)?,
                 ),
                 6 => AnalogChannels::Channel6(
-                    AdcChannelDriver::new(sharable_adc_driver, unsafe { Gpio6::new() }, &config).map_err(|_| AnalogInError::ChannelCreationError)?
+                    AdcChannelDriver::new(sharable_adc_driver, unsafe { Gpio6::new() }, &config)
+                        .map_err(|_| AnalogInError::ChannelCreationError)?,
                 ),
                 _ => return Err(AnalogInError::InvalidPin),
             },

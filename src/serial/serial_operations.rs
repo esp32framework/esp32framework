@@ -82,7 +82,7 @@ pub trait READER {
         }
         Ok(total)
     }
-    
+
     /// Reads "times" and returns the average of the values as an `f32` on success.
     ///
     /// Returns an error if the key is not found or if a value cannot be parsed to `f32`.
@@ -171,7 +171,7 @@ pub trait READER {
         }
         Ok(execute_closure(read_values))
     }
-    
+
     /// Loops indefinitely, checking the condition for each read. If the condition is met, `execute_closure`
     /// is called with the parsed data.
     ///
@@ -255,8 +255,7 @@ pub trait WRITER {
     }
 }
 
-
-pub trait ReaderWriter: READER + WRITER{
+pub trait ReaderWriter: READER + WRITER {
     /// The function loops indefinitely, writting each time `operation_key` is found in the parsed data .
     ///
     /// Note: The function runs indefinitely, ensure that `condition_closure` eventually returns `true`.

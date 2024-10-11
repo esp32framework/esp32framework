@@ -318,7 +318,7 @@ impl<'a> _TimerDriver<'a> {
             auto_reenable,
         );
 
-        if let Some(old_interrupt) = self.interrupts.get(&id){
+        if let Some(old_interrupt) = self.interrupts.get(&id) {
             interrupt.current_alarm_id = old_interrupt.current_alarm_id + 1
         }
         self.interrupts.insert(id, interrupt);

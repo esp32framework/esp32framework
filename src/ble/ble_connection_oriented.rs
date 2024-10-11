@@ -295,12 +295,6 @@ impl<'a> _BleServer<'a> {
             DiscoverableMode::NonDiscoverable => {
                 self.advertisement.lock().disc_mode(disc_mode.get_code())
             }
-            DiscoverableMode::LimitedDiscoverable(min_interval, max_interval) => self
-                .advertisement
-                .lock()
-                .disc_mode(disc_mode.get_code())
-                .min_interval(min_interval)
-                .max_interval(max_interval),
             DiscoverableMode::GeneralDiscoverable(min_interval, max_interval) => self
                 .advertisement
                 .lock()
@@ -541,6 +535,15 @@ impl<'a> _BleServer<'a> {
             .map_err(|_| BleError::StartingAdvertisementError)
     }
 
+    pub fn restart(&mut self) -> Result<(), BleError> {
+        self.create_advertisement_data()?;
+
+        self.advertisement
+            .lock()
+            .stop()
+            .map_err(|_| BleError::StoppingFailure)
+    }
+
     /// Creates the necessary advertisement data with the user settings
     ///
     /// # Returns
@@ -563,7 +566,6 @@ impl<'a> _BleServer<'a> {
     }
 }
 
-// TODO: refactor this!
 impl<'a> InterruptDriver for BleServer<'a> {
     fn update_interrupt(&mut self) -> Result<(), Esp32FrameworkError> {
         let (mut user_on_connection, mut user_on_disconnection) = self.take_connection_callbacks();
