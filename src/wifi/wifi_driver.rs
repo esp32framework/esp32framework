@@ -115,11 +115,12 @@ impl<'a> WifiDriver<'a> {
             .start()
             .await
             .map_err(|_| WifiError::StartingError)?;
-
+        
         self.controller
             .connect()
             .await
             .map_err(|_| WifiError::ConnectingError)?;
+        
 
         self.controller
             .wait_netif_up()
