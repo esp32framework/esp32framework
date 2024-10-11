@@ -310,17 +310,18 @@ impl<'a> _TimerDriver<'a> {
         callback: F,
     ) {
         let time = self.micro_to_counter(micro_seconds);
-        let interrupt = TimeInterrupt::new(
+        let mut interrupt = TimeInterrupt::new(
             id,
             Box::new(callback),
             time,
             amount_of_triggers,
             auto_reenable,
         );
-        if let Some(old_interrupt) = self.interrupts.insert(id, interrupt) {
-            self.interrupts.get_mut(&id).unwrap().current_alarm_id =
-                old_interrupt.current_alarm_id + 1
+
+        if let Some(old_interrupt) = self.interrupts.get(&id){
+            interrupt.current_alarm_id = old_interrupt.current_alarm_id + 1
         }
+        self.interrupts.insert(id, interrupt);
     }
 
     /// Transforms microseconds to the microcontroller tick_hz

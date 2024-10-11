@@ -99,10 +99,10 @@ impl<'a> WifiDriver<'a> {
         };
 
         let wifi_configuration: Configuration = Configuration::Client(ClientConfiguration {
-            ssid: ssid.try_into().unwrap(),
+            ssid: ssid.try_into().map_err(|_| WifiError::ConfigurationError)?,
             bssid: None, // MAC address
             auth_method,
-            password: (wifi_pass.as_str()).try_into().unwrap(),
+            password: (wifi_pass.as_str()).try_into().map_err(|_| WifiError::ConfigurationError)?,
             channel: None,
             ..Default::default()
         });
@@ -115,11 +115,12 @@ impl<'a> WifiDriver<'a> {
             .start()
             .await
             .map_err(|_| WifiError::StartingError)?;
-
+        
         self.controller
             .connect()
             .await
             .map_err(|_| WifiError::ConnectingError)?;
+        
 
         self.controller
             .wait_netif_up()

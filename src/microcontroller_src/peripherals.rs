@@ -18,6 +18,7 @@ pub enum PeripheralError {
     AlreadyTaken,
     NotABleDevicePeripheral,
     NotAnI2CPeripheral,
+    NotAModemPeripheral,
     NotAPin,
     NotAPwmTimer,
     NotAPwmChannel,
@@ -149,12 +150,12 @@ impl Peripheral {
     /// # Errors
     ///
     /// - `PeripheralError::AlreadyTaken`: If the Modem was already taken.
-    /// - `PeripheralError::NotABleDevicePeripheral`: Peripheral can not be transform into a Modem.
+    /// - `PeripheralError::NotAModemPeripheral`: Peripheral can not be transform into a Modem.
     pub fn into_modem(self) -> Result<modem::Modem, PeripheralError> {
         match self {
-            Peripheral::BleDevice => Ok(unsafe { modem::Modem::new() }),
+            Peripheral::Modem => Ok(unsafe { modem::Modem::new() }),
             Peripheral::None => Err(PeripheralError::AlreadyTaken),
-            _ => Err(PeripheralError::NotABleDevicePeripheral),
+            _ => Err(PeripheralError::NotAModemPeripheral),
         }
     }
 }
