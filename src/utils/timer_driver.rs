@@ -89,7 +89,7 @@ struct InterruptUpdate {
 impl InterruptUpdate {
     fn new() -> InterruptUpdate {
         InterruptUpdate {
-            update: Arc::new(AtomicBool::new(true)),
+            update: Arc::new(AtomicBool::new(false)),
         }
     }
 
