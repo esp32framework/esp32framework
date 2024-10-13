@@ -55,7 +55,6 @@ struct _DigitalIn<'a> {
 }
 
 /// Driver for receiving digital inputs from a particular Pin
-#[derive(Clone)]
 pub struct DigitalIn<'a> {
     inner: SharableRef<_DigitalIn<'a>>,
 }
@@ -438,8 +437,7 @@ impl<'a> _DigitalIn<'a> {
     /// - `DigitalInError::InvalidPin`: If enabling of the interrupt fails
     /// - `DigitalInError::StateAlreadySet`: If the ISR service has not been initialized
     fn _update_interrupt(&mut self) -> Result<(), DigitalInError> {
-        let interrupt_update =
-            InterruptUpdate::from_atomic_code(&self.interrupt_update_code);
+        let interrupt_update = InterruptUpdate::from_atomic_code(&self.interrupt_update_code);
         self.interrupt_update_code
             .store(InterruptUpdate::None.get_code(), Ordering::SeqCst);
 
@@ -547,13 +545,20 @@ impl<'a> DigitalIn<'a> {
     }
 }
 
-#[sharable_reference_wrapper]
-impl<'a> InterruptDriver for _DigitalIn<'a> {
+impl<'a> InterruptDriver<'a> for DigitalIn<'a> {
     /// Handles the diferent type of interrupts that, executing the user callback and reenabling the
     /// interrupt when necesary
     fn update_interrupt(&mut self) -> Result<(), Esp32FrameworkError> {
-        self._update_interrupt()
+        self.inner
+            .deref_mut()
+            ._update_interrupt()
             .map_err(Esp32FrameworkError::DigitalIn)
+    }
+
+    fn get_updater(&self) -> Box<dyn InterruptDriver<'a> + 'a> {
+        Box::new(Self {
+            inner: self.inner.clone(),
+        })
     }
 }
 

@@ -71,6 +71,7 @@ async fn main_loop(
     let mut mult = 2;
     loop {
         for characteristic in characteristics.iter_mut() {
+            println!("{:?}", characteristic.id());
             let read = match characteristic.read_async().await {
                 Ok(read) => get_number_from_bytes(read),
                 Err(err) => match err {

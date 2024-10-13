@@ -44,7 +44,7 @@ static TAKEN: AtomicBool = AtomicBool::new(false);
 pub struct Microcontroller<'a> {
     peripherals: Peripherals,
     timer_drivers: Vec<TimerDriver<'a>>,
-    interrupt_drivers: Vec<Box<dyn InterruptDriver + 'a>>,
+    interrupt_drivers: Vec<Box<dyn InterruptDriver<'a> + 'a>>,
     adc_driver: Option<SharableAdcDriver<'a>>,
     notification: Notification,
     event_loop: EspSystemEventLoop,
@@ -166,7 +166,7 @@ impl<'a> Microcontroller<'a> {
             pin_peripheral,
             Some(self.notification.notifier()),
         )?;
-        self.interrupt_drivers.push(Box::new(dgin.clone()));
+        self.interrupt_drivers.push(dgin.get_updater());
         Ok(dgin)
     }
 
@@ -192,7 +192,7 @@ impl<'a> Microcontroller<'a> {
     ) -> Result<DigitalOut<'a>, DigitalOutError> {
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
         let dgout = DigitalOut::new(self.get_timer_driver()?, pin_peripheral)?;
-        self.interrupt_drivers.push(Box::new(dgout.clone()));
+        self.interrupt_drivers.push(dgout.get_updater());
         Ok(dgout)
     }
 
@@ -363,7 +363,7 @@ impl<'a> Microcontroller<'a> {
             freq_hz,
             resolution,
         )?;
-        self.interrupt_drivers.push(Box::new(analog_out.clone()));
+        self.interrupt_drivers.push(analog_out.get_updater());
         Ok(analog_out)
     }
 
@@ -396,7 +396,7 @@ impl<'a> Microcontroller<'a> {
             pin_peripheral,
             self.get_timer_driver()?,
         )?;
-        self.interrupt_drivers.push(Box::new(analog_out.clone()));
+        self.interrupt_drivers.push(analog_out.get_updater());
         Ok(analog_out)
     }
 
@@ -625,7 +625,7 @@ impl<'a> Microcontroller<'a> {
             self.notification.notifier(),
             self.notification.notifier(),
         )?;
-        self.interrupt_drivers.push(Box::new(ble_server.clone()));
+        self.interrupt_drivers.push(ble_server.get_updater());
         Ok(ble_server)
     }
 
@@ -694,7 +694,7 @@ impl<'a> Microcontroller<'a> {
             self.notification.notifier(),
             self.notification.notifier(),
         )?;
-        self.interrupt_drivers.push(Box::new(ble_server.clone()));
+        self.interrupt_drivers.push(ble_server.get_updater());
         Ok(ble_server)
     }
 
@@ -710,7 +710,7 @@ impl<'a> Microcontroller<'a> {
     pub fn ble_client(&mut self) -> Result<BleClient, BleError> {
         let ble_device = self.peripherals.get_ble_peripheral().into_ble_device()?;
         let ble_client = BleClient::new(ble_device, self.notification.notifier());
-        self.interrupt_drivers.push(Box::new(ble_client.clone()));
+        self.interrupt_drivers.push(ble_client.get_updater());
         Ok(ble_client)
     }
 

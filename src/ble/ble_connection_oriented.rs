@@ -42,7 +42,6 @@ struct _BleServer<'a> {
 /// * `services`: The servere will hace information for the clients to see. All this information will be encapsulated on different services.
 /// * `user_on_connection`: Callback that will be executed for each client connected.
 /// * `user_on_disconnection`: Callback that will be executed for each client disconnected.
-#[derive(Clone)]
 pub struct BleServer<'a> {
     inner: SharableRef<_BleServer<'a>>,
 }
@@ -566,13 +565,19 @@ impl<'a> _BleServer<'a> {
     }
 }
 
-impl<'a> InterruptDriver for BleServer<'a> {
+impl<'a> InterruptDriver<'a> for BleServer<'a> {
     fn update_interrupt(&mut self) -> Result<(), Esp32FrameworkError> {
         let (mut user_on_connection, mut user_on_disconnection) = self.take_connection_callbacks();
         user_on_connection.handle_connection_changes(self);
         user_on_disconnection.handle_connection_changes(self);
         self.set_connection_callbacks(user_on_connection, user_on_disconnection);
         Ok(())
+    }
+
+    fn get_updater(&self) -> Box<dyn InterruptDriver<'a> + 'a> {
+        Box::new(Self {
+            inner: self.inner.clone(),
+        })
     }
 }
 
