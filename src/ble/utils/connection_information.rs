@@ -45,7 +45,7 @@ impl ConnectionInformation {
     /// # Returns
     ///
     /// A new ConnectionInformation
-    pub fn from_bleconn_desc(
+    pub(crate) fn from_bleconn_desc(
         desc: &BLEConnDesc,
         is_connected: bool,
         desc_res: Result<(), BLEError>,

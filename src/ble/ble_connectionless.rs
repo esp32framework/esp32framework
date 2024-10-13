@@ -37,7 +37,7 @@ impl<'a> BleBeacon<'a> {
     ///
     /// - `BleError::PropertiesError`: If a characteristic on the service has an invalid property.
     /// - `BleError::ServiceNotFound`: If the service_id doesnt match with the id of a service already set on the server.
-    pub fn new(
+    pub(crate) fn new(
         ble_device: &'a mut BLEDevice,
         timer_driver: TimerDriver<'a>,
         advertising_name: String,

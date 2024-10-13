@@ -7,7 +7,7 @@ use esp32framework::Microcontroller;
 const SAMPLING_QUANTITY: u16 = 10;
 
 fn main() {
-    let mut micro = Microcontroller::new();
+    let mut micro = Microcontroller::take();
     let mut analog_in = micro.set_pin_as_analog_in_high_atten(5).unwrap();
 
     loop {

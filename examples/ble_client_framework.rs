@@ -13,15 +13,14 @@ use esp32framework::{
 };
 
 fn main() {
-    let mut micro = Microcontroller::new();
+    let mut micro = Microcontroller::take();
 
     let mut characteristics = get_characteristics(&mut micro);
 
     let receiver = set_notify_callback_for_characteristics(&mut characteristics);
     let timer_driver = set_periodical_timer_driver_interrupts(&mut micro, 2000);
 
-    micro
-        .block_on(main_loop(timer_driver, characteristics, receiver));
+    micro.block_on(main_loop(timer_driver, characteristics, receiver));
 }
 
 fn get_characteristics(micro: &mut Microcontroller) -> Vec<RemoteCharacteristic> {

@@ -35,11 +35,11 @@ impl Notification {
         block_on(self.notif.wait());
     }
 
-    /// Create a notifier for this notification. 
-    /// 
+    /// Create a notifier for this notification.
+    ///
     /// # Returns
-    /// 
-    /// A `Notifier` capable of sending notifications to this `Notification`. There can be multiple 
+    ///
+    /// A `Notifier` capable of sending notifications to this `Notification`. There can be multiple
     /// `Notifiers` for a single `Notification`.
     pub fn notifier(&self) -> Notifier {
         Notifier::from(self)
@@ -55,7 +55,7 @@ impl From<&Notification> for Notifier {
 }
 
 impl Notifier {
-    /// Send a notification to the associated `Notification`, this will wake the notification if it is 
+    /// Send a notification to the associated `Notification`, this will wake the notification if it is
     /// currently blocked in a wait
     pub fn notify(&self) -> bool {
         self.notif.notify_lsb()

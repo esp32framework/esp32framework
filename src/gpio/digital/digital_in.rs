@@ -5,14 +5,16 @@ use crate::{
     },
     utils::{
         auxiliary::{SharableRef, SharableRefExt},
-        error_text_parser::map_enable_disable_errors,
         esp32_framework_error::Esp32FrameworkError,
         notification::Notifier,
         timer_driver::{TimerDriver, TimerDriverError},
     },
 };
 pub use esp_idf_svc::hal::gpio::InterruptType;
-use esp_idf_svc::hal::gpio::*;
+use esp_idf_svc::{
+    hal::gpio::*,
+    sys::{EspError, ESP_ERR_INVALID_STATE},
+};
 use sharable_reference_macro::sharable_reference_wrapper;
 use std::sync::{
     atomic::{AtomicU8, Ordering},
@@ -43,10 +45,10 @@ pub enum DigitalInError {
 /// - `debounce_ms`: An Option containing an u64 representing the debounce time in milliseconds
 /// - `notifier`: An Option<notifier> in order to wake up the [crate::Microcontroller] after an interrupt
 struct _DigitalIn<'a> {
-    pub pin_driver: PinDriver<'a, AnyIOPin, Input>,
+    pin_driver: PinDriver<'a, AnyIOPin, Input>,
     timer_driver: TimerDriver<'a>,
     interrupt_type: Option<InterruptType>,
-    pub interrupt_update_code: Arc<AtomicInterruptUpdateCode>,
+    interrupt_update_code: Arc<AtomicInterruptUpdateCode>,
     user_callback: Box<dyn FnMut()>,
     debounce_ms: Option<u64>,
     notifier: Option<Notifier>,
@@ -145,11 +147,8 @@ impl<'a> _DigitalIn<'a> {
     /// - `DigitalInError::InvalidPeripheral`: If per parameter is not capable of transforming into an AnyIOPin,
     ///   or pin has already been used for another driver.
     /// - `DigitalInError::CannotSetPinAsInput`: If the per parameter is not capable of soportin input
-    ///
-    /// # Panics
-    ///
-    /// When setting Down the pull fails
-    pub fn new(
+    /// - `DigitalInError::CannotSetPullForPin`: If the pin driver is unable to support a setting of the pull
+    fn new(
         timer_driver: TimerDriver<'a>,
         per: Peripheral,
         notifier: Option<Notifier>,
@@ -169,7 +168,7 @@ impl<'a> _DigitalIn<'a> {
             notifier,
         };
 
-        digital_in.set_pull(Pull::Down).unwrap();
+        digital_in.set_pull(Pull::Down)?;
         Ok(digital_in)
     }
 
@@ -280,19 +279,19 @@ impl<'a> _DigitalIn<'a> {
                 unsafe {
                     self.pin_driver
                         .subscribe(callback)
-                        .map_err(map_enable_disable_errors)?;
+                        .map_err(DigitalInError::from_enable_disable_errors)?;
                 };
             }
             None => unsafe {
                 self.pin_driver
                     .subscribe(func)
-                    .map_err(map_enable_disable_errors)?;
+                    .map_err(DigitalInError::from_enable_disable_errors)?;
             },
         };
 
         self.pin_driver
             .enable_interrupt()
-            .map_err(map_enable_disable_errors)
+            .map_err(DigitalInError::from_enable_disable_errors)
     }
 
     /// Sets a callback that sets an InterruptUpdate on the received interrupt type, which will then
@@ -423,7 +422,7 @@ impl<'a> _DigitalIn<'a> {
 
         self.pin_driver
             .enable_interrupt()
-            .map_err(map_enable_disable_errors)
+            .map_err(DigitalInError::from_enable_disable_errors)
     }
 
     /// Handles the diferent type of interrupts that, executing the user callback and reenabling the
@@ -449,7 +448,7 @@ impl<'a> _DigitalIn<'a> {
                 (self.user_callback)();
                 self.pin_driver
                     .enable_interrupt()
-                    .map_err(map_enable_disable_errors)
+                    .map_err(DigitalInError::from_enable_disable_errors)
             }
             InterruptUpdate::EnableTimerDriver => self
                 .timer_driver
@@ -460,7 +459,7 @@ impl<'a> _DigitalIn<'a> {
                 (self.user_callback)();
                 self.pin_driver
                     .unsubscribe()
-                    .map_err(map_enable_disable_errors)
+                    .map_err(DigitalInError::from_enable_disable_errors)
             }
             InterruptUpdate::None => Ok(()),
         }
@@ -537,7 +536,7 @@ impl<'a> DigitalIn<'a> {
     /// # Panics
     ///
     /// When setting Down the pull fails
-    pub fn new(
+    pub(crate) fn new(
         timer_driver: TimerDriver,
         per: Peripheral,
         notifier: Option<Notifier>,
@@ -561,5 +560,25 @@ impl<'a> InterruptDriver for _DigitalIn<'a> {
 impl From<TimerDriverError> for DigitalInError {
     fn from(value: TimerDriverError) -> Self {
         DigitalInError::TimerDriverError(value)
+    }
+}
+
+/// Maps an error to a `DigitalInError` for enable disable errors
+///
+/// # Arguments
+///
+/// * `err` - The error to translate.
+///
+/// # Returns
+///
+/// A `DigitalInError` variant representing the translated error:
+/// - `DigitalInError::StateAlreadySet`.
+/// - `DigitalInError::InvalidPin`.
+impl DigitalInError {
+    fn from_enable_disable_errors(err: EspError) -> DigitalInError {
+        match err.code() {
+            ESP_ERR_INVALID_STATE => DigitalInError::StateAlreadySet,
+            _ => DigitalInError::InvalidPin,
+        }
     }
 }

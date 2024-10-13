@@ -18,6 +18,7 @@ pub enum Esp32FrameworkError {
     AnalogInPwm(AnalogInPwmError),
     AnalogOut(AnalogOutError),
     Ble(BleError),
+    CantHaveMoreThanOneMicrocontroller,
     DigitalIn(DigitalInError),
     DigitalOut(DigitalOutError),
     I2c(I2CError),

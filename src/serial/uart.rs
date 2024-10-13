@@ -64,7 +64,7 @@ impl<'a> UART<'a> {
     /// - `UARTError::InvalidPin`: If either the TX or RX pins cannot be converted to IO pins.
     /// - `UARTError::InvalidUartNumber`: If an unsupported UART peripheral is selected.
     /// - `UARTError::DriverError`: If there is an error initializing the driver.
-    pub fn new(
+    pub(crate) fn new(
         tx: Peripheral,
         rx: Peripheral,
         uart_peripheral: Peripheral,

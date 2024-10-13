@@ -51,7 +51,10 @@ impl<'a> WifiDriver<'a> {
     ///
     /// - `WifiError::NvsAlreadyTaken`: If the NVS Default Partition was already taken.
     /// - `WifiError::StartingError`: If there is an error initializing the driver.
-    pub fn new(event_loop: EspSystemEventLoop, modem: modem::Modem) -> Result<Self, WifiError> {
+    pub(crate) fn new(
+        event_loop: EspSystemEventLoop,
+        modem: modem::Modem,
+    ) -> Result<Self, WifiError> {
         let nvs = EspDefaultNvsPartition::take().map_err(|_| WifiError::NvsAlreadyTaken)?;
         let timer_service = EspTaskTimerService::new().map_err(|_| WifiError::StartingError)?;
         Ok(WifiDriver {
@@ -96,10 +99,12 @@ impl<'a> WifiDriver<'a> {
         };
 
         let wifi_configuration: Configuration = Configuration::Client(ClientConfiguration {
-            ssid: ssid.try_into().unwrap(),
+            ssid: ssid.try_into().map_err(|_| WifiError::ConfigurationError)?,
             bssid: None, // MAC address
             auth_method,
-            password: (wifi_pass.as_str()).try_into().unwrap(),
+            password: (wifi_pass.as_str())
+                .try_into()
+                .map_err(|_| WifiError::ConfigurationError)?,
             channel: None,
             ..Default::default()
         });

@@ -23,11 +23,15 @@ use esp_idf_svc::{
 };
 use futures::future::{join, Future};
 use oneshot::AdcDriver;
-use std::rc::Rc;
+use std::{
+    rc::Rc,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 const TIMER_GROUPS: usize = 2;
 
-pub type SharableAdcDriver<'a> = Rc<AdcDriver<'a, ADC1>>;
+pub(crate) type SharableAdcDriver<'a> = Rc<AdcDriver<'a, ADC1>>;
+static TAKEN: AtomicBool = AtomicBool::new(false);
 
 /// Primary abstraction for interacting with the microcontroller, providing access to peripherals and drivers
 /// required for configuring pins and other functionalities.
@@ -47,7 +51,7 @@ pub struct Microcontroller<'a> {
 }
 
 impl<'a> Microcontroller<'a> {
-    /// Creates a new Microcontroller instance
+    /// Creates a new Microcontroller instance.
     ///
     /// # Returns
     ///
@@ -55,8 +59,11 @@ impl<'a> Microcontroller<'a> {
     ///
     /// # Panics
     ///
-    /// This maay panic if the initialization fails, leaving the microcontroller in an invalid state.
-    pub fn new() -> Self {
+    /// Panics if the microcontroller was already initialized. In this case, the microcontroller
+    /// remains in an invalid state.
+    pub fn take() -> Self {
+        Microcontroller::assert_uniqueness().unwrap();
+
         esp_idf_svc::sys::link_patches();
         let mut peripherals = Peripherals::new();
         let notification = Notification::new();
@@ -73,11 +80,28 @@ impl<'a> Microcontroller<'a> {
         }
     }
 
+    /// Asserts whether another instance of microcontroller exists.
+    ///
+    /// #Returns
+    ///
+    /// A Ok() if there is no other instance of the microcontroller or Err(`Esp32FrameworkError`) if one already exists.
+    ///
+    /// # Errors
+    ///
+    /// - `Esp32FrameworkError::CantHaveMoreThanOneMicrocontroller`: If an instance of microcontroller already exists.
+    fn assert_uniqueness() -> Result<(), Esp32FrameworkError> {
+        if TAKEN.load(Ordering::SeqCst) {
+            return Err(Esp32FrameworkError::CantHaveMoreThanOneMicrocontroller);
+        }
+        TAKEN.store(true, Ordering::Relaxed);
+        Ok(())
+    }
+
     /// Creates the timer_drivers for all timer groups
     ///
     /// #Returns
     ///
-    /// A `Result` containing the timer drivers or an instance or a `TimerDriverError` if the creation fails.
+    /// A `Result` containing the timer drivers or an instance of a `TimerDriverError` if the creation fails.
     ///
     /// # Errors
     ///
@@ -837,7 +861,7 @@ impl<'a> Default for Microcontroller<'a> {
     ///
     /// If the take on the EspSystemEventLoop fails. This may happen if it was already taken before
     fn default() -> Self {
-        Self::new()
+        Self::take()
     }
 }
 

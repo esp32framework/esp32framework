@@ -9,7 +9,7 @@ use esp32framework::{
 };
 
 fn main() {
-    let mut micro = Microcontroller::new();
+    let mut micro = Microcontroller::take();
     let i2c = micro.set_pins_for_i2c_master(5, 6).unwrap();
     let mut ds3231 = DS3231::new(i2c);
     let sqw = micro.set_pin_as_digital_in(3).unwrap();

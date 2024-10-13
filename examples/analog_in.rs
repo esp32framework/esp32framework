@@ -42,7 +42,7 @@ fn main() {
     FreeRtos::delay_ms(u32::MAX);
 }
 
-pub fn smooth_read_during(
+fn smooth_read_during(
     adc_driver: &mut AdcChannelDriver<'static, Gpio5, AdcDriver<'static, ADC1>>,
     ms: u16,
 ) -> Result<u16, EspError> {

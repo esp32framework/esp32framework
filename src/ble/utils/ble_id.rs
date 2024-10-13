@@ -53,7 +53,7 @@ impl BleId {
     /// # Returns
     ///
     /// The corresponfing BleUuid
-    pub fn to_uuid(&self) -> BleUuid {
+    pub(crate) fn to_uuid(&self) -> BleUuid {
         match self {
             BleId::StandardService(service) => BleUuid::from_uuid16(*service as u16),
             BleId::StandarCharacteristic(characteristic) => {
