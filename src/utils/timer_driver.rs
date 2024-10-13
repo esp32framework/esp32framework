@@ -260,12 +260,11 @@ impl<'a> _TimerDriver<'a> {
         notifier: Notifier,
     ) -> Result<(), TimerDriverError> {
         let interrupt_update_ref = self.interrupt_update.clone();
+        let alarm_callback = move || {
+            interrupt_update_ref.new_update();
+            notifier.notify();
+        };
         unsafe {
-            let alarm_callback = move || {
-                interrupt_update_ref.new_update();
-                notifier.notify();
-            };
-
             self.driver
                 .subscribe(alarm_callback)
                 .map_err(|_| TimerDriverError::SubscriptionError)

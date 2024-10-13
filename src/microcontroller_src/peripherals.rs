@@ -1,5 +1,5 @@
 use esp32_nimble::BLEDevice;
-use esp_idf_svc::hal::{gpio::*, i2c::I2C0, modem};
+use esp_idf_svc::hal::{adc::ADC1, gpio::*, i2c::I2C0, modem};
 use std::mem;
 
 const PIN_COUNT: usize = 24;
@@ -23,6 +23,7 @@ pub enum PeripheralError {
     NotAPwmTimer,
     NotAPwmChannel,
     NotATimerGroup,
+    NotAnAdc,
 }
 
 /// Represents the esp32 Peripheral allowing to instanciate diferent Peripheral Types
@@ -156,6 +157,25 @@ impl Peripheral {
             Peripheral::Modem => Ok(unsafe { modem::Modem::new() }),
             Peripheral::None => Err(PeripheralError::AlreadyTaken),
             _ => Err(PeripheralError::NotAModemPeripheral),
+        }
+    }
+
+    /// Transforms the Peripheral instance into an ADC1.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the new `ADC1` instance, or an `PeripheralError` if the
+    /// initialization fails.
+    ///
+    /// # Errors
+    ///
+    /// - `PeripheralError::AlreadyTaken`: If the ADC1 was already taken.
+    /// - `PeripheralError::NotAnAdc`: Peripheral can not be transform into an ADC1.
+    pub fn into_adc1(self) -> Result<ADC1, PeripheralError> {
+        match self {
+            Peripheral::Adc => Ok(unsafe { ADC1::new() }),
+            Peripheral::None => Err(PeripheralError::AlreadyTaken),
+            _ => Err(PeripheralError::NotAnAdc),
         }
     }
 }

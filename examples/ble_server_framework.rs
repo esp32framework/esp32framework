@@ -78,7 +78,7 @@ fn main() {
     loop {
         notifiable_characteristic.update_data(vec![counter]);
         server
-            .notify_value(service_id.clone(), &notifiable_characteristic)
+            .notify_value(&service_id, &notifiable_characteristic)
             .unwrap();
         micro.wait_for_updates(Some(1000));
         counter += 1;

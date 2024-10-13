@@ -208,8 +208,8 @@ impl<'a> Microcontroller<'a> {
     /// - `AdcDriverError::Code`: To represent other errors.
     fn start_adc_driver(&mut self) -> Result<(), AdcDriverError> {
         if self.adc_driver.is_none() {
-            self.peripherals.get_adc();
-            let driver = AdcDriver::new(unsafe { ADC1::new() })?;
+            let adc1 = self.peripherals.get_adc().into_adc1()?;
+            let driver = AdcDriver::new(adc1)?;
             self.adc_driver.replace(Rc::new(driver));
         };
         Ok(())
@@ -355,7 +355,7 @@ impl<'a> Microcontroller<'a> {
     ) -> Result<AnalogOut<'a>, AnalogOutError> {
         let (pwm_channel, pwm_timer) = self.peripherals.get_next_pwm();
         let pin_peripheral = self.peripherals.get_pwm_pin(pin_num);
-        let anlg_out = AnalogOut::new(
+        let analog_out = AnalogOut::new(
             pwm_channel,
             pwm_timer,
             pin_peripheral,
@@ -363,8 +363,8 @@ impl<'a> Microcontroller<'a> {
             freq_hz,
             resolution,
         )?;
-        self.interrupt_drivers.push(Box::new(anlg_out.clone()));
-        Ok(anlg_out)
+        self.interrupt_drivers.push(Box::new(analog_out.clone()));
+        Ok(analog_out)
     }
 
     /// Sets pin as analog output, with a default frequency of 100 Hertz and resolution of 8 bits
@@ -390,14 +390,14 @@ impl<'a> Microcontroller<'a> {
     ) -> Result<AnalogOut<'a>, AnalogOutError> {
         let (pwm_channel, pwm_timer) = self.peripherals.get_next_pwm();
         let pin_peripheral = self.peripherals.get_pwm_pin(pin_num);
-        let anlg_out = AnalogOut::default(
+        let analog_out = AnalogOut::default(
             pwm_channel,
             pwm_timer,
             pin_peripheral,
             self.get_timer_driver()?,
         )?;
-        self.interrupt_drivers.push(Box::new(anlg_out.clone()));
-        Ok(anlg_out)
+        self.interrupt_drivers.push(Box::new(analog_out.clone()));
+        Ok(analog_out)
     }
 
     /// Sets pin as analog input of PWM signals, with default signal frequency of 1000 Hertz

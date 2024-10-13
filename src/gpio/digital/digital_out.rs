@@ -91,7 +91,7 @@ impl InterruptUpdate {
     /// # Returns
     ///
     /// An `InterruptUpdate` instance corresponding to the provided `atomic_code`.
-    fn from_atomic_code(atomic_code: Arc<AtomicInterruptUpdateCode>) -> Self {
+    fn from_atomic_code(atomic_code: &Arc<AtomicInterruptUpdateCode>) -> Self {
         InterruptUpdate::from_code(atomic_code.load(Ordering::Acquire))
     }
 }
@@ -256,7 +256,7 @@ impl<'a> _DigitalOut<'a> {
     /// - `DigitalOutError::InvalidPin`: If the pin level cannot be toggled.
     fn _update_interrupt(&mut self) -> Result<(), DigitalOutError> {
         let interrupt_update =
-            InterruptUpdate::from_atomic_code(self.interrupt_update_code.clone());
+            InterruptUpdate::from_atomic_code(&self.interrupt_update_code);
         self.interrupt_update_code
             .store(InterruptUpdate::None.get_code(), Ordering::SeqCst);
 

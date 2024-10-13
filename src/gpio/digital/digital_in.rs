@@ -123,7 +123,7 @@ impl InterruptUpdate {
     /// # Returns
     ///
     /// An `InterruptUpdate` variant corresponding to the loaded atomic code.
-    fn from_atomic_code(atomic_code: Arc<AtomicInterruptUpdateCode>) -> Self {
+    fn from_atomic_code(atomic_code: &Arc<AtomicInterruptUpdateCode>) -> Self {
         InterruptUpdate::from_code(atomic_code.load(Ordering::Acquire))
     }
 }
@@ -439,7 +439,7 @@ impl<'a> _DigitalIn<'a> {
     /// - `DigitalInError::StateAlreadySet`: If the ISR service has not been initialized
     fn _update_interrupt(&mut self) -> Result<(), DigitalInError> {
         let interrupt_update =
-            InterruptUpdate::from_atomic_code(self.interrupt_update_code.clone());
+            InterruptUpdate::from_atomic_code(&self.interrupt_update_code);
         self.interrupt_update_code
             .store(InterruptUpdate::None.get_code(), Ordering::SeqCst);
 

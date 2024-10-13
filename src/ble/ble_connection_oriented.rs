@@ -340,7 +340,7 @@ impl<'a> _BleServer<'a> {
         self.ble_server.create_service(service.id.to_uuid());
 
         for characteristic in &service.characteristics {
-            self.set_characteristic(service.id.clone(), characteristic)?;
+            self.set_characteristic(&service.id, characteristic)?;
         }
         Ok(())
     }
@@ -382,7 +382,7 @@ impl<'a> _BleServer<'a> {
     /// - `BleError::ServiceNotFound`: If the service_id doesnt match with the id of a service already set on the server
     pub fn set_characteristic(
         &mut self,
-        service_id: BleId,
+        service_id: &BleId,
         characteristic: &Characteristic,
     ) -> Result<(), BleError> {
         let server_service =
@@ -502,7 +502,7 @@ impl<'a> _BleServer<'a> {
     /// - `BleError::CharacteristicNotFound`: If the characteristic was not setted before on the server
     pub fn notify_value(
         &mut self,
-        service_id: BleId,
+        service_id: &BleId,
         characteristic: &Characteristic,
     ) -> Result<(), BleError> {
         if !characteristic.is_notifiable() {

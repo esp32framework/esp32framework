@@ -37,7 +37,7 @@ fn main() {
 
     let mut red_pwm = LedcDriver::new(
         peripherals.ledc.channel0,
-        timer.clone(),
+        timer,
         peripherals.pins.gpio3,
     )
     .unwrap();
