@@ -84,7 +84,7 @@ impl<'a> Microcontroller<'a> {
     ///
     /// #Returns
     ///
-    /// A Ok() if there is no other instance of the microcontroller or Err(`Esp32FrameworkError`) if one already exists.
+    /// Ok() if there is no other instance of the microcontroller or Err(`Esp32FrameworkError`) if one already exists.
     ///
     /// # Errors
     ///

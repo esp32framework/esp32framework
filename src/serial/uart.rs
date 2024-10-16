@@ -1,12 +1,9 @@
 use crate::{
-    microcontroller_src::peripherals::{Peripheral, PeripheralError},
-    utils::auxiliary::micro_to_ticks,
+    microcontroller_src::peripherals::{Peripheral, PeripheralError}, utils::auxiliary::micro_to_ticks,
+    // utils::auxiliary::micro_to_ticks
 };
 use esp_idf_svc::hal::{
-    delay::BLOCK,
-    gpio::{Gpio0, Gpio1},
-    uart::{config, UartDriver, UART0, UART1},
-    units::Hertz,
+    gpio::{Gpio0, Gpio1}, task::block_on, uart::{config, AsyncUartDriver, UartDriver, UART0, UART1}, units::Hertz
 };
 
 const DEFAULT_BAUDRATE: u32 = 115_200;
@@ -39,7 +36,7 @@ pub enum Parity {
 
 /// A UART (Universal Asynchronous Receiver Transmitter) driver to handle serial communications.
 pub struct UART<'a> {
-    driver: UartDriver<'a>,
+    driver: AsyncUartDriver<'a, UartDriver<'a>>,
 }
 
 impl<'a> UART<'a> {
@@ -64,7 +61,7 @@ impl<'a> UART<'a> {
     /// - `UARTError::InvalidPin`: If either the TX or RX pins cannot be converted to IO pins.
     /// - `UARTError::InvalidUartNumber`: If an unsupported UART peripheral is selected.
     /// - `UARTError::DriverError`: If there is an error initializing the driver.
-    pub(crate) fn new(
+    pub fn new(
         tx: Peripheral,
         rx: Peripheral,
         uart_peripheral: Peripheral,
@@ -77,7 +74,7 @@ impl<'a> UART<'a> {
         let config = set_config(baudrate, parity, stopbit)?;
 
         let driver = match uart_peripheral {
-            Peripheral::Uart(0) => UartDriver::new(
+            Peripheral::Uart(0) => AsyncUartDriver::new(
                 unsafe { UART0::new() },
                 tx_peripheral,
                 rx_peripheral,
@@ -86,7 +83,7 @@ impl<'a> UART<'a> {
                 &config,
             )
             .map_err(|_| UARTError::DriverError)?,
-            Peripheral::Uart(1) => UartDriver::new(
+            Peripheral::Uart(1) => AsyncUartDriver::new(
                 unsafe { UART1::new() },
                 tx_peripheral,
                 rx_peripheral,
@@ -150,9 +147,12 @@ impl<'a> UART<'a> {
     ///
     /// - `UARTError::WriteError`: If the write operation failed.
     pub fn write(&mut self, bytes_to_write: &[u8]) -> Result<usize, UARTError> {
+        block_on(self.async_write(bytes_to_write))
+    }
+
+    async fn async_write(&mut self, bytes_to_write: &[u8]) -> Result<usize, UARTError> {
         self.driver
-            .write(bytes_to_write)
-            .map_err(|_| UARTError::WriteError)
+            .write(bytes_to_write).await.map_err(|_| UARTError::WriteError)
     }
 
     /// Reads from the UART buffer without a timeout. This means that the function will be blocking
@@ -171,9 +171,12 @@ impl<'a> UART<'a> {
     ///
     /// - `UARTError::ReadError`: If the read operation failed.
     pub fn read(&mut self, buffer: &mut [u8]) -> Result<usize, UARTError> {
+        block_on(self.async_read(buffer))
+    }
+
+    async fn async_read(&mut self, buffer: &mut [u8]) -> Result<usize, UARTError> {
         self.driver
-            .read(buffer, BLOCK)
-            .map_err(|_| UARTError::ReadError)
+            .read(buffer).await.map_err(|_| UARTError::ReadError)
     }
 
     /// Reads from the UART buffer with a timeout in us (microsec). The function will
@@ -199,7 +202,8 @@ impl<'a> UART<'a> {
         let timeout: u32 = micro_to_ticks(timeout_us);
         self.driver
             .read(buffer, timeout)
-            .map_err(|_| UARTError::ReadError)
+            .map_err(|_| UARTError::ReadError);
+        todo!()
     }
 }
 
