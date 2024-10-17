@@ -11,15 +11,15 @@
 // mod peripherals;
 // mod error_text_parser;
 use esp32framework::Microcontroller;
-use std::thread;
-use std::time::Duration;
+//use std::thread;
+//use std::time::Duration;
 
 // use esp_idf_svc::hal::adc::config::Config;
-use esp_idf_svc::hal::adc::*;
+//use esp_idf_svc::hal::adc::*;
 use esp_idf_svc::hal::delay::FreeRtos;
-use esp_idf_svc::hal::gpio::*;
+//use esp_idf_svc::hal::gpio::*;
 //use esp_idf_svc::hal::peripherals;
-use esp_idf_svc::hal::peripherals::Peripherals;
+//use esp_idf_svc::hal::peripherals::Peripherals;
 // use microcontroller::Microcontroller;
 
 /// Main for analog in with esp hal
@@ -42,20 +42,18 @@ use esp_idf_svc::hal::peripherals::Peripherals;
 // }
 
 ///  Main for our analog
-fn main(){
-    let mut micro = Microcontroller::new();
-    let mut analog_in = micro.set_pin_as_analog_in_low_atten(0);
+fn main() {
+    let mut micro = Microcontroller::take();
+    let mut analog_in = micro.set_pin_as_analog_in_low_atten(0).unwrap();
     loop {
         let read = analog_in.read().unwrap();
         let raw_read = analog_in.read_raw().unwrap();
         let smooth_read = analog_in.smooth_read(20).unwrap();
         println!("READ: {read} | RAW: {raw_read} | SMOOTH: {smooth_read}");
         FreeRtos::delay_ms(500_u32);
-        micro.update();
+        micro.update().unwrap();
     }
     //drop(analog_in);
     //println!("{:?}", micro);
     //drop(micro);
 }
-
-

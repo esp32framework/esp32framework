@@ -1,7 +1,5 @@
-mod i2c;
-mod uart;
+pub mod i2c;
 mod serial_operations;
+pub mod uart;
 
-pub use i2c::*;
-pub use uart::*;
 pub use serial_operations::*;

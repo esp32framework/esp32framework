@@ -1,0 +1,121 @@
+@startuml Ble Server
+
+
+class BleServer{
+    + connection_handler(handler)
+    + disconnect_handler(handler)
+    + set_connection_settings(ConnectionInformation, u16,u16,u16,u16)
+    + set_advertising_interval(u16,u16)
+    + set_high_advertising_duty_cycle()
+    + set_low_advertising_duty_cycle()
+    + set_discoverable_mode(DiscoverableMode)
+    + set_connection_mode(ConnectionMode)
+    + set_service(&Service)
+    + set_services(&Vec<Service>)
+    + set_characteristic(BleId, &Characteristic)
+    + notify_value(BleId, &Characteristic)
+    + start()
+}
+
+class _BleServer{
+    - advertising_name: String,
+    - ble_server: &'a mut BLEServer,
+    - advertisement: &'a Mutex<BLEAdvertising>
+    + connection_handler(handler)
+    + disconnect_handler(handler)
+    + set_connection_settings(ConnectionInformation, u16,u16,u16,u16)
+    + set_advertising_interval(u16,u16)
+    + set_high_advertising_duty_cycle()
+    + set_low_advertising_duty_cycle()
+    + set_discoverable_mode(DiscoverableMode)
+    + set_connection_mode(ConnectionMode)
+    + set_service(&Service)
+    + set_services(&Vec<Service>)
+    + set_characteristic(BleId, &Characteristic)
+    + notify_value(BleId, &Characteristic)
+    + start()
+}
+
+class ConnectionCallback{
+    -callback
+    -info_queue
+    -notifier
+    +set_callback()
+    +handle_connection_changes()
+}
+
+class Service {
+    - data: Vec<u8>
+    + add_characteristic()
+    
+} 
+
+class Characteristic{
+    - properties: u16
+    - data: Vec<u8>
+    + add_descriptor()
+    + writable(bool)
+    + readeable(bool)
+    + notifiable(bool)
+    + readeable_enc(bool)
+    + readeable_authen(bool)
+    + readeable_author(bool)
+    + writeable_no_rsp(bool)
+    + writeable_enc(bool)
+    + writeable_authen(bool)
+    + writeable_author(bool)
+    + broadcastable(bool)
+    + indicatable(bool)
+    + update_data(bool)
+}
+
+class Descriptor{
+    - properties: u8
+    - data: Vec<u8>
+    + get_properties()
+    + writable(bool)
+    + readeable(bool)
+    + notifiable(bool)
+    + readeable_enc(bool)
+    + readeable_authen(bool)
+    + readeable_author(bool)
+    + writeable_no_rsp(bool)
+    + writeable_enc(bool)
+    + writeable_authen(bool)
+    + writeable_author(bool)
+}
+
+enum DiscoverableMode {
+    GeneralDiscoverable(u16, u16),
+    NonDiscoverable()
+}
+
+enum ConnectionMode {
+    NonConnectable,
+    UndirectedConnectable,
+}
+
+enum BleId {
+    ByName(String),
+    FromUuid16(u16),
+    FromUuid32(u32),
+    FromUuid128([u8; 16]),
+    StandardService(StandarServiceId),
+    StandarCharacteristic(StandarCharacteristicId),
+    StandarDescriptor(StandarDescriptorId),
+}
+
+BleServer *-right- _BleServer
+_BleServer *- Service
+_BleServer *-- "2" ConnectionCallback
+Service *-- Characteristic
+Characteristic  *-- Descriptor
+_BleServer --> DiscoverableMode
+_BleServer --> ConnectionMode
+_BleServer -> BleId
+Service *- BleId
+Characteristic *- BleId
+Descriptor *- BleId
+
+
+@enduml

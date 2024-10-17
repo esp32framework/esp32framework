@@ -1,0 +1,104 @@
+@startuml Ble client
+
+class BleClient {
+    + get_characteristic()
+    + get_all_characteristics()
+    + get_characteristic_async()
+    + get_all_characteristics_async()
+    + connect_to_device(Option<Duration>, condition)
+    + connect_to_device_with_service(Option<Duration>, &BleId)
+    + connect_to_device_of_name(Option<Duration>, string)
+    + connect_to_device_async(Option<Duration>, condition)
+    + connect_to_device_with_service_async(Option<Duration>, &BleId)
+    + connect_to_device_of_name_async(ption<Duration>, string)
+    + get_all_service_ids()
+    + get_all_service_ids_async()
+    + disconnect()
+}
+
+class _BleClient{
+    - ble_client: BLEClient,
+    - ble_scan: &'static mut BLEScan,
+    - connected: bool,
+    - time_between_scans: u16,
+    + connect_to_device(Option<Duration>, condition)
+    + connect_to_device_with_service(Option<Duration>, &BleId)
+    + connect_to_device_of_name(Option<Duration>, string)
+    + connect_to_device_async(Option<Duration>, condition)
+    + connect_to_device_with_service_async(Option<Duration>, &BleId)
+    + connect_to_device_of_name_async(ption<Duration>, string)
+    + get_all_service_ids()
+    + get_all_service_ids_async()
+    + disconnect()
+}
+
+class BleClientUpdater{
+    + add_characteristic(&RemoteCharacteristic)
+    
+}
+
+class RemoteCharacteristic{
+    + on_notify()
+    + execute_if_notified()
+}
+
+class _RemoteCharacteristic{
+    + characteristic: BLERemoteCharacteristic
+    + id()
+    + is_readable()
+    + is_writable()
+    + is_notifiable()
+    + is_broadcastable()
+    + is_writable_no_resp()
+    + read_async()
+    + read()
+    + write_async(&[u8])
+    + write(&[u8])
+    + set_notification_on_notify()
+    + get_descriptor(&BleId)
+    + get_descriptor_async(&BleId)
+    + get_all_descriptors()
+    + get_all_descriptors_async()
+}
+
+class Notifier{
+    + notify()
+}
+class RemoteCharacteristicUpdater{
+    + notify_callback
+    + notify_queue
+    + execute_if_notified()
+    + get_queue()
+}
+
+class RemoteDescriptor{
+    + descriptor: BLERemoteDescriptor
+    + id()
+    + read_async()
+    + read()
+    + write_async(&[u8])
+    + write(&[u8])
+}
+
+enum BleId {
+    ByName(String),
+    FromUuid16(u16),
+    FromUuid32(u32),
+    FromUuid128([u8; 16]),
+    StandardService(StandarServiceId),
+    StandarCharacteristic(StandarCharacteristicId),
+    StandarDescriptor(StandarDescriptorId),
+}
+
+BleClient *-- _BleClient 
+BleClient *- BleClientUpdater
+BleClientUpdater *- RemoteCharacteristic
+BleClientUpdater -> BleId 
+RemoteCharacteristic *- RemoteCharacteristicUpdater
+RemoteCharacteristic *-- _RemoteCharacteristic
+_RemoteCharacteristic -down-> Notifier
+_RemoteCharacteristic -down-> RemoteDescriptor
+_RemoteCharacteristic --> BleId
+_BleClient --> Notifier
+_BleClient --> BleId
+@enduml

@@ -1,16 +1,16 @@
 //! Example using pin GPIO9 as digital in to count the amount of times a button
 //! is pressed. The signal is configured with a debounce time of 200msec.
 
-use esp_idf_svc::hal::{gpio::*,peripherals::Peripherals,delay::FreeRtos};
-use std::{collections::HashMap, sync::atomic::{AtomicBool, Ordering}};
+use esp_idf_svc::hal::{delay::FreeRtos, gpio::*, peripherals::Peripherals};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 static FLAG: AtomicBool = AtomicBool::new(false);
 
-fn callback(){
+fn callback() {
     FLAG.store(true, Ordering::Relaxed);
 }
 
-fn main(){
+fn main() {
     esp_idf_svc::sys::link_patches();
     let peripherals = Peripherals::take().unwrap();
     let mut button = PinDriver::input(peripherals.pins.gpio9).unwrap();
@@ -20,12 +20,12 @@ fn main(){
         button.subscribe(callback).unwrap();
     }
     button.enable_interrupt().unwrap();
-    
+
     loop {
         if FLAG.load(Ordering::Relaxed) {
             FLAG.store(false, Ordering::Relaxed);
             FreeRtos::delay_ms(200_u32);
-            if !button.is_low(){
+            if !button.is_low() {
                 continue;
             }
             count = count.wrapping_add(1);
