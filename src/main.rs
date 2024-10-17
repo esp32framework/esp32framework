@@ -1,37 +1,55 @@
-use config::StopBits;
-use esp_idf_svc::{
-    hal::{gpio, peripherals::Peripherals, uart::*, prelude::*, delay::FreeRtos},
-    sys::configTICK_RATE_HZ
-};
+use esp32framework::{ble::{utils::{ble_standard_uuids::{StandarCharacteristicId, StandarServiceId}, Characteristic, Service}, BleId, BleServer}, wifi::http::HttpClient, Microcontroller};
 
-const BUFFER_SIZE: usize = 10;
-// To get a 1 second timeout we need to get how many ticks we need according to the constant configTICK_RATE_HZ
-const TIMEOUT: u32 = ((configTICK_RATE_HZ as u64) * (1_000_000 as u64) / 1_000_000_u64) as u32;
+const ADVERTISING_NAME: &str = "Server";
+const SSID: &str = "WIFI_SSID";
+const PASSWORD: &str = "WIFI_PASS";
+const URI: &str = "web application uri";
 
-fn main(){
-    esp_idf_svc::hal::sys::link_patches();
+fn initialize_ble_server<'a>(micro: &mut Microcontroller<'a>) -> BleServer<'a> {
+    let characteristic_id = BleId::StandarCharacteristic(StandarCharacteristicId::Temperature);
+    let service_id = BleId::StandardService(StandarServiceId::EnvironmentalSensing);
+    
+    let characteristic = Characteristic::new(characteristic_id, vec![]);
+    let mut service = Service::new(&service_id, vec![0xAB]).unwrap(); // fix initial data
+    service.add_characteristic(characteristic);
+    let services = vec![service];
+    
+    let server = micro.ble_server(ADVERTISING_NAME.to_string(), &services).unwrap();
+    server
+}
 
-    let peripherals = Peripherals::take().unwrap();
-    let tx = peripherals.pins.gpio16;
-    let rx = peripherals.pins.gpio17;
+fn initialize_wifi_connection(micro: &mut Microcontroller) -> HttpClient {
+    let mut wifi = micro.get_wifi_driver().unwrap();
+    micro
+        .block_on(wifi.connect(SSID, Some(PASSWORD.to_string())))
+        .unwrap();
+    
+    wifi.get_http_client().unwrap()
+}
 
-    println!("Starting UART loopback test");
-    let config = config::Config::new().baudrate(Hertz(115_200)).parity_none().stop_bits(StopBits::STOP1);
-    let uart = UartDriver::new(
-        peripherals.uart1,
-        tx,
-        rx,
-        Option::<gpio::Gpio0>::None,
-        Option::<gpio::Gpio1>::None,
-        &config,
-    ).unwrap();
+/// Gathers data from the connected devices
+fn gather_data(server: &BleServer) -> Vec<String> {
+    vec![]
+}
 
+/// Sends the collected data of the devices to the web application
+/// so they can be shown to the users
+fn send_data(client: &HttpClient, data: Vec<String>) {
+
+}
+
+fn main() {
+    let mut micro = Microcontroller::take();
+
+    let server = initialize_ble_server(&mut micro);
+    let client = initialize_wifi_connection(&mut micro);
+    
+    
     loop {
-        let mut buffer: [u8;BUFFER_SIZE] = [0;10];
-        let _ = uart.read(&mut buffer, TIMEOUT);
-        if buffer.iter().any(|&x| x > 0) {
-            uart.write(&buffer).unwrap();
-        }
-        FreeRtos::delay_ms(1000);
+        micro.wait_for_updates(Some(5000));
+
+        let data = gather_data(&server);
+        send_data(&client, data);
     }
+
 }
