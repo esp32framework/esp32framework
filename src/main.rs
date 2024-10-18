@@ -1,37 +1,53 @@
-use config::StopBits;
-use esp_idf_svc::{
-    hal::{gpio, peripherals::Peripherals, uart::*, prelude::*, delay::FreeRtos},
-    sys::configTICK_RATE_HZ
+//! This example creates a secure ble server. This server has one standar service with three characteristics:
+//! - Writable characteristic: Uses an id created from a String.
+//! - Readable characteristic: Uses a Standar characteristic uuid (BatteryLevel) to inform the level of the battery.
+//! - Notifiable characteristic: Uses an id created from a String to notify an integer value.
+//!    Since this server is secure, the clients phone must complete a passkey ('001234') to get access to the information.
+
+use esp32framework::{
+    ble::{
+        utils::{
+            ble_standard_uuids::{StandarCharacteristicId, StandarDescriptorId, StandarServiceId}, Characteristic, Descriptor, Service
+        },
+        BleId, BleServer,
+    },
+    Microcontroller,
 };
 
-const BUFFER_SIZE: usize = 10;
-// To get a 1 second timeout we need to get how many ticks we need according to the constant configTICK_RATE_HZ
-const TIMEOUT: u32 = ((configTICK_RATE_HZ as u64) * (1_000_000 as u64) / 1_000_000_u64) as u32;
 
-fn main(){
-    esp_idf_svc::hal::sys::link_patches();
+fn main() {
+    let mut micro = Microcontroller::take();
+    
+    let characteristic_id = BleId::StandarCharacteristic(StandarCharacteristicId::Temperature);
+    let mut characteristic = Characteristic::new(&characteristic_id, vec![0x00]);
+    characteristic.readable(true).writable(true).indicatable(true);
 
-    let peripherals = Peripherals::take().unwrap();
-    let tx = peripherals.pins.gpio16;
-    let rx = peripherals.pins.gpio17;
+    let descriptor_id = BleId::StandarDescriptor(StandarDescriptorId::EnvironmentalSensingMeasurement);
+    let descriptor = Descriptor::new(descriptor_id, vec![0x01]);
 
-    println!("Starting UART loopback test");
-    let config = config::Config::new().baudrate(Hertz(115_200)).parity_none().stop_bits(StopBits::STOP1);
-    let uart = UartDriver::new(
-        peripherals.uart1,
-        tx,
-        rx,
-        Option::<gpio::Gpio0>::None,
-        Option::<gpio::Gpio1>::None,
-        &config,
-    ).unwrap();
+    characteristic.add_descriptor(descriptor);
+                
+    
+    let service_id = BleId::StandardService(StandarServiceId::EnvironmentalSensing);
+    let mut service = Service::new(&service_id, vec![0xAB]).unwrap();
+    
+    service.add_characteristic(&characteristic);
+
+    let mut server = micro
+        .ble_server(
+            "Server".to_string(),
+            &vec![service],
+        )
+        .unwrap();
+
+    server.start().unwrap();
 
     loop {
-        let mut buffer: [u8;BUFFER_SIZE] = [0;10];
-        let _ = uart.read(&mut buffer, TIMEOUT);
-        if buffer.iter().any(|&x| x > 0) {
-            uart.write(&buffer).unwrap();
-        }
-        FreeRtos::delay_ms(1000);
+        
+        micro.wait_for_updates(Some(2000));
+
+        let read_val = server.get_characteristic_data(&service_id, &characteristic_id).unwrap();
+
+        println!("El server leyo: {:?}", read_val);
     }
 }

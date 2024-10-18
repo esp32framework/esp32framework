@@ -64,8 +64,8 @@ impl Service {
     /// # Returns
     ///
     /// The Service itself
-    pub fn add_characteristic(&mut self, characteristic: Characteristic) -> &mut Self {
-        self.characteristics.push(characteristic);
+    pub fn add_characteristic(&mut self, characteristic: &Characteristic) -> &mut Self {
+        self.characteristics.push(characteristic.clone());
         self
     }
 
@@ -110,9 +110,9 @@ impl Characteristic {
     /// # Returns
     ///
     /// The new Characteristic
-    pub fn new(id: BleId, data: Vec<u8>) -> Self {
+    pub fn new(id: &BleId, data: Vec<u8>) -> Self {
         Characteristic {
-            id,
+            id: id.clone(),
             properties: 0,
             data,
             descriptors: vec![],
@@ -158,7 +158,7 @@ impl Characteristic {
         self.toggle(value, NimbleProperties::WRITE)
     }
 
-    /// Adds or removes the readeable characteristic to the properties.
+    /// Adds or removes the readable characteristic to the properties.
     ///
     /// It allows the characteristics data to be read by the client.
     ///
@@ -169,7 +169,7 @@ impl Characteristic {
     /// # Returns
     ///
     /// The Characteristic itself
-    pub fn readeable(&mut self, value: bool) -> &mut Self {
+    pub fn readable(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::READ)
     }
 
@@ -188,7 +188,7 @@ impl Characteristic {
         self.toggle(value, NimbleProperties::NOTIFY)
     }
 
-    /// Adds or removes the readeable_enc characteristic to the properties.
+    /// Adds or removes the readable_enc characteristic to the properties.
     ///
     /// It allows the characteristics data to be read by the client, only when the communication is encrypted.
     ///
@@ -199,11 +199,11 @@ impl Characteristic {
     /// # Returns
     ///
     /// The Characteristic itself
-    pub fn readeable_enc(&mut self, value: bool) -> &mut Self {
+    pub fn readable_enc(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::READ_ENC)
     }
 
-    /// Adds or removes the readeable_authen characteristic to the properties.
+    /// Adds or removes the readable_authen characteristic to the properties.
     ///
     /// It allows the characteristics data to be read by the client, only when the communication is authenticated.
     ///
@@ -214,11 +214,11 @@ impl Characteristic {
     /// # Returns
     ///
     /// The Characteristic itself
-    pub fn readeable_authen(&mut self, value: bool) -> &mut Self {
+    pub fn readable_authen(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::READ_AUTHEN)
     }
 
-    /// Adds or removes the readeable_author characteristic to the properties.
+    /// Adds or removes the readable_author characteristic to the properties.
     ///
     /// It allows the characteristics data to be read by the client, only when authorized by the server.
     ///
@@ -229,11 +229,11 @@ impl Characteristic {
     /// # Returns
     ///
     /// The Characteristic itself
-    pub fn readeable_author(&mut self, value: bool) -> &mut Self {
+    pub fn readable_author(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::READ_AUTHOR)
     }
 
-    /// Adds or removes the writeable_no_rsp characteristic to the properties.
+    /// Adds or removes the writable_no_rsp characteristic to the properties.
     ///
     /// It allows the characteristics data to be written by the client, without waiting for a response.
     ///
@@ -244,11 +244,11 @@ impl Characteristic {
     /// # Returns
     ///
     /// The Characteristic itself
-    pub fn writeable_no_rsp(&mut self, value: bool) -> &mut Self {
+    pub fn writable_no_rsp(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::WRITE_NO_RSP)
     }
 
-    /// Adds or removes the writeable_enc characteristic to the properties.
+    /// Adds or removes the writable_enc characteristic to the properties.
     ///
     /// It allows the characteristics data to be written by the client, only when the communication is encrypted.
     ///
@@ -259,11 +259,11 @@ impl Characteristic {
     /// # Returns
     ///
     /// The Characteristic itself
-    pub fn writeable_enc(&mut self, value: bool) -> &mut Self {
+    pub fn writable_enc(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::WRITE_ENC)
     }
 
-    /// Adds or removes the writeable_authen characteristic to the properties.
+    /// Adds or removes the writable_authen characteristic to the properties.
     ///
     /// It allows the characteristics data to be written by the client, only when the communication is authenticated.
     ///
@@ -274,11 +274,11 @@ impl Characteristic {
     /// # Returns
     ///
     /// The Characteristic itself
-    pub fn writeable_authen(&mut self, value: bool) -> &mut Self {
+    pub fn writable_authen(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::WRITE_AUTHEN)
     }
 
-    /// Adds or removes the writeable_author characteristic to the properties.
+    /// Adds or removes the writable_author characteristic to the properties.
     ///
     /// It allows the characteristics data to be written by the client, only when authorized by the server.
     ///
@@ -289,7 +289,7 @@ impl Characteristic {
     /// # Returns
     ///
     /// The Characteristic itself
-    pub fn writeable_author(&mut self, value: bool) -> &mut Self {
+    pub fn writable_author(&mut self, value: bool) -> &mut Self {
         self.toggle(value, NimbleProperties::WRITE_AUTHOR)
     }
 
@@ -468,7 +468,7 @@ impl Descriptor {
         self.toggle(value, DescriptorProperties::WRITE)
     }
 
-    /// Adds or removes the readeable flag to the properties.
+    /// Adds or removes the readable flag to the properties.
     ///
     /// It allows the descriptors data to be read by the client.
     ///
@@ -479,11 +479,11 @@ impl Descriptor {
     /// # Returns
     ///
     /// The Descriptor itself
-    pub fn readeable(&mut self, value: bool) -> &mut Self {
+    pub fn readable(&mut self, value: bool) -> &mut Self {
         self.toggle(value, DescriptorProperties::READ)
     }
 
-    /// Adds or removes the readeable_enc flag to the properties.
+    /// Adds or removes the readable_enc flag to the properties.
     ///
     /// It allows the descriptor data to be read by the client, only when the communication is encrypted.
     ///
@@ -494,11 +494,11 @@ impl Descriptor {
     /// # Returns
     ///
     /// The Descriptor itself
-    pub fn readeable_enc(&mut self, value: bool) -> &mut Self {
+    pub fn readable_enc(&mut self, value: bool) -> &mut Self {
         self.toggle(value, DescriptorProperties::READ_ENC)
     }
 
-    /// Adds or removes the readeable_authen flag to the properties.
+    /// Adds or removes the readable_authen flag to the properties.
     ///
     /// It allows the descriptor data to be read by the client, only when the communication is authenticated.
     ///
@@ -509,11 +509,11 @@ impl Descriptor {
     /// # Returns
     ///
     /// The Descriptor itself
-    pub fn readeable_authen(&mut self, value: bool) -> &mut Self {
+    pub fn readable_authen(&mut self, value: bool) -> &mut Self {
         self.toggle(value, DescriptorProperties::READ_AUTHEN)
     }
 
-    /// Adds or removes the readeable_author flag to the properties.
+    /// Adds or removes the readable_author flag to the properties.
     ///
     /// It allows the descriptor data to be read by the client, only when authorized by the server.
     ///
@@ -524,11 +524,11 @@ impl Descriptor {
     /// # Returns
     ///
     /// The Descriptor itself
-    pub fn readeable_author(&mut self, value: bool) -> &mut Self {
+    pub fn readable_author(&mut self, value: bool) -> &mut Self {
         self.toggle(value, DescriptorProperties::READ_AUTHOR)
     }
 
-    /// Adds or removes the writeable_enc flag to the properties.
+    /// Adds or removes the writable_enc flag to the properties.
     ///
     /// It allows the descriptor data to be written by the client, only when the communication is encrypted.
     ///
@@ -539,11 +539,11 @@ impl Descriptor {
     /// # Returns
     ///
     /// The Descriptor itself
-    pub fn writeable_enc(&mut self, value: bool) -> &mut Self {
+    pub fn writable_enc(&mut self, value: bool) -> &mut Self {
         self.toggle(value, DescriptorProperties::WRITE_ENC)
     }
 
-    /// Adds or removes the writeable_authen flag to the properties.
+    /// Adds or removes the writable_authen flag to the properties.
     ///
     /// It allows the descriptor data to be written by the client, only when the communication is authenticated.
     ///
@@ -554,11 +554,11 @@ impl Descriptor {
     /// # Returns
     ///
     /// The Descriptor itself
-    pub fn writeable_authen(&mut self, value: bool) -> &mut Self {
+    pub fn writable_authen(&mut self, value: bool) -> &mut Self {
         self.toggle(value, DescriptorProperties::WRITE_AUTHEN)
     }
 
-    /// Adds or removes the writeable_author flag to the properties.
+    /// Adds or removes the writable_author flag to the properties.
     ///
     /// It allows the descriptor data to be written by the client, only when authorized by the server.
     ///
@@ -569,7 +569,7 @@ impl Descriptor {
     /// # Returns
     ///
     /// The Descriptor itself
-    pub fn writeable_author(&mut self, value: bool) -> &mut Self {
+    pub fn writable_author(&mut self, value: bool) -> &mut Self {
         self.toggle(value, DescriptorProperties::WRITE_AUTHOR)
     }
 }
