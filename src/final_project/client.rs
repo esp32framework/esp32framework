@@ -1,17 +1,11 @@
-use esp32framework::{ble::{utils::{ble_standard_uuids::StandarServiceId, RemoteCharacteristic}, BleClient, BleId}, sensors::DS3231, Microcontroller};
+use crate::{ble::{utils::{ble_standard_uuids::StandarServiceId, Characteristic, RemoteCharacteristic}, BleClient, BleId}, sensors::DS3231, Microcontroller};
 
 const SERVER_NAME: &str = "Server";
 
 fn initialize_ble_client(micro: &mut Microcontroller) -> BleClient {
     let mut ble = micro.ble_client().unwrap();
     println!("Attempting connection with server: Server" );
-    // let device = ble.find_device(None, |device| {
-    //     true
-    // } ).unwrap();
-    let service_id = BleId::StandardService(StandarServiceId::EnvironmentalSensing);
-    let device = ble.find_device_with_service(None, &service_id).unwrap();
-
-
+    let device = ble.find_device(None, |device| {device.name() == SERVER_NAME} ).unwrap();
     ble.connect_to_device(device).unwrap();
     println!("Connected");
     
@@ -45,6 +39,7 @@ fn main() {
         let temp = sensor.get_temperature().unwrap();
 
         characteristic.write(&[temp as u8]).unwrap(); // TODO: The f32 should be sent in 2 different bytes. One for the whole nomber part and another one for the decimal part
+        
 
         micro.wait_for_updates(Some(3000));
     }
