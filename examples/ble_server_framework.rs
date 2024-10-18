@@ -28,10 +28,10 @@ fn set_up_characteristics() -> Vec<Characteristic> {
     writable_characteristic.writable(true);
 
     let mut readable_characteristic = Characteristic::new(readable_char_id, vec![0x38]);
-    readable_characteristic.readeable(true);
+    readable_characteristic.readable(true);
 
     let mut notifiable_characteristic = Characteristic::new(notifiable_char_id, vec![0x10]);
-    notifiable_characteristic.readeable(true).notifiable(true);
+    notifiable_characteristic.readable(true).notifiable(true);
 
     vec![
         notifiable_characteristic,

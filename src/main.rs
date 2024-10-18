@@ -9,9 +9,9 @@ fn initialize_ble_server<'a>(micro: &mut Microcontroller<'a>) -> BleServer<'a> {
     let characteristic_id = BleId::StandarCharacteristic(StandarCharacteristicId::Temperature);
     let service_id = BleId::StandardService(StandarServiceId::EnvironmentalSensing);
     
-    let characteristic = Characteristic::new(characteristic_id, vec![]);
+    let characteristic = Characteristic::new(&characteristic_id, vec![]);
     let mut service = Service::new(&service_id, vec![0xAB]).unwrap(); // fix initial data
-    service.add_characteristic(characteristic);
+    service.add_characteristic(&characteristic);
     let services = vec![service];
     
     let server = micro.ble_server(ADVERTISING_NAME.to_string(), &services).unwrap();
