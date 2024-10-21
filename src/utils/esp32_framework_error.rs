@@ -1,14 +1,15 @@
 use esp_idf_svc::sys::EspError;
 
 use crate::{
-    ble::BleError, gpio::{
+    ble::BleError,
+    gpio::{
         analog::{AnalogInError, AnalogInPwmError, AnalogOutError},
         digital::{DigitalInError, DigitalOutError},
-    }, 
-    microcontroller_src::peripherals::PeripheralError, 
-    serial::{i2c::I2CError, uart::UARTError}, 
-    utils::timer_driver::TimerDriverError, 
-    wifi::WifiError
+    },
+    microcontroller_src::peripherals::PeripheralError,
+    serial::{i2c::I2CError, uart::UARTError},
+    utils::timer_driver::TimerDriverError,
+    wifi::WifiError,
 };
 
 /// Represents various error conditions encountered in the ESP32 framework.
@@ -34,7 +35,7 @@ pub enum AdcDriverError {
     ClockError,
     InvalidArgs,
     NoMemory,
-    PeripheralError(PeripheralError)
+    PeripheralError(PeripheralError),
 }
 
 impl From<EspError> for AdcDriverError {
@@ -49,7 +50,7 @@ impl From<EspError> for AdcDriverError {
     }
 }
 
-impl From<PeripheralError> for AdcDriverError{
+impl From<PeripheralError> for AdcDriverError {
     fn from(value: PeripheralError) -> Self {
         AdcDriverError::PeripheralError(value)
     }

@@ -255,8 +255,7 @@ impl<'a> _DigitalOut<'a> {
     ///
     /// - `DigitalOutError::InvalidPin`: If the pin level cannot be toggled.
     fn _update_interrupt(&mut self) -> Result<(), DigitalOutError> {
-        let interrupt_update =
-            InterruptUpdate::from_atomic_code(&self.interrupt_update_code);
+        let interrupt_update = InterruptUpdate::from_atomic_code(&self.interrupt_update_code);
         self.interrupt_update_code
             .store(InterruptUpdate::None.get_code(), Ordering::SeqCst);
 
