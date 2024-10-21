@@ -6,11 +6,9 @@ fn main() {
     // WIFI scan
     let mut wifi = micro.get_wifi_driver().unwrap();
 
-    let resutls = micro
-        .block_on(wifi.scan())
-        .unwrap();
+    let resutls = micro.block_on(wifi.scan()).unwrap();
 
-    for acces_point in resutls.iter(){
+    for acces_point in resutls.iter() {
         println!("SSID: {:?}", acces_point.ssid);
         println!("Auth: {:?}", acces_point.authentication_method);
         println!("Signal: {:?}", acces_point.signal_strength);
