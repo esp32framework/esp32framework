@@ -158,7 +158,18 @@ impl<'a> WifiDriver<'a> {
 
         Ok(())
     }
+   
+    pub async fn scan(&mut self) -> Result<Vec<AccesPoint>, WifiError> {
+        let results: Vec<AccessPointInfo> = self.controller.scan()
+                        .await
+                        .map_err(|_| WifiError::ScanError)?;
+        
+        let parsed_results: Vec<AccesPoint> = results.into_iter().map(|result| {
+            AccesPoint::from(result)
+        }).collect();
 
+        Ok(parsed_results)
+    }
     /// Checks if the driver is already started.
     ///
     /// # Returns
