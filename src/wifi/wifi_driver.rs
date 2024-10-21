@@ -4,7 +4,7 @@ use esp_idf_svc::{
     hal::modem::{self},
     nvs::EspDefaultNvsPartition,
     timer::EspTaskTimerService,
-    wifi::{AsyncWifi, AuthMethod, ClientConfiguration, Configuration, EspWifi},
+    wifi::{AsyncWifi, AuthMethod, ClientConfiguration, Configuration, EspWifi,AccessPointInfo},
 };
 use std::net::Ipv4Addr;
 
@@ -22,6 +22,34 @@ pub enum WifiError {
     PeripheralError(PeripheralError),
     StartingError,
     WifiNotInitialized,
+    ScanError,
+}
+
+/// Abstraction of an Acces Point with its basic information.
+pub struct AccesPoint{
+    pub ssid: String,
+    pub authentication_method: String,
+    pub signal_strength: i8,
+}
+
+impl From<AccessPointInfo> for AccesPoint {
+    fn from(value: AccessPointInfo) -> Self {
+        AccesPoint{
+            ssid: value.ssid.to_string(),
+            authentication_method: match value.auth_method {
+                Some(AuthMethod::WEP) => String::from("WEP"),
+                Some(AuthMethod::WPA) => String::from("WPA"),
+                Some(AuthMethod::WPA2Personal) => String::from("WPA2-Personal"),
+                Some(AuthMethod::WPAWPA2Personal) => String::from("WPA/WPA2-Personal"),
+                Some(AuthMethod::WPA2Enterprise) => String::from("WPA2-Enterprise"),
+                Some(AuthMethod::WPA3Personal) => String::from("WPA3-Personal"),
+                Some(AuthMethod::WPA2WPA3Personal) => String::from("WPA2/WPA3-Personal"),
+                Some(AuthMethod::WAPIPersonal) => String::from("WAPI"),
+                _ => String::from("None"),
+            },
+            signal_strength: value.signal_strength,
+        }
+    }
 }
 
 /// Abstraction of the driver that controls the wifi. It simplifies
