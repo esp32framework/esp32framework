@@ -10,7 +10,7 @@ use super::ble_standard_uuids::{StandarCharacteristicId, StandarDescriptorId, St
 /// - `ByName`: A string that can be made into a BLE id.
 /// - `FromUuid16`: A way to get a BLE id from an `u16`.
 /// - `FromUuid128`: A way to get a BLE id from an `[u8;16]`.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, Clone)]
 pub enum BleId {
     ByName(String),
     FromUuid16(u16),
@@ -19,6 +19,15 @@ pub enum BleId {
     StandarCharacteristic(StandarCharacteristicId),
     StandarDescriptor(StandarDescriptorId),
 }
+
+impl PartialEq for BleId {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_uuid() == other.to_uuid()
+    }
+}
+
+impl Eq for BleId{}
+
 
 impl Hash for BleId {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
