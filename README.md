@@ -80,7 +80,7 @@ For a more detailed explanation see [Setting Up a Development Environment](https
 ### Generate the proyect
 Generate the proyect by runninng
 ```sh
-#TODO insert cargo generate comand
+cargo generate esp32framework/esp32framework-template
 ```
 This template was based upon the Rust on the [ESP-IDF "Hello, World" template](https://github.com/esp-rs/esp-idf-template?tab=readme-ov-file) with some modifications
 
