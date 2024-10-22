@@ -97,6 +97,12 @@ impl<'a> Microcontroller<'a> {
         Ok(())
     }
 
+    /// Stores the updater of the `interrupt_driver` and returns it
+    fn keep_updater<D: InterruptDriver<'a>>(&mut self, interrupt_driver: D)-> D{
+        self.interrupt_drivers.push(interrupt_driver.get_updater());
+        interrupt_driver
+    }
+
     /// Creates the timer_drivers for all timer groups
     ///
     /// #Returns
@@ -166,8 +172,7 @@ impl<'a> Microcontroller<'a> {
             pin_peripheral,
             Some(self.notification.notifier()),
         )?;
-        self.interrupt_drivers.push(dgin.get_updater());
-        Ok(dgin)
+        Ok(self.keep_updater(dgin))
     }
 
     /// Creates a DigitalOut on the ESP pin with number 'pin_num' to write digital outputs.
@@ -192,8 +197,7 @@ impl<'a> Microcontroller<'a> {
     ) -> Result<DigitalOut<'a>, DigitalOutError> {
         let pin_peripheral = self.peripherals.get_digital_pin(pin_num);
         let dgout = DigitalOut::new(self.get_timer_driver()?, pin_peripheral)?;
-        self.interrupt_drivers.push(dgout.get_updater());
-        Ok(dgout)
+        Ok(self.keep_updater(dgout))
     }
 
     /// Starts an adc driver if no other was started before. Bitwidth is always set to 12, since
@@ -363,8 +367,7 @@ impl<'a> Microcontroller<'a> {
             freq_hz,
             resolution,
         )?;
-        self.interrupt_drivers.push(analog_out.get_updater());
-        Ok(analog_out)
+        Ok(self.keep_updater(analog_out))
     }
 
     /// Sets pin as analog output, with a default frequency of 100 Hertz and resolution of 8 bits
@@ -396,8 +399,7 @@ impl<'a> Microcontroller<'a> {
             pin_peripheral,
             self.get_timer_driver()?,
         )?;
-        self.interrupt_drivers.push(analog_out.get_updater());
-        Ok(analog_out)
+        Ok(self.keep_updater(analog_out))
     }
 
     /// Sets pin as analog input of PWM signals, with default signal frequency of 1000 Hertz
@@ -625,8 +627,7 @@ impl<'a> Microcontroller<'a> {
             self.notification.notifier(),
             self.notification.notifier(),
         )?;
-        self.interrupt_drivers.push(ble_server.get_updater());
-        Ok(ble_server)
+        Ok(self.keep_updater(ble_server))
     }
 
     /// Configures the security settings for a BLE device.
@@ -694,8 +695,7 @@ impl<'a> Microcontroller<'a> {
             self.notification.notifier(),
             self.notification.notifier(),
         )?;
-        self.interrupt_drivers.push(ble_server.get_updater());
-        Ok(ble_server)
+        Ok(self.keep_updater(ble_server))
     }
 
     /// Configures a BLE client.
@@ -710,8 +710,7 @@ impl<'a> Microcontroller<'a> {
     pub fn ble_client(&mut self) -> Result<BleClient, BleError> {
         let ble_device = self.peripherals.get_ble_peripheral().into_ble_device()?;
         let ble_client = BleClient::new(ble_device, self.notification.notifier());
-        self.interrupt_drivers.push(ble_client.get_updater());
-        Ok(ble_client)
+        Ok(self.keep_updater(ble_client))
     }
 
     /// Configures a WIFIDriver. This driver uses the
