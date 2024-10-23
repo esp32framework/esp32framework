@@ -55,7 +55,6 @@ struct _DigitalIn<'a> {
 }
 
 /// Driver for receiving digital inputs from a particular Pin
-#[derive(Clone)]
 pub struct DigitalIn<'a> {
     inner: SharableRef<_DigitalIn<'a>>,
 }
@@ -546,13 +545,20 @@ impl<'a> DigitalIn<'a> {
     }
 }
 
-#[sharable_reference_wrapper]
-impl<'a> InterruptDriver for _DigitalIn<'a> {
+impl<'a> InterruptDriver<'a> for DigitalIn<'a> {
     /// Handles the diferent type of interrupts that, executing the user callback and reenabling the
     /// interrupt when necesary
     fn update_interrupt(&mut self) -> Result<(), Esp32FrameworkError> {
-        self._update_interrupt()
+        self.inner
+            .deref_mut()
+            ._update_interrupt()
             .map_err(Esp32FrameworkError::DigitalIn)
+    }
+
+    fn get_updater(&self) -> Box<dyn InterruptDriver<'a> + 'a> {
+        Box::new(Self {
+            inner: self.inner.clone(),
+        })
     }
 }
 

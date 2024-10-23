@@ -4,7 +4,7 @@ use esp_idf_svc::{
     hal::modem::{self},
     nvs::EspDefaultNvsPartition,
     timer::EspTaskTimerService,
-    wifi::{AsyncWifi, AuthMethod, ClientConfiguration, Configuration, EspWifi},
+    wifi::{AccessPointInfo, AsyncWifi, AuthMethod, ClientConfiguration, Configuration, EspWifi},
 };
 use std::net::Ipv4Addr;
 
@@ -22,6 +22,34 @@ pub enum WifiError {
     PeripheralError(PeripheralError),
     StartingError,
     WifiNotInitialized,
+    ScanError,
+}
+
+/// Abstraction of an Acces Point with its basic information.
+pub struct AccesPoint {
+    pub ssid: String,
+    pub authentication_method: String,
+    pub signal_strength: i8,
+}
+
+impl From<AccessPointInfo> for AccesPoint {
+    fn from(value: AccessPointInfo) -> Self {
+        AccesPoint {
+            ssid: value.ssid.to_string(),
+            authentication_method: match value.auth_method {
+                Some(AuthMethod::WEP) => String::from("WEP"),
+                Some(AuthMethod::WPA) => String::from("WPA"),
+                Some(AuthMethod::WPA2Personal) => String::from("WPA2-Personal"),
+                Some(AuthMethod::WPAWPA2Personal) => String::from("WPA/WPA2-Personal"),
+                Some(AuthMethod::WPA2Enterprise) => String::from("WPA2-Enterprise"),
+                Some(AuthMethod::WPA3Personal) => String::from("WPA3-Personal"),
+                Some(AuthMethod::WPA2WPA3Personal) => String::from("WPA2/WPA3-Personal"),
+                Some(AuthMethod::WAPIPersonal) => String::from("WAPI"),
+                _ => String::from("None"),
+            },
+            signal_strength: value.signal_strength,
+        }
+    }
 }
 
 /// Abstraction of the driver that controls the wifi. It simplifies
@@ -131,20 +159,41 @@ impl<'a> WifiDriver<'a> {
         Ok(())
     }
 
+    /// Scans for nearby Wi-Fi networks and returns a vector of discovered access points.
+    ///     
+    ///  # Returns
+    ///
+    /// A Result containing a vector of the discovered access points. Else, a `WifiError`.
+    ///
+    /// # Errors
+    ///
+    /// - `WifiError::ScanError`: If the scan operation fails to complete successfully.
+    /// - `WifiError::StartingError`: Error while starting wifi driver.
+    pub async fn scan(&mut self) -> Result<Vec<AccesPoint>, WifiError> {
+        if !self.is_started() {
+            self.controller
+                .start()
+                .await
+                .map_err(|_| WifiError::StartingError)?;
+        }
+
+        let results: Vec<AccessPointInfo> = self
+            .controller
+            .scan()
+            .await
+            .map_err(|_| WifiError::ScanError)?;
+
+        let parsed_results: Vec<AccesPoint> = results.into_iter().map(AccesPoint::from).collect();
+
+        Ok(parsed_results)
+    }
     /// Checks if the driver is already started.
     ///
     /// # Returns
     ///
-    /// A Result containing a bool that indicated whether the driver has started or not. Else,
-    /// a `WifiError`.
-    ///
-    /// # Errors
-    ///
-    /// - `WifiError::WifiNotInitialized`: If WiFi is not initialized by esp_wifi_init.
-    pub fn is_started(&self) -> Result<bool, WifiError> {
-        self.controller
-            .is_started()
-            .map_err(|_| WifiError::WifiNotInitialized)
+    /// A bool that indicated whether the driver has started or not.
+    pub fn is_started(&self) -> bool {
+        self.controller.is_started().unwrap_or(false)
     }
 
     /// Checks if the driver is already connectedto a wifi network.

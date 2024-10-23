@@ -563,11 +563,20 @@ impl<'a> _TimerDriver<'a> {
     }
 }
 
-#[sharable_reference_wrapper("id")]
-impl<'a> InterruptDriver for _TimerDriver<'a> {
+impl<'a> InterruptDriver<'a> for TimerDriver<'a> {
     fn update_interrupt(&mut self) -> Result<(), Esp32FrameworkError> {
-        self._update_interrupt()
+        self.inner
+            .deref_mut()
+            ._update_interrupt()
             .map_err(Esp32FrameworkError::TimerDriver)
+    }
+
+    fn get_updater(&self) -> Box<dyn InterruptDriver<'a> + 'a> {
+        Box::new(Self {
+            inner: self.inner.clone(),
+            id: self.id,
+            next_child: self.next_child,
+        })
     }
 }
 
