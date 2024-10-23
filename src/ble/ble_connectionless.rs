@@ -387,3 +387,31 @@ fn add_service_to_advertising(data: &mut BLEAdvertisementData, service: &Service
         data.service_data(service.id.to_uuid(), &service.data);
     }
 }
+
+#[cfg(test)]
+mod test {
+    use esp_idf_svc::hal::delay::FreeRtos;
+
+    //fn passing_test(){
+    //     println!("yeye")
+    // }
+
+    #[esp32_test_macro::esp32_test]
+    fn failing_test() {
+        panic!("Mi panic test")
+    }
+
+    #[esp32_test_macro::esp32_test]
+    fn other_test() {
+        println!("waiting2");
+        FreeRtos::delay_ms(5000);
+        println!("end2");
+    }
+
+    #[esp32_test_macro::esp32_test]
+    fn passing_test() {
+        println!("waiting");
+        FreeRtos::delay_ms(5000);
+        println!("end");
+    }
+}

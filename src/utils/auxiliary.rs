@@ -35,7 +35,7 @@ pub trait SharableRefExt<T> {
 }
 
 impl<T> SharableRefExt<T> for SharableRef<T> {
-    fn new_sharable(inner: T) -> Self{
+    fn new_sharable(inner: T) -> Self {
         Rc::new(RefCell::new(inner))
     }
     fn deref_mut(&mut self) -> RefMut<T> {

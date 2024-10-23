@@ -438,8 +438,7 @@ impl<'a> _DigitalIn<'a> {
     /// - `DigitalInError::InvalidPin`: If enabling of the interrupt fails
     /// - `DigitalInError::StateAlreadySet`: If the ISR service has not been initialized
     fn _update_interrupt(&mut self) -> Result<(), DigitalInError> {
-        let interrupt_update =
-            InterruptUpdate::from_atomic_code(&self.interrupt_update_code);
+        let interrupt_update = InterruptUpdate::from_atomic_code(&self.interrupt_update_code);
         self.interrupt_update_code
             .store(InterruptUpdate::None.get_code(), Ordering::SeqCst);
 
@@ -580,5 +579,13 @@ impl DigitalInError {
             ESP_ERR_INVALID_STATE => DigitalInError::StateAlreadySet,
             _ => DigitalInError::InvalidPin,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    #[esp32_test_macro::esp32_test]
+    fn failing_test() {
+        panic!("Mi panic test")
     }
 }
