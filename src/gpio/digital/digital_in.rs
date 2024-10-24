@@ -587,12 +587,3 @@ impl DigitalInError {
         }
     }
 }
-
-#[cfg(test)]
-mod test {
-    #[test]
-    #[should_panic]
-    fn failing_test() {
-        panic!("Mi panic test")
-    }
-}

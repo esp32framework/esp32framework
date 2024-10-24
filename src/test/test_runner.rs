@@ -7,6 +7,8 @@ use std::{
     process::{ExitCode, Termination},
     sync::{Arc, Mutex},
 };
+
+use super::pretty_pints::{print_failing_test, print_not_executed_test, print_passing_test};
 const TEST_NAMESPACE: &str = "test_ns";
 const CURRENT_TEST_LOCATION: &str = "curr_test";
 const LAST_TEST_LOCATION: &str = "last_test";
@@ -65,12 +67,12 @@ fn reset_if_finished(nvs: &SharableNvs, curr_test: u8, test_quantity: usize)->bo
     finished
 }
 
-fn set_testing_panic_hook(nvs: &SharableNvs, curr_test: u8) {
+fn set_testing_panic_hook(nvs: &SharableNvs, curr_test: u8, test_name: String) {
     let hook = panic::take_hook();
 
     let nvs = nvs.clone();
     panic::set_hook(Box::new(move |panic_info| {
-        println!("\x1b[31m Test {curr_test} failed \x1b[0m");
+        print_failing_test(curr_test, &test_name, "panniced");
         hook(panic_info);
         nvs.lock()
             .unwrap()
@@ -95,7 +97,7 @@ fn execute_next_test(nvs: &SharableNvs, tests: &[&test::TestDescAndFn], curr_tes
     let t = tests[curr_test as usize];
 
     println!("Executing test{curr_test}: {}", t.desc.name);
-    set_testing_panic_hook(nvs, curr_test);
+    set_testing_panic_hook(nvs, curr_test, String::from(t.desc.name.as_slice()));
 
     let res = t.execute();
 
@@ -112,11 +114,11 @@ fn execute_next_test(nvs: &SharableNvs, tests: &[&test::TestDescAndFn], curr_tes
 
 fn handle_res(test_desc: &test::TestDesc, res: Result<(), TestingErrors>, curr_test: u8){
     match res{
-        Ok(_) => println!("\x1b[32m Test {curr_test}: {} was successfull \x1b[0m", test_desc.name.as_slice()),
+        Ok(_) => print_passing_test(curr_test, test_desc.name.as_slice()),
         Err(err) => match err{
-            TestingErrors::TestFailed(str) => println!("\x1b[31m Test {curr_test}: {} failed, returned: {str} \x1b[0m", test_desc.name),
-            TestingErrors::BenchTestNotSupported => println!("Not executing Test {curr_test}: {} due to: {:?}", test_desc.name, err),
-            TestingErrors::DynamicTestNotSupported => println!("Not executing Test {curr_test}: {} due to: {:?}", test_desc.name, err),
+            TestingErrors::TestFailed(reason) => print_failing_test(curr_test, test_desc.name.as_slice(), &reason),
+            TestingErrors::BenchTestNotSupported => print_not_executed_test(curr_test, test_desc.name.as_slice(), &format!("{:?}", err)),
+            TestingErrors::DynamicTestNotSupported => print_not_executed_test(curr_test, test_desc.name.as_slice(), &format!("{:?}", err)),
             _ => Err(err).unwrap(),
         },
     }
