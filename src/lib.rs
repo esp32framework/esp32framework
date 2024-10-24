@@ -2,6 +2,7 @@
 #![feature(proc_macro_hygiene)]
 #![feature(custom_test_frameworks)]
 #![test_runner(test::esp32_test_runner)]
+#![feature(test)]
 
 pub mod ble;
 pub mod gpio;
@@ -19,3 +20,4 @@ pub use utils::timer_driver;
 
 #[cfg(test)]
 mod test;
+

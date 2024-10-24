@@ -590,7 +590,8 @@ impl DigitalInError {
 
 #[cfg(test)]
 mod test {
-    #[esp32_test_macro::esp32_test]
+    #[test]
+    #[should_panic]
     fn failing_test() {
         panic!("Mi panic test")
     }

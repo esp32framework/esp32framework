@@ -11,10 +11,15 @@ const TEST_NAMESPACE: &str = "test_ns";
 const CURRENT_TEST_LOCATION: &str = "curr_test";
 const LAST_TEST_LOCATION: &str = "last_test";
 
+extern crate test;
+
 type SharableNvs = Arc<Mutex<EspNvs<NvsDefault>>>;
 
 #[derive(Debug)]
 enum TestingErrors {
+    TestFailed(String),
+    BenchTestNotSupported,
+    DynamicTestNotSupported,
     FailedToGetNvs,
     DataFailure,
 }
@@ -51,12 +56,13 @@ fn reset_in_case_of_error(nvs: &SharableNvs, curr_test: &mut u8) {
     }
 }
 
-fn block_if_finished(nvs: &SharableNvs, curr_test: u8, test_quantity: usize) {
-    if curr_test as usize >= test_quantity {
+fn reset_if_finished(nvs: &SharableNvs, curr_test: u8, test_quantity: usize)->bool{
+    let finished = curr_test as usize >= test_quantity;
+    if  finished{
         println!("End of tests");
         reset_testing_env(nvs);
-        FreeRtos::delay_ms(u32::MAX);
     }
+    finished
 }
 
 fn set_testing_panic_hook(nvs: &SharableNvs, curr_test: u8) {
@@ -79,18 +85,19 @@ fn reset_panic_hook() {
     _ = panic::take_hook();
 }
 
-fn execute_next_test(nvs: &SharableNvs, tests: &[&(&'static str, fn())], curr_test: u8) {
+fn execute_next_test(nvs: &SharableNvs, tests: &[&test::TestDescAndFn], curr_test: u8) {
     nvs.lock()
         .unwrap()
         .set_u8(CURRENT_TEST_LOCATION, curr_test + 1)
         .map_err(|_| TestingErrors::DataFailure)
         .unwrap();
-    let (name, func) = tests[curr_test as usize];
 
-    println!("Executing test{curr_test}: {name}");
+    let t = tests[curr_test as usize];
+
+    println!("Executing test{curr_test}: {}", t.desc.name);
     set_testing_panic_hook(nvs, curr_test);
 
-    func();
+    let res = t.execute();
 
     reset_panic_hook();
 
@@ -100,10 +107,22 @@ fn execute_next_test(nvs: &SharableNvs, tests: &[&(&'static str, fn())], curr_te
         .map_err(|_| TestingErrors::DataFailure)
         .unwrap();
 
-    println!("\x1b[32m Test {curr_test}: {name} was successfull \x1b[0m");
+    handle_res(&t.desc, res, curr_test);
 }
 
-pub fn esp32_test_runner(tests: &[&(&'static str, fn())]) {
+fn handle_res(test_desc: &test::TestDesc, res: Result<(), TestingErrors>, curr_test: u8){
+    match res{
+        Ok(_) => println!("\x1b[32m Test {curr_test}: {} was successfull \x1b[0m", test_desc.name.as_slice()),
+        Err(err) => match err{
+            TestingErrors::TestFailed(str) => println!("\x1b[31m Test {curr_test}: {} failed, returned: {str} \x1b[0m", test_desc.name),
+            TestingErrors::BenchTestNotSupported => println!("Not executing Test {curr_test}: {} due to: {:?}", test_desc.name, err),
+            TestingErrors::DynamicTestNotSupported => println!("Not executing Test {curr_test}: {} due to: {:?}", test_desc.name, err),
+            _ => Err(err).unwrap(),
+        },
+    }
+}
+
+pub fn esp32_test_runner(tests: &[&test::TestDescAndFn]) {
     let nvs = get_nvs().unwrap();
 
     let mut curr_test = nvs
@@ -115,9 +134,29 @@ pub fn esp32_test_runner(tests: &[&(&'static str, fn())]) {
 
     reset_in_case_of_error(&nvs, &mut curr_test);
 
-    block_if_finished(&nvs, curr_test, tests.len());
+    if !reset_if_finished(&nvs, curr_test, tests.len()){
+        execute_next_test(&nvs, tests, curr_test);
 
-    execute_next_test(&nvs, tests, curr_test);
+        unsafe { esp_idf_svc::sys::esp_restart() };
+    }
+}
 
-    unsafe { esp_idf_svc::sys::esp_restart() };
+trait TestExecutionExtention{
+    fn execute(&self)-> Result<(), TestingErrors>;
+}
+
+impl TestExecutionExtention for test::TestDescAndFn{
+    fn execute(&self)-> Result<(), TestingErrors> {
+        self.testfn.execute()
+    }
+}
+
+impl TestExecutionExtention for test::TestFn{
+    fn execute(&self)-> Result<(), TestingErrors>{
+        match self{
+            test::TestFn::StaticTestFn(func) => func().map_err(TestingErrors::TestFailed),
+            test::TestFn::DynTestFn(fn_once) => Err(TestingErrors::DynamicTestNotSupported),
+            _ => Err(TestingErrors::BenchTestNotSupported)
+        }
+    }
 }

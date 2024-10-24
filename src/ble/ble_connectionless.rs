@@ -396,19 +396,19 @@ mod test {
     //     println!("yeye")
     // }
 
-    #[esp32_test_macro::esp32_test]
+    #[test]
     fn failing_test() {
         panic!("Mi panic test")
     }
 
-    #[esp32_test_macro::esp32_test]
+    #[test]
     fn other_test() {
         println!("waiting2");
         FreeRtos::delay_ms(5000);
         println!("end2");
     }
 
-    #[esp32_test_macro::esp32_test]
+    #[test]
     fn passing_test() {
         println!("waiting");
         FreeRtos::delay_ms(5000);

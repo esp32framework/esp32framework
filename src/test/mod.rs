@@ -1,3 +1,3 @@
 mod test_runner;
 
-pub use test::*;
+pub use test_runner::*;
