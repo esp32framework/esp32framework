@@ -17,7 +17,7 @@ pub trait SharableRefExt<T> {
     /// # Returns
     ///
     /// A new `SharableRef<T>` wrapping the inner value.
-    fn new_sharable(inner: T) -> SharableRef<T>;
+    fn new_sharable(inner: T) -> Self;
 
     /// Returns a shared reference to the inner value.
     ///
@@ -35,7 +35,7 @@ pub trait SharableRefExt<T> {
 }
 
 impl<T> SharableRefExt<T> for SharableRef<T> {
-    fn new_sharable(inner: T) -> SharableRef<T> {
+    fn new_sharable(inner: T) -> Self {
         Rc::new(RefCell::new(inner))
     }
     fn deref_mut(&mut self) -> RefMut<T> {

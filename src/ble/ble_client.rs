@@ -474,6 +474,9 @@ impl<'a> InterruptDriver<'a> for BleClient {
     }
 
     fn get_updater(&self) -> Box<dyn InterruptDriver<'a> + 'a> {
-        Box::new(Self {inner: self.inner.clone(), updater: self.updater.clone()})
+        Box::new(Self {
+            inner: self.inner.clone(),
+            updater: self.updater.clone(),
+        })
     }
 }

@@ -672,7 +672,7 @@ impl<'a> DS3231<'a> {
     }
 }
 
-impl<'a> READER for DS3231<'a> {
+impl READER for DS3231<'_> {
     /// Reads the DS3231 registers and parses the data into a
     /// `HashMap` where each key corresponds to a time component (seconds, minutes, hours, etc.).
     ///

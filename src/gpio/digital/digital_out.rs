@@ -265,7 +265,7 @@ impl<'a> _DigitalOut<'a> {
     }
 }
 
-impl<'a> DigitalOut<'a> {
+impl DigitalOut<'_> {
     /// Creates a new `DigitalOut` for a specified pin.
     ///
     /// # Arguments

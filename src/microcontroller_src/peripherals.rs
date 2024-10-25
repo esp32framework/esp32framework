@@ -13,7 +13,7 @@ const UART_COUNT: usize = 2;
 const UART_BOUNDS: (usize, usize) = (0, 1);
 
 /// Error types related to microcontroller peripheral operations.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum PeripheralError {
     AlreadyTaken,
     NotABleDevicePeripheral,

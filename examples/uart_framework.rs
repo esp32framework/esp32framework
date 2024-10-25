@@ -17,7 +17,7 @@ use esp32framework::Microcontroller;
 const BUFFER_SIZE: usize = 10;
 
 fn main() {
-    let mut micro = Microcontroller::new();
+    let mut micro = Microcontroller::take();
     let mut uart = micro.set_pins_for_default_uart(16, 17, 1).unwrap();
     println!("Starting UART loopback test");
 

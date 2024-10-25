@@ -98,7 +98,7 @@ impl<'a> Microcontroller<'a> {
     }
 
     /// Stores the updater of the `interrupt_driver` and returns it
-    fn keep_updater<D: InterruptDriver<'a>>(&mut self, interrupt_driver: D)-> D{
+    fn keep_updater<D: InterruptDriver<'a>>(&mut self, interrupt_driver: D) -> D {
         self.interrupt_drivers.push(interrupt_driver.get_updater());
         interrupt_driver
     }
@@ -847,7 +847,7 @@ impl<'a> Microcontroller<'a> {
     }
 }
 
-impl<'a> Default for Microcontroller<'a> {
+impl Default for Microcontroller<'_> {
     /// Creates a new instance of `Microcontroller` with default settings.
     ///
     /// This implementation calls the `new()` method to initialize the `Microcontroller`.
