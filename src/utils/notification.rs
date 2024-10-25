@@ -31,16 +31,16 @@ impl Notification {
     }
 
     /// Polls for a notification
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// false: if there is no notification
     /// true: if there is a notification, this also consumes the notification
-    pub fn poll(&self)->bool{
+    pub fn poll(&self) -> bool {
         block_on(self._poll())
     }
 
-    async fn _poll(&self)->bool{
+    async fn _poll(&self) -> bool {
         futures::poll!(self.notif.wait()).is_ready()
     }
 
@@ -77,20 +77,18 @@ impl Notifier {
 }
 
 #[cfg(test)]
-mod test{
-    use crate::utils::auxiliary::SharableRef;
-
+mod test {
     use super::*;
 
     #[test]
-    fn test_notif_01_notify(){
+    fn test_notif_01_notify() {
         let notif = Notification::new();
         notif.notifier().notify();
         assert!(notif.poll())
     }
 
     #[test]
-    fn test_notif_02_poll_consumes_notification(){
+    fn test_notif_02_poll_consumes_notification() {
         let notif = Notification::new();
         notif.notifier().notify();
         assert!(notif.poll());

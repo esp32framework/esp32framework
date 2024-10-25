@@ -512,7 +512,7 @@ impl<'a> _DigitalIn<'a> {
     }
 }
 
-impl<'a> DigitalIn<'a> {
+impl DigitalIn<'_> {
     /// Create a new DigitalIn for a Pin by default pull is set to Down.
     ///
     /// # Arguments
