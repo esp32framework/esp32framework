@@ -4,7 +4,7 @@ const GREEN_ANSI: &str = "\x1b[32m";
 const YELLOW_ANSI: &str = "\x1b[33m";
 const LIGHTBLUE_ANSI: &str = "\x1b[96m";
 const RESET_ANSI: &str = "\x1b[0m";
-const BROWN_ANSI: &str = "\x1b[33m";
+const BROWN_ANSI: &str = "\x1b[38;5;94m";
 const TEST_SEPARATOR: &str = "======================";
 
 /// Wrapper of format macro to color the output string.0m
@@ -40,7 +40,7 @@ pub fn print_failing_test(test_number: u8, test_name: &str, reason: &str) {
     println!(
         "{}",
         get_test_id(BLUE_ANSI, test_number, test_name)
-            + &ansi_format!(RED_ANSI, "failed, returned: {reason}")
+            + &ansi_format!(RED_ANSI, "failed, {reason}")
     )
 }
 
@@ -59,6 +59,17 @@ pub fn print_not_executed_test(test_number: u8, test_name: &str, reason: &str) {
         "{}",
         get_test_id(BLUE_ANSI, test_number, test_name)
             + &ansi_format!(YELLOW_ANSI, "not executed due to: {reason}")
+    )
+}
+
+/// Prints the rest statistics
+pub fn print_tests_statistics(test_quantity:u8, failed_tests:u8, skipped_tests:u8, successfull_tests:u8){
+    println!(
+        "{}: {} | {} | {}", 
+        ansi_format!(BROWN_ANSI, "Test quantity {test_quantity}"),
+        ansi_format!(GREEN_ANSI, "Successfull tests: {successfull_tests}"),
+        ansi_format!(RED_ANSI, "Failed tests: {failed_tests}"),
+        ansi_format!(YELLOW_ANSI, "Skipped tests: {skipped_tests}"),
     )
 }
 
