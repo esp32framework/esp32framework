@@ -1,4 +1,4 @@
 mod test_runner;
-mod pretty_pints;
+mod pretty_prints;
 
 pub use test_runner::*;

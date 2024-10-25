@@ -857,4 +857,9 @@ mod test{
         
         assert_eq!(*amount_of_callbacks.deref(), 1);
     }
+
+    #[test]
+    fn failing_test(){
+        panic!("I failed")
+    }
 }

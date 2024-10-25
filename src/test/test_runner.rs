@@ -8,7 +8,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use super::pretty_pints::{print_failing_test, print_not_executed_test, print_passing_test};
+use super::pretty_prints::*;
 const TEST_NAMESPACE: &str = "test_ns";
 const CURRENT_TEST_LOCATION: &str = "curr_test";
 const LAST_TEST_LOCATION: &str = "last_test";
@@ -75,10 +75,11 @@ fn set_testing_panic_hook(nvs: &SharableNvs, curr_test: u8, test_name: String) {
         print_failing_test(curr_test, &test_name, "panniced");
         hook(panic_info);
         nvs.lock()
-            .unwrap()
-            .set_i16(LAST_TEST_LOCATION, curr_test as i16)
-            .map_err(|_| TestingErrors::DataFailure)
-            .unwrap();
+        .unwrap()
+        .set_i16(LAST_TEST_LOCATION, curr_test as i16)
+        .map_err(|_| TestingErrors::DataFailure)
+        .unwrap();
+        print_end_of_test();
         unsafe { esp_idf_svc::sys::esp_restart() };
     }));
 }
@@ -125,6 +126,7 @@ fn handle_res(test_desc: &test::TestDesc, res: Result<(), TestingErrors>, curr_t
 }
 
 pub fn esp32_test_runner(tests: &[&test::TestDescAndFn]) {
+    print_beggin_of_test();
     let nvs = get_nvs().unwrap();
 
     let mut curr_test = nvs
@@ -138,9 +140,10 @@ pub fn esp32_test_runner(tests: &[&test::TestDescAndFn]) {
 
     if !reset_if_finished(&nvs, curr_test, tests.len()){
         execute_next_test(&nvs, tests, curr_test);
-
+        print_end_of_test();
         unsafe { esp_idf_svc::sys::esp_restart() };
     }
+    print_end_of_test();
 }
 
 trait TestExecutionExtention{

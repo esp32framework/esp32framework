@@ -1,12 +1,22 @@
-const BLUE_ANSI: (&str, &str) = ("\x1b[34m", "\x1b[0m");
-const RED_ANSI: (&str, &str) = ("\x1b[31m" , "\x1b[0m");
-const GREEN_ANSI: (&str, &str) = ("\x1b[32m", "\x1b[0m");
-const YELLOW_ANSI: (&str, &str) = ("\x1b[33m", "\x1b[0m");
+const BLUE_ANSI: &str = "\x1b[34m";
+const RED_ANSI: &str = "\x1b[31m" ;
+const GREEN_ANSI: &str = "\x1b[32m";
+const YELLOW_ANSI: &str = "\x1b[33m";
+const LIGHTBLUE_ANSI: &str = "\x1b[96m";
+const RESET_ANSI: &str = "\x1b[0m";
 
 macro_rules! ansi_format {
     ($ansi:expr, $($arg:tt)*) => {{
-        format!("{}{}{}", $ansi.0, format!($($arg)*), $ansi.1)
+        format!("{}{}{}", $ansi, format!($($arg)*), RESET_ANSI)
     }};
+}
+
+pub fn print_beggin_of_test(){
+    println!("{}", &ansi_format!(LIGHTBLUE_ANSI, "======================"))
+}
+
+pub fn print_end_of_test(){
+    println!("{}", &ansi_format!(LIGHTBLUE_ANSI, "======================"))
 }
 
 pub fn print_failing_test(test_number: u8, test_name: &str, reason: &str){
