@@ -8,8 +8,6 @@ const CURRENT_TEST_LOCATION: &str = "curr_test";
 const SUCCESSFULL_TEST_LOCATION: &str = "failed_test";
 const SKIPPED_TEST_LOCATION: &str = "skipped_test";
 
-extern crate test;
-
 /// Error types related to test operations.
 #[derive(Debug)]
 enum TestingErrors {
@@ -18,7 +16,7 @@ enum TestingErrors {
 
 #[derive(Debug)]
 /// Reasons why a test may fail
-enum TestExecutionFailures {
+pub enum TestExecutionFailures {
     TestFailed,
     BenchTestNotSupported,
     DynamicTestNotSupported,
@@ -130,19 +128,19 @@ fn reset_panic_hook() {
 /// # Panics
 ///
 /// - `panic!`: If an error occured when using the `EspNvs` driver.
-fn execute_next_test(nvs: &EspNvs<NvsDefault>, tests: &[&test::TestDescAndFn], curr_test: u8) {
+fn execute_next_test<T: Esp32Test>(nvs: &EspNvs<NvsDefault>, tests: &[T], curr_test: u8) {
     nvs.set_u8(CURRENT_TEST_LOCATION, curr_test + 1).unwrap();
 
-    let t = tests[curr_test as usize];
+    let t = &tests[curr_test as usize];
 
-    print_executing_test(curr_test, t.desc.name.as_slice());
-    set_testing_panic_hook(curr_test, t.desc.name.as_slice());
+    print_executing_test(curr_test, t.name());
+    set_testing_panic_hook(curr_test, t.name());
 
     let res = t.execute();
 
     reset_panic_hook();
 
-    handle_res(&nvs, &t.desc, res, curr_test);
+    handle_res(&nvs, t.name(), res, curr_test);
 }
 
 /// Handles the result of the current test.
@@ -157,20 +155,20 @@ fn execute_next_test(nvs: &EspNvs<NvsDefault>, tests: &[&test::TestDescAndFn], c
 /// # Panics
 /// 
 /// - `panic!`: If an error occured when using the `EspNvs` driver.
-fn handle_res(nvs: &EspNvs<NvsDefault>, test_desc: &test::TestDesc, res: Result<(), TestExecutionFailures>, curr_test: u8) {
+fn handle_res(nvs: &EspNvs<NvsDefault>, test_name: &str, res: Result<(), TestExecutionFailures>, curr_test: u8) {
     match res {
         Ok(_) => {
-            print_passing_test(curr_test, test_desc.name.as_slice());
+            print_passing_test(curr_test, test_name);
             add_to_successfull_counter(nvs);
         },
         Err(err) => match err {
-            TestExecutionFailures::TestFailed => print_failing_test(curr_test, test_desc.name.as_slice(), "Incorrect return value"),
+            TestExecutionFailures::TestFailed => print_failing_test(curr_test, test_name, "Incorrect return value"),
             TestExecutionFailures::BenchTestNotSupported => {
-                print_not_executed_test(curr_test, test_desc.name.as_slice(), &format!("{:?}", err));
+                print_not_executed_test(curr_test, test_name, &format!("{:?}", err));
                 add_to_skipped_counter(nvs);
             }
             TestExecutionFailures::DynamicTestNotSupported => {
-                print_not_executed_test(curr_test, test_desc.name.as_slice(), &format!("{:?}", err));
+                print_not_executed_test(curr_test, test_name, &format!("{:?}", err));
                 add_to_skipped_counter(nvs);
             }
         },
@@ -216,7 +214,7 @@ fn add_to_skipped_counter(nvs: &EspNvs<NvsDefault>){
 /// # Panics
 ///
 /// - `panic!`: If an error occured when using the `EspNvs` driver.
-pub fn esp32_test_runner(tests: &[&test::TestDescAndFn]) {
+pub fn esp32_test_runner<T: Esp32Test>(tests: &[T]) {
     print_test_separator();
     let mut nvs = get_nvs().unwrap();
 
@@ -231,7 +229,7 @@ pub fn esp32_test_runner(tests: &[&test::TestDescAndFn]) {
 }
 
 /// Extends a test struct with an `execute` method.
-trait TestExecutionExtention {
+pub trait Esp32Test {
     /// Execute the test function.
     ///
     /// # Returns
@@ -239,20 +237,7 @@ trait TestExecutionExtention {
     /// A `Result` containing `()` if the execution succeeds, or a `TestExecutionFailure`
     /// if it fails.
     fn execute(&self) -> Result<(), TestExecutionFailures>;
-}
 
-impl TestExecutionExtention for test::TestDescAndFn {
-    fn execute(&self) -> Result<(), TestExecutionFailures> {
-        self.testfn.execute()
-    }
-}
-
-impl TestExecutionExtention for test::TestFn {
-    fn execute(&self) -> Result<(), TestExecutionFailures> {
-        match self {
-            test::TestFn::StaticTestFn(func) => func().map_err(|_| TestExecutionFailures::TestFailed),
-            test::TestFn::DynTestFn(_) => Err(TestExecutionFailures::DynamicTestNotSupported),
-            _ => Err(TestExecutionFailures::BenchTestNotSupported),
-        }
-    }
+    /// Returns an `&str` that identifies the tets
+    fn name(&self)-> &str;
 }

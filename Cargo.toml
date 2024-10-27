@@ -28,6 +28,7 @@ log = { version = "0.4", default-features = false }
 esp-idf-svc = { version = "0.49.1", default-features = false }
 esp32-nimble = {version = "0.7.0"}
 sharable_reference_macro = { path = "./sharable_reference_macro" }
+esp32_testing_macro = { path = "./esp32_testing_macro" }
 uuid =  { version = "1.10.0", features = ["v3"] }
 bstr = { version = "1.8.0", default-features = false }
 futures = "0.3"
