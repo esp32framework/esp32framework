@@ -95,6 +95,27 @@ espflash flash target/riscv32imac-esp-espidf/debug/esp32framework
 espflash monitor
 ```
 
+## Tests
+This framework also provides a simple test_framework to run tests on the microcontroller. After each test the microcontroller is restarted to guarantee no leftover configurations.
+
+### How to use
+In order to use the testing framework you need to either add it when generating the proyect, or add the following lines to your lib or main file, in order to redefine rust's test runner.
+
+```rust 
+#![feature(custom_test_frameworks)]
+#![feature(test)]
+#![test_runner(test_runner_mod::esp_test_runner)]
+esp32framework::esp_test::use_esp32_tests!(esp32framework::esp_test); //this macro receives the path to the esp_test module inside of the esp32framework
+```
+
+To define tests you can simple use rusts macro `#[test] ` on top of the test functions
+
+### How to run tests
+To run tests you can simple use `cargo test`, though we recomend you use the `./test.sh` script since it cleans the terminal making it much easier to read.
+
+### Test Limitations
+Currently other tags las #[should_panic] or similar ar not implemented. Also, the test framework uses the nvs default partition. So no tests can be done that use this partition.
+
 ## About us
 We are a team of four developers who designed this Framework in 2024 as our Final Proyect for the Software Engineering degree at Universidad de Buenos Aires. Our profiles are:  
 [DiegoC](https://github.com/DiegoCivi)  
