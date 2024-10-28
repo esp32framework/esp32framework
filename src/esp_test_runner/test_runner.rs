@@ -5,8 +5,8 @@ use super::pretty_prints::*;
 
 const TEST_NAMESPACE: &str = "test_ns";
 const CURRENT_TEST_LOCATION: &str = "curr_test";
-
-extern crate test;
+const SUCCESSFULL_TEST_LOCATION: &str = "failed_test";
+const SKIPPED_TEST_LOCATION: &str = "skipped_test";
 
 /// Error types related to test operations.
 #[derive(Debug)]
@@ -15,14 +15,14 @@ enum TestingErrors {
 }
 
 #[derive(Debug)]
-enum TestExecutionErrors {
-    TestFailed(String),
+/// Reasons why a test may fail
+pub enum TestExecutionFailures {
+    TestFailed,
     BenchTestNotSupported,
     DynamicTestNotSupported,
 }
 
-/// Creates a shared, mutable reference to the NVS partition using default
-/// settings and the TEST_NAMESPACE.
+/// Creates an `EspNvs` driver using the using the default partition and the TEST_NAMESPACE.
 ///
 /// # Returns
 ///
@@ -39,8 +39,7 @@ fn get_nvs() -> Result<EspNvs<NvsDefault>, TestingErrors> {
         .map_err(|_| TestingErrors::FailedToGetNvs)?)
 }
 
-/// Removes entries for CURRENT_TEST_LOCATION and LAST_TEST_LOCATION
-/// from the given NVS instance.
+/// Removes entries all test entries from the given NVS instance.
 ///
 /// # Parameters
 ///
@@ -52,9 +51,23 @@ fn get_nvs() -> Result<EspNvs<NvsDefault>, TestingErrors> {
 ///
 /// # Panics
 ///
-/// - `panic!`: If the lock on the NVS cannot be acquired.
+/// - `panic!`: If an error occured when using the `EspNvs` driver.
 fn reset_testing_env(nvs: &mut EspNvs<NvsDefault>) {
     nvs.remove(CURRENT_TEST_LOCATION).unwrap();
+    nvs.remove(SUCCESSFULL_TEST_LOCATION).unwrap();
+    nvs.remove(SKIPPED_TEST_LOCATION).unwrap();
+}
+
+/// Gets the test statistic from the nvs and prints them
+/// 
+/// # Panics
+/// 
+/// - `panic!`: If an error occured when using the `EspNvs` driver.
+fn get_and_print_test_statistics(nvs: &EspNvs<NvsDefault>, test_quantity: usize){
+    let successfull_tests = nvs.get_u8(SUCCESSFULL_TEST_LOCATION).unwrap().unwrap_or(0);
+    let skipped_tests = nvs.get_u8(SKIPPED_TEST_LOCATION).unwrap().unwrap_or(0);
+    let failed_tests = test_quantity as u8 - successfull_tests - skipped_tests;
+    print_tests_statistics(test_quantity as u8, failed_tests, skipped_tests, successfull_tests);
 }
 
 /// Checks if the current test is the last and resets the testing
@@ -73,6 +86,7 @@ fn reset_if_finished(nvs: &mut EspNvs<NvsDefault>, curr_test: u8, test_quantity:
     let finished = curr_test as usize >= test_quantity;
     if finished {
         print_end_of_tests();
+        get_and_print_test_statistics(&nvs, test_quantity);
         reset_testing_env(nvs);
     }
     finished
@@ -86,10 +100,6 @@ fn reset_if_finished(nvs: &mut EspNvs<NvsDefault>, curr_test: u8, test_quantity:
 /// - `nvs`: A reference to the NVS testing instance.
 /// - `curr_test`: A mutable reference to the current test counter.
 /// - `test_name`: The name of the current test.
-///
-/// # Panics
-///
-/// - `panic!`: If the lock on the NVS cannot be acquired.
 fn set_testing_panic_hook(curr_test: u8, test_name: &str) {
     let hook = panic::take_hook();
     let test_name = String::from(test_name);
@@ -117,44 +127,78 @@ fn reset_panic_hook() {
 ///
 /// # Panics
 ///
-/// - `panic!`: If the lock on the NVS cannot be acquired.
-fn execute_next_test(nvs: &EspNvs<NvsDefault>, tests: &[&test::TestDescAndFn], curr_test: u8) {
+/// - `panic!`: If an error occured when using the `EspNvs` driver.
+fn execute_next_test<T: Esp32Test>(nvs: &EspNvs<NvsDefault>, tests: &[T], curr_test: u8) {
     nvs.set_u8(CURRENT_TEST_LOCATION, curr_test + 1).unwrap();
 
-    let t = tests[curr_test as usize];
+    let t = &tests[curr_test as usize];
 
-    print_executing_test(curr_test, t.desc.name.as_slice());
-    set_testing_panic_hook(curr_test, t.desc.name.as_slice());
+    print_executing_test(curr_test, t.name());
+    set_testing_panic_hook(curr_test, t.name());
 
     let res = t.execute();
 
     reset_panic_hook();
 
-    handle_res(&t.desc, res, curr_test);
+    handle_res(&nvs, t.name(), res, curr_test);
 }
 
 /// Handles the result of the current test.
 ///
 /// # Parameters
 ///
+/// - `nvs`: An `EspNvs` driver to be able to add to the tests statistics
 /// - `test_desc`: A reference to the test.
 /// - `res`: The result of the test.
 /// - `curr_test`: A mutable reference to the current test counter.
-fn handle_res(test_desc: &test::TestDesc, res: Result<(), TestExecutionErrors>, curr_test: u8) {
+/// 
+/// # Panics
+/// 
+/// - `panic!`: If an error occured when using the `EspNvs` driver.
+fn handle_res(nvs: &EspNvs<NvsDefault>, test_name: &str, res: Result<(), TestExecutionFailures>, curr_test: u8) {
     match res {
-        Ok(_) => print_passing_test(curr_test, test_desc.name.as_slice()),
+        Ok(_) => {
+            print_passing_test(curr_test, test_name);
+            add_to_successfull_counter(nvs);
+        },
         Err(err) => match err {
-            TestExecutionErrors::TestFailed(reason) => {
-                print_failing_test(curr_test, test_desc.name.as_slice(), &reason)
+            TestExecutionFailures::TestFailed => print_failing_test(curr_test, test_name, "Incorrect return value"),
+            TestExecutionFailures::BenchTestNotSupported => {
+                print_not_executed_test(curr_test, test_name, &format!("{:?}", err));
+                add_to_skipped_counter(nvs);
             }
-            TestExecutionErrors::BenchTestNotSupported => {
-                print_not_executed_test(curr_test, test_desc.name.as_slice(), &format!("{:?}", err))
-            }
-            TestExecutionErrors::DynamicTestNotSupported => {
-                print_not_executed_test(curr_test, test_desc.name.as_slice(), &format!("{:?}", err))
+            TestExecutionFailures::DynamicTestNotSupported => {
+                print_not_executed_test(curr_test, test_name, &format!("{:?}", err));
+                add_to_skipped_counter(nvs);
             }
         },
     }
+}
+
+/// Adds one to the amount of successfull tests
+/// 
+/// # Arguments
+/// - `nvs`: An `EspNvs` driver to be able to add to the tests statistics
+/// 
+/// # Panics
+/// 
+/// - `panic!`: If an error occured when using the `EspNvs` driver.
+fn add_to_successfull_counter(nvs: &EspNvs<NvsDefault>){
+    let failed_counter = nvs.get_u8(SUCCESSFULL_TEST_LOCATION).unwrap().unwrap_or(0);
+    nvs.set_u8(SUCCESSFULL_TEST_LOCATION, failed_counter + 1).unwrap();
+}
+
+/// Adds one to the amount of skpped tests
+/// 
+/// # Arguments
+/// - `nvs`: An `EspNvs` driver to be able to add to the tests statistics
+/// 
+/// # Panics
+/// 
+/// - `panic!`: If an error occured when using the `EspNvs` driver.
+fn add_to_skipped_counter(nvs: &EspNvs<NvsDefault>){
+    let failed_counter = nvs.get_u8(SKIPPED_TEST_LOCATION).unwrap().unwrap_or(0);
+    nvs.set_u8(SKIPPED_TEST_LOCATION, failed_counter + 1).unwrap();
 }
 
 /// Custom Test Runner for ESP32 Tests. This runner restarts the ESP before executing
@@ -169,8 +213,8 @@ fn handle_res(test_desc: &test::TestDesc, res: Result<(), TestExecutionErrors>, 
 ///
 /// # Panics
 ///
-/// - `panic!`: If the lock on the NVS cannot be acquired.
-pub fn esp32_test_runner(tests: &[&test::TestDescAndFn]) {
+/// - `panic!`: If an error occured when using the `EspNvs` driver.
+pub fn esp32_test_runner<T: Esp32Test>(tests: &[T]) {
     print_test_separator();
     let mut nvs = get_nvs().unwrap();
 
@@ -185,28 +229,15 @@ pub fn esp32_test_runner(tests: &[&test::TestDescAndFn]) {
 }
 
 /// Extends a test struct with an `execute` method.
-trait TestExecutionExtention {
+pub trait Esp32Test {
     /// Execute the test function.
     ///
     /// # Returns
     ///
-    /// A `Result` containing `()` if the execution succeeds, or a `TestingErrors`
+    /// A `Result` containing `()` if the execution succeeds, or a `TestExecutionFailure`
     /// if it fails.
-    fn execute(&self) -> Result<(), TestExecutionErrors>;
-}
+    fn execute(&self) -> Result<(), TestExecutionFailures>;
 
-impl TestExecutionExtention for test::TestDescAndFn {
-    fn execute(&self) -> Result<(), TestExecutionErrors> {
-        self.testfn.execute()
-    }
-}
-
-impl TestExecutionExtention for test::TestFn {
-    fn execute(&self) -> Result<(), TestExecutionErrors> {
-        match self {
-            test::TestFn::StaticTestFn(func) => func().map_err(TestExecutionErrors::TestFailed),
-            test::TestFn::DynTestFn(_) => Err(TestExecutionErrors::DynamicTestNotSupported),
-            _ => Err(TestExecutionErrors::BenchTestNotSupported),
-        }
-    }
+    /// Returns an `&str` that identifies the tets
+    fn name(&self)-> &str;
 }
