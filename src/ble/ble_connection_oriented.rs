@@ -534,6 +534,18 @@ impl<'a> _BleServer<'a> {
             .map_err(|_| BleError::StartingAdvertisementError)
     }
 
+    /// Stop the server advertisement. This function only stop the advertisement,
+    /// any service running in the servil will continue running.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` with Ok if the stopping operation completed successfully, or a
+    /// `BleError` if it fails.
+    ///
+    /// # Errors
+    ///
+    /// - `BleError::AdvertisementError`: If the advertising operation failed
+    /// - `BleError::StoppingFailure`: If the stopping operation failed
     pub fn stop_advertisement(&mut self) -> Result<(), BleError> {
         self.advertisement
             .lock()
@@ -541,6 +553,11 @@ impl<'a> _BleServer<'a> {
             .map_err(|_| BleError::StoppingFailure)
     }
 
+    /// List all active clients.
+    ///
+    /// # Returns
+    ///
+    /// A `Vec<ConnectionInformation>` containing information about each connected client.
     pub fn list_clients(&mut self) -> Vec<ConnectionInformation> {
         self.ble_server
             .connections()
@@ -548,6 +565,16 @@ impl<'a> _BleServer<'a> {
             .collect()
     }
 
+    /// Disconnects all currently connected clients.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` with Ok if all clients were successfully disconnected, or a
+    /// `BleError` if it fails.
+    ///
+    /// # Errors
+    ///
+    /// - `BleError::Disconnected`: If any client fails to disconnect.
     pub fn disconnect_all_clients(&mut self) -> Result<(), BleError> {
         let clients: Vec<_> = self.ble_server.connections().collect();
         for client in clients {
@@ -558,6 +585,19 @@ impl<'a> _BleServer<'a> {
         Ok(())
     }
 
+    /// Disconnects a specific client.
+    ///
+    /// # Parameters
+    ///
+    /// - `client`: A reference to the `ConnectionInformation` of the client to disconnect.
+    /// # Returns
+    ///
+    /// A `Result` with Ok if all clients were successfully disconnected, or a
+    /// `BleError` if it fails.
+    ///
+    /// # Errors
+    ///
+    /// - `BleError::Disconnected`: If any client fails to disconnect.
     pub fn disconnect_client(&mut self, client: &ConnectionInformation) -> Result<(), BleError> {
         self.ble_server
             .disconnect(client.conn_handle)
@@ -566,6 +606,11 @@ impl<'a> _BleServer<'a> {
         Ok(())
     }
 
+    /// Returns the number of currently connected BLE clients.
+    ///
+    /// # Returns
+    ///
+    /// A `usize` representing the number of clients currently connected.
     pub fn amount_of_clients(&mut self) -> usize {
         self.ble_server.connected_count()
     }
