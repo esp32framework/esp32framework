@@ -534,13 +534,40 @@ impl<'a> _BleServer<'a> {
             .map_err(|_| BleError::StartingAdvertisementError)
     }
 
-    pub fn restart(&mut self) -> Result<(), BleError> {
-        self.create_advertisement_data()?;
-
+    pub fn stop_advertisement(&mut self) -> Result<(), BleError> {
         self.advertisement
             .lock()
             .stop()
             .map_err(|_| BleError::StoppingFailure)
+    }
+
+    pub fn list_clients(&mut self) -> Vec<ConnectionInformation> {
+        self.ble_server
+            .connections()
+            .map(|desc| ConnectionInformation::from_bleconn_desc(&desc, true, Ok(())))
+            .collect()
+    }
+
+    pub fn disconnect_all_clients(&mut self) -> Result<(), BleError> {
+        let clients: Vec<_> = self.ble_server.connections().collect();
+        for client in clients {
+            self.ble_server
+                .disconnect(client.conn_handle())
+                .map_err(|_| BleError::Disconnected)?;
+        }
+        Ok(())
+    }
+
+    pub fn disconnect_client(&mut self, client: &ConnectionInformation) -> Result<(), BleError> {
+        self.ble_server
+            .disconnect(client.conn_handle)
+            .map_err(|_| BleError::Disconnected)?;
+
+        Ok(())
+    }
+
+    pub fn amount_of_clients(&mut self) -> usize {
+        self.ble_server.connected_count()
     }
 
     /// Creates the necessary advertisement data with the user settings
