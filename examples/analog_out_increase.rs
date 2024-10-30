@@ -35,12 +35,8 @@ fn main() {
     let timer = Rc::new(LedcTimerDriver::new(peripherals.ledc.timer0, &config).unwrap());
     let mut increasing: bool = true;
 
-    let mut red_pwm = LedcDriver::new(
-        peripherals.ledc.channel0,
-        timer,
-        peripherals.pins.gpio3,
-    )
-    .unwrap();
+    let mut red_pwm =
+        LedcDriver::new(peripherals.ledc.channel0, timer, peripherals.pins.gpio3).unwrap();
 
     loop {
         let red_level = get_next_red_level(&red_pwm, &mut increasing, 0.05);

@@ -40,7 +40,6 @@ impl BleClientUpdater {
 
 /// Driver responsible for handling the client-end of ble connections. Can be used to read, write or notify
 /// on characteristics of services of connected clients
-#[derive(Clone)]
 pub struct BleClient {
     inner: SharableRef<_BleClient>,
     updater: SharableRef<BleClientUpdater>,
@@ -465,12 +464,19 @@ impl BleClient {
     }
 }
 
-impl InterruptDriver for BleClient {
+impl<'a> InterruptDriver<'a> for BleClient {
     /// Updates all characteristics that have been gotten
     fn update_interrupt(&mut self) -> Result<(), Esp32FrameworkError> {
         for c in self.updater.deref_mut().remote_characteristics.values_mut() {
             c.execute_if_notified()
         }
         Ok(())
+    }
+
+    fn get_updater(&self) -> Box<dyn InterruptDriver<'a> + 'a> {
+        Box::new(Self {
+            inner: self.inner.clone(),
+            updater: self.updater.clone(),
+        })
     }
 }

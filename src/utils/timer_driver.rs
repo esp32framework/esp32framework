@@ -42,7 +42,8 @@ struct _TimerDriver<'a> {
     interrupts: HashMap<u16, TimeInterrupt>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
+
 pub enum TimerDriverError {
     CannotSetTimerCounter,
     CouldNotSetTimer,
@@ -325,7 +326,8 @@ impl<'a> _TimerDriver<'a> {
 
     /// Transforms microseconds to the microcontroller tick_hz
     fn micro_to_counter(&self, micro_seconds: u64) -> u64 {
-        micro_seconds * self.driver.tick_hz() / MICRO_IN_SEC
+        (micro_seconds as u128 * self.driver.tick_hz() as u128).min(u64::MAX as u128) as u64
+            / MICRO_IN_SEC
     }
 
     /// Activates the timeInterrupt corresponding to "id". By setting the interrupt status as `TimerInterruptStatus::Enabled`
@@ -563,11 +565,20 @@ impl<'a> _TimerDriver<'a> {
     }
 }
 
-#[sharable_reference_wrapper("id")]
-impl<'a> InterruptDriver for _TimerDriver<'a> {
+impl<'a> InterruptDriver<'a> for TimerDriver<'a> {
     fn update_interrupt(&mut self) -> Result<(), Esp32FrameworkError> {
-        self._update_interrupt()
+        self.inner
+            .deref_mut()
+            ._update_interrupt()
             .map_err(Esp32FrameworkError::TimerDriver)
+    }
+
+    fn get_updater(&self) -> Box<dyn InterruptDriver<'a> + 'a> {
+        Box::new(Self {
+            inner: self.inner.clone(),
+            id: self.id,
+            next_child: self.next_child,
+        })
     }
 }
 
@@ -639,5 +650,229 @@ impl<'a> TimerDriver<'a> {
 
         notification.wait().await;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use esp_idf_svc::hal::delay::FreeRtos;
+
+    use crate::microcontroller_src::peripherals::Peripherals;
+
+    use super::*;
+
+    const NEVER: u64 = u64::MAX;
+
+    fn assert_timer_driver_error<T>(
+        res: Result<T, TimerDriverError>,
+        expected_err: TimerDriverError,
+    ) {
+        assert_eq!(res.map(|_| "Not an error").unwrap_err(), expected_err)
+    }
+
+    fn get_base_timer_driver<'a>() -> (TimerDriver<'a>, Notification) {
+        let notif = Notification::new();
+        let timer_group = Peripherals::new().get_timer(0);
+        (
+            TimerDriver::new(timer_group, notif.notifier()).unwrap(),
+            notif,
+        )
+    }
+
+    fn update_after_interrupt<'a>(
+        timer_driver: &mut TimerDriver<'a>,
+        notif: &Notification,
+    ) -> Result<(), Esp32FrameworkError> {
+        notif.blocking_wait();
+        timer_driver.update_interrupt()
+    }
+
+    fn get_2_timer_drivers<'a>() -> (TimerDriver<'a>, TimerDriver<'a>, Notification) {
+        let (mut timer_driver, notif) = get_base_timer_driver();
+        let child_timer_driver = timer_driver.create_child_copy().unwrap();
+        (timer_driver, child_timer_driver, notif)
+    }
+
+    #[test]
+    fn timer_driver_01_creating_with_timer_group_peripheral() {
+        _ = get_base_timer_driver();
+    }
+
+    #[test]
+    fn timer_driver_02_creating_with_taken_timer_group() {
+        let notif = Notification::new();
+        let mut peripherals = Peripherals::new();
+        let _timer_group = peripherals.get_timer(0);
+        let timer_group = peripherals.get_timer(0);
+        let res = TimerDriver::new(timer_group, notif.notifier());
+        assert_timer_driver_error(
+            res,
+            TimerDriverError::InvalidPeripheral(PeripheralError::AlreadyTaken),
+        );
+    }
+
+    #[test]
+    fn timer_driver_03_creating_with_non_timer_group_peripheral() {
+        let notif = Notification::new();
+        let pin = Peripherals::new().get_digital_pin(0);
+        let res = TimerDriver::new(pin, notif.notifier());
+        assert_timer_driver_error(
+            res,
+            TimerDriverError::InvalidPeripheral(PeripheralError::NotATimerGroup),
+        );
+    }
+
+    #[test]
+    fn timer_driver_04_notification_is_sent_after_triggering_interrupt() {
+        let (mut timer_driver, notif) = get_base_timer_driver();
+        timer_driver.interrupt_after(0, || {});
+        timer_driver.enable().unwrap();
+        assert!(notif.poll())
+    }
+
+    #[test]
+    fn timer_driver_05_callback_is_executed_after_triggering_interrupt() {
+        let (mut timer_driver, notif) = get_base_timer_driver();
+        let callback_triggered = SharableRef::new_sharable(false);
+        let mut callback_triggered_ref = callback_triggered.clone();
+        timer_driver.interrupt_after(0, move || *callback_triggered_ref.deref_mut() = true);
+        timer_driver.enable().unwrap();
+        update_after_interrupt(&mut timer_driver, &notif).unwrap();
+        assert!(*callback_triggered.deref())
+    }
+
+    #[test]
+    fn timer_driver_06_creating_child() {
+        let (mut timer_driver, _) = get_base_timer_driver();
+        let child_timer = timer_driver.create_child_copy().unwrap();
+        assert_eq!(child_timer.id, timer_driver.id + 1);
+        assert_eq!(child_timer.next_child, 0)
+    }
+
+    #[test]
+    fn timer_driver_07_child_cannot_create_another_child() {
+        let (mut timer_driver, _) = get_base_timer_driver();
+        let mut child_timer = timer_driver.create_child_copy().unwrap();
+        let res = child_timer.create_child_copy();
+        assert_timer_driver_error(res, TimerDriverError::OnlyOriginalCopyCanCreateChildren);
+    }
+
+    #[test]
+    fn timer_driver_08_cannot_create_more_children_than_max_children() {
+        let (mut timer_driver, _) = get_base_timer_driver();
+        for _ in 0..MAX_CHILDREN - 1 {
+            timer_driver.create_child_copy().unwrap();
+        }
+        let res = timer_driver.create_child_copy();
+        assert_timer_driver_error(res, TimerDriverError::TooManyChildren);
+    }
+
+    #[test]
+    fn timer_driver_09_executing_multiple_simultaneouse_callbacks() {
+        let (mut timer_driver0, mut timer_driver1, notif) = get_2_timer_drivers();
+        let amount_of_callbacks = SharableRef::new_sharable(0);
+        let mut amount_of_callbacks_ref0 = amount_of_callbacks.clone();
+        let mut amount_of_callbacks_ref1 = amount_of_callbacks.clone();
+
+        timer_driver0.interrupt_after(0, move || *amount_of_callbacks_ref0.deref_mut() += 1);
+        timer_driver1.interrupt_after(0, move || *amount_of_callbacks_ref1.deref_mut() += 1);
+        timer_driver0.enable().unwrap();
+        timer_driver1.enable().unwrap();
+
+        update_after_interrupt(&mut timer_driver0, &notif).unwrap();
+        assert_eq!(*amount_of_callbacks.deref(), 2);
+    }
+
+    #[test]
+    fn timer_driver_10_executing_multiple_interrupts_set_only_some_trigger() {
+        let (mut timer_driver0, mut timer_driver1, notif) = get_2_timer_drivers();
+        let amount_of_callbacks = SharableRef::new_sharable(0);
+        let mut amount_of_callbacks_ref0 = amount_of_callbacks.clone();
+        let mut amount_of_callbacks_ref1 = amount_of_callbacks.clone();
+
+        timer_driver0.interrupt_after(0, move || *amount_of_callbacks_ref0.deref_mut() += 1);
+        timer_driver1.interrupt_after(NEVER, move || *amount_of_callbacks_ref1.deref_mut() += 1);
+        timer_driver0.enable().unwrap();
+        timer_driver1.enable().unwrap();
+
+        update_after_interrupt(&mut timer_driver0, &notif).unwrap();
+        assert_eq!(*amount_of_callbacks.deref(), 1);
+    }
+
+    #[test]
+    fn timer_driver_11_interrupt_multiple_times_first_tick_happens_after_the_time_has_passed() {
+        let (mut timer_driver, notif) = get_base_timer_driver();
+        let executed_callback = SharableRef::new_sharable(false);
+        let mut executed_callback_ref = executed_callback.clone();
+
+        timer_driver.interrupt_after_n_times(NEVER, None, true, move || {
+            *executed_callback_ref.deref_mut() = true
+        });
+        timer_driver.enable().unwrap();
+
+        notif.notifier().notify();
+        update_after_interrupt(&mut timer_driver, &notif).unwrap();
+        assert!(!*executed_callback.deref());
+    }
+
+    #[test]
+    fn timer_driver_12_interrupt_multiple_times() {
+        let (mut timer_driver, notif) = get_base_timer_driver();
+        let amount_of_callbacks = SharableRef::new_sharable(0);
+        let mut amount_of_callbacks_ref = amount_of_callbacks.clone();
+
+        timer_driver.interrupt_after_n_times(100, Some(3), true, move || {
+            *amount_of_callbacks_ref.deref_mut() += 1
+        });
+        timer_driver.enable().unwrap();
+
+        for _ in 0..3 {
+            update_after_interrupt(&mut timer_driver, &notif).unwrap();
+        }
+
+        assert_eq!(*amount_of_callbacks.deref(), 3);
+    }
+
+    #[test]
+    fn timer_driver_13_interrupt_multiple_times_no_reenable() {
+        let (mut timer_driver, notif) = get_base_timer_driver();
+        let amount_of_callbacks = SharableRef::new_sharable(0);
+        let mut amount_of_callbacks_ref = amount_of_callbacks.clone();
+
+        timer_driver.interrupt_after_n_times(100, Some(3), false, move || {
+            *amount_of_callbacks_ref.deref_mut() += 1
+        });
+        for _ in 0..2 {
+            timer_driver.enable().unwrap();
+            update_after_interrupt(&mut timer_driver, &notif).unwrap();
+        }
+
+        FreeRtos::delay_ms(1);
+        notif.notifier().notify();
+        update_after_interrupt(&mut timer_driver, &notif).unwrap();
+
+        assert_eq!(*amount_of_callbacks.deref(), 2);
+    }
+
+    #[test]
+    fn timer_driver_14_remove_interrupt() {
+        let (mut timer_driver, notif) = get_base_timer_driver();
+        let amount_of_callbacks = SharableRef::new_sharable(0);
+        let mut amount_of_callbacks_ref = amount_of_callbacks.clone();
+
+        timer_driver.interrupt_after_n_times(100, Some(3), false, move || {
+            *amount_of_callbacks_ref.deref_mut() += 1
+        });
+        timer_driver.enable().unwrap();
+
+        update_after_interrupt(&mut timer_driver, &notif).unwrap();
+        timer_driver.enable().unwrap();
+
+        timer_driver.remove_interrupt().unwrap();
+        FreeRtos::delay_ms(1);
+        notif.notifier().notify();
+        update_after_interrupt(&mut timer_driver, &notif).unwrap();
+
+        assert_eq!(*amount_of_callbacks.deref(), 1);
     }
 }

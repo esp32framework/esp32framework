@@ -41,7 +41,6 @@ struct _BleServer<'a> {
 /// * `services`: The servere will hace information for the clients to see. All this information will be encapsulated on different services.
 /// * `user_on_connection`: Callback that will be executed for each client connected.
 /// * `user_on_disconnection`: Callback that will be executed for each client disconnected.
-#[derive(Clone)]
 pub struct BleServer<'a> {
     inner: SharableRef<_BleServer<'a>>,
 }
@@ -533,13 +532,85 @@ impl<'a> _BleServer<'a> {
             .map_err(|_| BleError::StartingAdvertisementError)
     }
 
-    pub fn restart(&mut self) -> Result<(), BleError> {
-        self.create_advertisement_data()?;
-
+    /// Stop the server advertisement. This function only stop the advertisement,
+    /// any service running in the servil will continue running.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` with Ok if the stopping operation completed successfully, or a
+    /// `BleError` if it fails.
+    ///
+    /// # Errors
+    ///
+    /// - `BleError::AdvertisementError`: If the advertising operation failed
+    /// - `BleError::StoppingFailure`: If the stopping operation failed
+    pub fn stop_advertisement(&mut self) -> Result<(), BleError> {
         self.advertisement
             .lock()
             .stop()
             .map_err(|_| BleError::StoppingFailure)
+    }
+
+    /// List all active clients.
+    ///
+    /// # Returns
+    ///
+    /// A `Vec<ConnectionInformation>` containing information about each connected client.
+    pub fn list_clients(&mut self) -> Vec<ConnectionInformation> {
+        self.ble_server
+            .connections()
+            .map(|desc| ConnectionInformation::from_bleconn_desc(&desc, true, Ok(())))
+            .collect()
+    }
+
+    /// Disconnects all currently connected clients.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` with Ok if all clients were successfully disconnected, or a
+    /// `BleError` if it fails.
+    ///
+    /// # Errors
+    ///
+    /// - `BleError::Disconnected`: If any client fails to disconnect.
+    pub fn disconnect_all_clients(&mut self) -> Result<(), BleError> {
+        let clients: Vec<_> = self.ble_server.connections().collect();
+        for client in clients {
+            self.ble_server
+                .disconnect(client.conn_handle())
+                .map_err(|_| BleError::Disconnected)?;
+        }
+        Ok(())
+    }
+
+    /// Disconnects a specific client.
+    ///
+    /// # Parameters
+    ///
+    /// - `client`: A reference to the `ConnectionInformation` of the client to disconnect.
+    /// # Returns
+    ///
+    /// A `Result` with Ok if all clients were successfully disconnected, or a
+    /// `BleError` if it fails.
+    ///
+    /// # Errors
+    ///
+    /// - `BleError::Disconnected`: If any client fails to disconnect.
+    pub fn disconnect_client(&mut self, client: &ConnectionInformation) -> Result<(), BleError> {
+        self.ble_server
+            .disconnect(client.conn_handle)
+            .map_err(|_| BleError::Disconnected)?;
+
+        Ok(())
+    }
+
+    /// Returns the number of currently connected BLE clients.
+    ///
+    /// # Returns
+    ///
+    /// A `usize` representing the number of clients currently connected.
+    pub fn amount_of_clients(&mut self) -> usize {
+        self.ble_server.connected_count()
     }
 
     /// Creates the necessary advertisement data with the user settings
@@ -620,13 +691,19 @@ impl<'a> _BleServer<'a> {
     }
 }
 
-impl<'a> InterruptDriver for BleServer<'a> {
+impl<'a> InterruptDriver<'a> for BleServer<'a> {
     fn update_interrupt(&mut self) -> Result<(), Esp32FrameworkError> {
         let (mut user_on_connection, mut user_on_disconnection) = self.take_connection_callbacks();
         user_on_connection.handle_connection_changes(self);
         user_on_disconnection.handle_connection_changes(self);
         self.set_connection_callbacks(user_on_connection, user_on_disconnection);
         Ok(())
+    }
+
+    fn get_updater(&self) -> Box<dyn InterruptDriver<'a> + 'a> {
+        Box::new(Self {
+            inner: self.inner.clone(),
+        })
     }
 }
 

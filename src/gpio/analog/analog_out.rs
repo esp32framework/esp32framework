@@ -69,7 +69,6 @@ struct _AnalogOut<'a> {
 }
 
 /// Driver to handle an analog output for a particular pin.
-#[derive(Clone)]
 pub struct AnalogOut<'a> {
     inner: SharableRef<_AnalogOut<'a>>,
 }
@@ -828,13 +827,20 @@ impl<'a> AnalogOut<'a> {
     }
 }
 
-#[sharable_reference_wrapper]
-impl<'a> InterruptDriver for _AnalogOut<'a> {
+impl<'a> InterruptDriver<'a> for AnalogOut<'a> {
     /// Handles the diferent type of interrupts that, executing the user callback and reenabling the
     /// interrupt when necesary
     fn update_interrupt(&mut self) -> Result<(), Esp32FrameworkError> {
-        self._update_interrupt()
+        self.inner
+            .deref_mut()
+            ._update_interrupt()
             .map_err(Esp32FrameworkError::AnalogOut)
+    }
+
+    fn get_updater(&self) -> Box<dyn InterruptDriver<'a> + 'a> {
+        Box::new(Self {
+            inner: self.inner.clone(),
+        })
     }
 }
 

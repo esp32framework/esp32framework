@@ -20,7 +20,7 @@ fn main() {
         .block_on(wifi.connect(SSID, Some(PASSWORD.to_string())))
         .unwrap();
 
-    // HTTP
+    // HTTPS
     let mut buf: [u8; 1024] = [0; 1024];
     let mut client = wifi.get_https_client().unwrap();
     let header = HttpHeader::new(
