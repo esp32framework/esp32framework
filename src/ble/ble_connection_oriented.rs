@@ -12,8 +12,7 @@ use crate::{
     InterruptDriver,
 };
 use esp32_nimble::{
-    utilities::mutex::Mutex, BLEAdvertisementData, BLEAdvertising, BLEDevice, BLEServer,
-    BLEService, NimbleProperties,
+    utilities::mutex::Mutex, BLEAdvertisementData, BLEAdvertising, BLECharacteristic, BLEDevice, BLEServer, BLEService, NimbleProperties
 };
 use esp_idf_svc::hal::task;
 use sharable_reference_macro::sharable_reference_wrapper;
@@ -480,7 +479,6 @@ impl<'a> _BleServer<'a> {
             }
             return Ok(());
         }
-
         Err(BleError::CharacteristicNotFound)
     }
 
@@ -634,6 +632,62 @@ impl<'a> _BleServer<'a> {
             .lock()
             .set_data(&mut adv_data)
             .map_err(|_| BleError::AdvertisementError)
+    }
+
+    /// Gets the data of a specific characteristic
+    /// 
+    /// # Arguments
+    /// 
+    /// - `ble_characteristic`: An `&Arc<Mutex<BLECharacteristic>>` that has the desired characteristic
+    /// 
+    /// # Returns
+    /// 
+    /// A `Vec<u8>` that represents the bytes of data of the characteristic
+    fn read_characteristic_data(&self, ble_characteristic: &Arc<Mutex<BLECharacteristic>>) -> Vec<u8> {
+        let mut ble_characteristic = ble_characteristic.lock();
+        ble_characteristic.value_mut().value().to_vec()
+    }
+
+
+    /// Gets the data of a specific characteristic from a given service
+    /// 
+    /// # Arguments
+    /// 
+    /// - `service_id`: A `&BleId` that represents the id of the service that has the characteristic
+    /// - `characteristic_id`: A `&BleId` that represents the id of the characteristic
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` containing the data if the operation is succesful, or a `BleError` if it fails
+    /// 
+    /// # Errors
+    /// 
+    /// - `BleError::CharacteristicNotFound`: If the characteristic is not in the indicated service
+    ///  - `BleError::ServiceNotFound`: If the services is not in the BleServer itself
+    pub fn get_characteristic_data(&self, service_id: &BleId, characteristic_id: &BleId) -> Result<Vec<u8>, BleError> {
+        // Get the service from the BLEServer
+        let service_option =
+            task::block_on(async { self.ble_server.get_service(service_id.to_uuid()).await });
+
+        match service_option {
+            Some(service_arc) => {
+                // If the service is found, we get the desired characteristic
+                let locked_service = service_arc.lock();
+                let server_characteristic = task::block_on(async {
+                    locked_service
+                        .get_characteristic(characteristic_id.to_uuid())
+                        .await
+                });
+                
+                // Onece we have the characteristic, we get its data
+                match server_characteristic {
+                    Some(characteristic_arc) => Ok(self.read_characteristic_data(characteristic_arc)),
+                    None => Err(BleError::CharacteristicNotFound),
+                }
+            
+            },
+            None => Err(BleError::ServiceNotFound),
+        }
     }
 }
 
