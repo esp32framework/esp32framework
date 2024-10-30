@@ -28,6 +28,8 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
+use super::external_peripheral::UseOfExternalPeripheralsExt;
+
 const TIMER_GROUPS: usize = 2;
 
 pub(crate) type SharableAdcDriver<'a> = Rc<AdcDriver<'a, ADC1>>;
@@ -884,4 +886,14 @@ async fn wrap_user_future<F: Future>(
     *finished.deref_mut() = true;
     notifier.notify();
     res
+}
+
+impl UseOfExternalPeripheralsExt for Microcontroller<'_>{
+    fn register_external_peripherals_use(&mut self, peripherals: Vec<Peripheral>) -> Vec<Peripheral>{
+        peripherals.into_iter().map(|p| self.register_external_peripheral_use(p)).collect()
+    }
+
+    fn register_external_peripheral_use(&mut self, peripheral: Peripheral) -> Peripheral{
+        self.peripherals.remove(peripheral)
+    }
 }
