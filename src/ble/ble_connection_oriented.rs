@@ -663,7 +663,7 @@ impl<'a> _BleServer<'a> {
     /// # Errors
     /// 
     /// - `BleError::CharacteristicNotFound`: If the characteristic is not in the indicated service
-    ///  - `BleError::ServiceNotFound`: If the services is not in the BleServer itself
+    /// - `BleError::ServiceNotFound`: If the services is not in the BleServer itself
     pub fn get_characteristic_data(&self, service_id: &BleId, characteristic_id: &BleId) -> Result<Vec<u8>, BleError> {
         // Get the service from the BLEServer
         let service_option =
@@ -688,6 +688,29 @@ impl<'a> _BleServer<'a> {
             },
             None => Err(BleError::ServiceNotFound),
         }
+    }
+
+    /// Gets the data of all characteristics from a given service
+    /// 
+    /// # Arguments
+    /// 
+    /// - `service_id`: A `&BleId` that represents the id of the service that has the characteristic
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` containing tuples of the id and data if the operation is succesful, or a `BleError` if it fails
+    /// 
+    /// # Errors
+    /// 
+    /// - `BleError::ServiceNotFound`: If the services is not in the BleServer itself
+    /// - `BleError::CharacteristicNotFound`: If there was an internal error with the characteristics
+    pub fn get_all_service_characteristics_data(&self, service_id: &BleId)->Result<Vec<(BleId, Vec<u8>)>, BleError>{
+        let mut data = Vec::new();
+        let services = self.services.iter().find(|s| s.id == *service_id).ok_or(BleError::ServiceNotFound)?;
+        for c in &services.characteristics{
+            data.push((c.id.clone(), self.get_characteristic_data(service_id, &c.id)?));
+        }
+        Ok(data)
     }
 }
 
