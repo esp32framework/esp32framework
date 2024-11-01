@@ -178,6 +178,13 @@ impl Peripheral {
             _ => Err(PeripheralError::NotAnAdc),
         }
     }
+
+    pub fn is_none(&self) -> bool{
+        match self{
+            Peripheral::None => true,
+            _ => false,
+        }
+    }
 }
 
 /// Represents the available peripherals in the esp32C6 and provides a way to get each particular
@@ -369,7 +376,7 @@ impl Peripherals {
     ///  otherwise a tuple containing two `Peripheral::None`.
     pub fn get_next_pwm(&mut self) -> (Peripheral, Peripheral) {
         for (channel, timer) in self.pwm_channels.iter_mut().zip(self.pwm_timers.iter_mut()) {
-            if let Peripheral::None = channel {
+            if channel.is_none() || timer.is_none() {
                 continue;
             }
 
@@ -420,5 +427,28 @@ impl Peripherals {
     /// A `Peripheral::Modem` if it was not taken before, otherwise a `Peripheral::None
     pub fn get_wifi_peripheral(&mut self) -> Peripheral {
         self.modem.take()
+    }
+
+    fn remove_pwm_channel(&mut self, num: u8) -> Peripheral{
+        self.pwm_channels.get_mut(num as usize).unwrap_or(&mut Peripheral::None).take()
+    }
+
+    fn remove_pwm_timer(&mut self, num: u8) -> Peripheral{
+        self.pwm_timers.get_mut(num as usize).unwrap_or(&mut Peripheral::None).take()
+    }
+
+    pub fn remove(&mut self, peripheral: Peripheral) -> Peripheral{
+        match peripheral{
+            Peripheral::Pin(num) => self.get_digital_pin(num as usize),
+            Peripheral::Timer(num) => self.get_timer(num as usize),
+            Peripheral::PWMChannel(num) => self.remove_pwm_channel(num),
+            Peripheral::PWMTimer(num) => self.remove_pwm_timer(num),
+            Peripheral::Adc => self.get_adc(),
+            Peripheral::I2C => self.get_i2c(),
+            Peripheral::Uart(num) => self.get_uart(num as usize),
+            Peripheral::BleDevice => self.get_ble_peripheral(),
+            Peripheral::Modem => self.get_wifi_peripheral(),
+            _ => Peripheral::None,
+        }
     }
 }

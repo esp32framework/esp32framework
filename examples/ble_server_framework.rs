@@ -24,13 +24,13 @@ fn set_up_characteristics() -> Vec<Characteristic> {
     let notifiable_char_id = BleId::FromUuid128([0x02; 16]);
 
     // Structures
-    let mut writable_characteristic = Characteristic::new(writable_char_id, vec![0x00]);
+    let mut writable_characteristic = Characteristic::new(&writable_char_id, vec![0x00]);
     writable_characteristic.writable(true);
 
-    let mut readable_characteristic = Characteristic::new(readable_char_id, vec![0x38]);
+    let mut readable_characteristic = Characteristic::new(&readable_char_id, vec![0x38]);
     readable_characteristic.readable(true);
 
-    let mut notifiable_characteristic = Characteristic::new(notifiable_char_id, vec![0x10]);
+    let mut notifiable_characteristic = Characteristic::new(&notifiable_char_id, vec![0x10]);
     notifiable_characteristic.readable(true).notifiable(true);
 
     vec![
