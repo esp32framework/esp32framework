@@ -2,7 +2,9 @@ use esp32_nimble::utilities::BleUuid;
 use std::hash::Hash;
 use uuid::Uuid;
 
-use super::ble_standard_uuids::{StandardCharacteristicId, StandardDescriptorId, StandardServiceId};
+use super::ble_standard_uuids::{
+    StandardCharacteristicId, StandardDescriptorId, StandardServiceId,
+};
 
 /// Enums the possible types of Ids:
 /// - `FromUuid16`: A way to get a BLE id from an `u16`.
@@ -97,11 +99,10 @@ impl BleId {
     /// # Returns
     ///
     /// A new BleId
-    pub fn from_name(name: &str)-> BleId{
-        let arr: [u8; 2] = Uuid::new_v3(&Uuid::NAMESPACE_OID, name.as_bytes()).into_bytes()
-                    [0..2]
-                    .try_into()
-                    .unwrap();
+    pub fn from_name(name: &str) -> BleId {
+        let arr: [u8; 2] = Uuid::new_v3(&Uuid::NAMESPACE_OID, name.as_bytes()).into_bytes()[0..2]
+            .try_into()
+            .unwrap();
         BleId::FromUuid16(u16::from_be_bytes(arr))
     }
 
@@ -113,7 +114,7 @@ impl BleId {
     pub(crate) fn to_uuid(&self) -> BleUuid {
         match self {
             BleId::FromUuid16(uuid) => BleUuid::from_uuid16(*uuid),
-            BleId::FromUuid128(uuid) => BleUuid::from_uuid128(*uuid)
+            BleId::FromUuid128(uuid) => BleUuid::from_uuid128(*uuid),
         }
     }
 

@@ -25,14 +25,11 @@ fn set_up_characteristics() -> Vec<Characteristic> {
     let notifiable_char_id = BleId::FromUuid128([0x02; 16]);
 
     // Structures
-    let mut writable_characteristic = Characteristic::new(&writable_char_id, vec![0x00]);
-    writable_characteristic.writable(true);
-
-    let mut readable_characteristic = Characteristic::new(&readable_char_id, vec![0x38]);
-    readable_characteristic.readable(true);
-
-    let mut notifiable_characteristic = Characteristic::new(&notifiable_char_id, vec![0x10]);
-    notifiable_characteristic.readable(true).notifiable(true);
+    let writable_characteristic = Characteristic::new(&writable_char_id, vec![0x00]).writable(true);
+    let readable_characteristic = Characteristic::new(&readable_char_id, vec![0x38]).readable(true);
+    let notifiable_characteristic = Characteristic::new(&notifiable_char_id, vec![0x10])
+        .readable(true)
+        .notifiable(true);
 
     vec![
         notifiable_characteristic,
@@ -60,8 +57,9 @@ fn main() {
     let characteristics: Vec<Characteristic> = set_up_characteristics();
     let mut notifiable_characteristic = characteristics[0].clone();
     let service_id = BleId::from_standard_service(StandardServiceId::Battery);
-    let mut service = Service::new(&service_id, vec![0xAB]).unwrap();
-    service.add_characteristics(&characteristics);
+    let service = Service::new(&service_id, vec![0xAB])
+        .unwrap()
+        .add_characteristics(&characteristics);
 
     let mut server = micro
         .ble_secure_server(
