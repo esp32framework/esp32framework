@@ -12,12 +12,18 @@ pub mod sensors;
 pub mod serial;
 pub mod utils; //TODO private this
 pub mod wifi;
+pub mod external_peripheral{
+    pub use super::microcontroller_src::peripherals::Peripheral;
+    pub use super::microcontroller_src::external_peripheral::UseOfExternalPeripheralsExt;
+}
+
 
 pub(crate) use microcontroller_src::interrupt_driver::InterruptDriver;
 
 pub use microcontroller_src::Microcontroller;
 pub use utils::esp32_framework_error;
 pub use utils::timer_driver;
+
 
 mod esp_test_runner;
 
