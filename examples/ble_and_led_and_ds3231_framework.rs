@@ -4,7 +4,7 @@
 
 use esp32framework::{
     ble::{
-        utils::{ble_standard_uuids::StandarServiceId, Service},
+        utils::{ble_standard_uuids::StandardServiceId, Service},
         BleBeacon, BleId,
     },
     gpio::digital::DigitalOut,
@@ -34,7 +34,7 @@ fn setup_ds3231<'a>(micro: &mut Microcontroller<'a>) -> DS3231<'a> {
 }
 
 fn setup_ble_beacon<'a>(micro: &mut Microcontroller<'a>) -> (BleBeacon<'a>, Service) {
-    let service_id = BleId::StandardService(StandarServiceId::EnvironmentalSensing);
+    let service_id = BleId::from_standard_service(StandardServiceId::EnvironmentalSensing);
     let mut service = vec![Service::new(&service_id, vec![]).unwrap()];
     let mut beacon = micro
         .ble_beacon("ESP32-beacon".to_string(), &service)

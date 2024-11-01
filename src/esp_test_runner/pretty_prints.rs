@@ -63,9 +63,14 @@ pub fn print_not_executed_test(test_number: u8, test_name: &str, reason: &str) {
 }
 
 /// Prints the rest statistics
-pub fn print_tests_statistics(test_quantity:u8, failed_tests:u8, skipped_tests:u8, successfull_tests:u8){
+pub fn print_tests_statistics(
+    test_quantity: u8,
+    failed_tests: u8,
+    skipped_tests: u8,
+    successfull_tests: u8,
+) {
     println!(
-        "{}: {} | {} | {}", 
+        "{}: {} | {} | {}",
         ansi_format!(BROWN_ANSI, "Test quantity {test_quantity}"),
         ansi_format!(GREEN_ANSI, "Successfull tests: {successfull_tests}"),
         ansi_format!(RED_ANSI, "Failed tests: {failed_tests}"),
