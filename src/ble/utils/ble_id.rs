@@ -5,14 +5,10 @@ use uuid::Uuid;
 use super::ble_standard_uuids::{StandardCharacteristicId, StandardDescriptorId, StandardServiceId};
 
 /// Enums the possible types of Ids:
-/// - `StandardService`: The UUIDs of standard Bluetooth Low Energy (BLE) services.
-/// - `StandarCharacteristic`: The UUIDs of standard Bluetooth Low Energy (BLE) characteristics.
-/// - `ByName`: A string that can be made into a BLE id.
 /// - `FromUuid16`: A way to get a BLE id from an `u16`.
 /// - `FromUuid128`: A way to get a BLE id from an `[u8;16]`.
 #[derive(Debug, Clone)]
 pub enum BleId {
-    ByName(String),
     FromUuid16(u16),
     FromUuid128([u8; 16]),
 }
@@ -53,16 +49,60 @@ impl From<&BleUuid> for BleId {
 }
 
 impl BleId {
+    /// Creates a `BleId::FromUuid16` from a StandardService
+    ///
+    /// # Arguments
+    ///
+    /// - `StandardServiceId`: A standard service Id to be convert into a BleId
+    ///
+    /// # Returns
+    ///
+    /// A new BleId
     pub const fn from_standard_service(id: StandardServiceId) -> BleId {
         BleId::FromUuid16(id as u16)
     }
 
+    /// Creates a `BleId::FromUuid16` from a StandardService
+    ///
+    /// # Arguments
+    ///
+    /// - `StandardCharacteristicId`: A standard characteristic Id to be convert into a BleId
+    ///
+    /// # Returns
+    ///
+    /// A new BleId
     pub const fn from_standard_characteristic(id: StandardCharacteristicId) -> BleId {
         BleId::FromUuid16(id as u16)
     }
 
+    /// Creates a `BleId::FromUuid16` from a StandardService
+    ///
+    /// # Arguments
+    ///
+    /// - `StandardDescriptorId`: A standard descriptor Id to be convert into a BleId
+    ///
+    /// # Returns
+    ///
+    /// A new BleId
     pub const fn from_standard_descriptor(id: StandardDescriptorId) -> BleId {
         BleId::FromUuid16(id as u16)
+    }
+
+    /// Creates a `BleId::FromUuid16` from a `&str`
+    ///
+    /// # Arguments
+    ///
+    /// - `name`: A string to be mapped into a `BleId::FromUuid16`
+    ///
+    /// # Returns
+    ///
+    /// A new BleId
+    pub fn from_name(name: &str)-> BleId{
+        let arr: [u8; 2] = Uuid::new_v3(&Uuid::NAMESPACE_OID, name.as_bytes()).into_bytes()
+                    [0..2]
+                    .try_into()
+                    .unwrap();
+        BleId::FromUuid16(u16::from_be_bytes(arr))
     }
 
     /// Creates a BleUuid from a BleId
@@ -73,14 +113,7 @@ impl BleId {
     pub(crate) fn to_uuid(&self) -> BleUuid {
         match self {
             BleId::FromUuid16(uuid) => BleUuid::from_uuid16(*uuid),
-            BleId::FromUuid128(uuid) => BleUuid::from_uuid128(*uuid),
-            BleId::ByName(name) => {
-                let arr: [u8; 4] = Uuid::new_v3(&Uuid::NAMESPACE_OID, name.as_bytes()).into_bytes()
-                    [0..4]
-                    .try_into()
-                    .unwrap();
-                BleUuid::from_uuid32(u32::from_be_bytes(arr))
-            }
+            BleId::FromUuid128(uuid) => BleUuid::from_uuid128(*uuid)
         }
     }
 
@@ -91,7 +124,6 @@ impl BleId {
     /// The usize representing the byte size
     pub fn byte_size(&self) -> usize {
         match self {
-            BleId::ByName(_) => 4,
             BleId::FromUuid16(_) => 2,
             BleId::FromUuid128(_) => 16,
         }
