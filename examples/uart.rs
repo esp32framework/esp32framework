@@ -20,7 +20,7 @@ use esp_idf_svc::{
 
 const BUFFER_SIZE: usize = 10;
 // To get a 1 second timeout we need to get how many ticks we need according to the constant configTICK_RATE_HZ
-const TIMEOUT: u32 = ((configTICK_RATE_HZ as u64) * (1_000_000 as u64) / 1_000_000_u64) as u32;
+const TIMEOUT: u32 = ((configTICK_RATE_HZ as u64) * (1_000_000_u64) / 1_000_000_u64) as u32;
 
 fn main() {
     esp_idf_svc::hal::sys::link_patches();

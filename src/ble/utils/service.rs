@@ -64,7 +64,7 @@ impl Service {
     /// # Returns
     ///
     /// The Service itself
-    pub fn add_characteristic(&mut self, characteristic: &Characteristic) -> &mut Self {
+    pub fn add_characteristic(mut self, characteristic: &Characteristic) -> Self {
         self.characteristics.push(characteristic.clone());
         self
     }
@@ -78,7 +78,7 @@ impl Service {
     /// # Returns
     ///
     /// The Service itself
-    pub fn add_characteristics(&mut self, characteristics: &Vec<Characteristic>) -> &mut Self {
+    pub fn add_characteristics(mut self, characteristics: &Vec<Characteristic>) -> Self {
         for characteristic in characteristics {
             self.characteristics.push(characteristic.clone());
         }
@@ -119,8 +119,8 @@ impl Characteristic {
         }
     }
 
-    pub fn add_descriptor(&mut self, descriptor: Descriptor) -> &mut Self {
-        self.descriptors.push(descriptor);
+    pub fn add_descriptor(mut self, descriptor: &Descriptor) -> Self {
+        self.descriptors.push(descriptor.clone());
         self
     }
 
@@ -134,7 +134,7 @@ impl Characteristic {
     /// # Returns
     ///
     /// The Characteristic itself
-    fn toggle(&mut self, value: bool, flag: NimbleProperties) -> &mut Self {
+    fn toggle(mut self, value: bool, flag: NimbleProperties) -> Self {
         if value {
             self.properties |= flag.bits();
         } else {
@@ -154,7 +154,7 @@ impl Characteristic {
     /// # Returns
     ///
     /// The Characteristic itself
-    pub fn writable(&mut self, value: bool) -> &mut Self {
+    pub fn writable(self, value: bool) -> Self {
         self.toggle(value, NimbleProperties::WRITE)
     }
 
@@ -169,7 +169,7 @@ impl Characteristic {
     /// # Returns
     ///
     /// The Characteristic itself
-    pub fn readable(&mut self, value: bool) -> &mut Self {
+    pub fn readable(self, value: bool) -> Self {
         self.toggle(value, NimbleProperties::READ)
     }
 
@@ -184,7 +184,7 @@ impl Characteristic {
     /// # Returns
     ///
     /// The Characteristic itself
-    pub fn notifiable(&mut self, value: bool) -> &mut Self {
+    pub fn notifiable(self, value: bool) -> Self {
         self.toggle(value, NimbleProperties::NOTIFY)
     }
 
@@ -199,7 +199,7 @@ impl Characteristic {
     /// # Returns
     ///
     /// The Characteristic itself
-    pub fn readable_enc(&mut self, value: bool) -> &mut Self {
+    pub fn readable_enc(self, value: bool) -> Self {
         self.toggle(value, NimbleProperties::READ_ENC)
     }
 
@@ -214,7 +214,7 @@ impl Characteristic {
     /// # Returns
     ///
     /// The Characteristic itself
-    pub fn readable_authen(&mut self, value: bool) -> &mut Self {
+    pub fn readable_authen(self, value: bool) -> Self {
         self.toggle(value, NimbleProperties::READ_AUTHEN)
     }
 
@@ -229,7 +229,7 @@ impl Characteristic {
     /// # Returns
     ///
     /// The Characteristic itself
-    pub fn readable_author(&mut self, value: bool) -> &mut Self {
+    pub fn readable_author(self, value: bool) -> Self {
         self.toggle(value, NimbleProperties::READ_AUTHOR)
     }
 
@@ -244,7 +244,7 @@ impl Characteristic {
     /// # Returns
     ///
     /// The Characteristic itself
-    pub fn writable_no_rsp(&mut self, value: bool) -> &mut Self {
+    pub fn writable_no_rsp(self, value: bool) -> Self {
         self.toggle(value, NimbleProperties::WRITE_NO_RSP)
     }
 
@@ -259,7 +259,7 @@ impl Characteristic {
     /// # Returns
     ///
     /// The Characteristic itself
-    pub fn writable_enc(&mut self, value: bool) -> &mut Self {
+    pub fn writable_enc(self, value: bool) -> Self {
         self.toggle(value, NimbleProperties::WRITE_ENC)
     }
 
@@ -274,7 +274,7 @@ impl Characteristic {
     /// # Returns
     ///
     /// The Characteristic itself
-    pub fn writable_authen(&mut self, value: bool) -> &mut Self {
+    pub fn writable_authen(self, value: bool) -> Self {
         self.toggle(value, NimbleProperties::WRITE_AUTHEN)
     }
 
@@ -289,7 +289,7 @@ impl Characteristic {
     /// # Returns
     ///
     /// The Characteristic itself
-    pub fn writable_author(&mut self, value: bool) -> &mut Self {
+    pub fn writable_author(self, value: bool) -> Self {
         self.toggle(value, NimbleProperties::WRITE_AUTHOR)
     }
 
@@ -304,7 +304,7 @@ impl Characteristic {
     /// # Returns
     ///
     /// The Characteristic itself
-    pub fn broadcastable(&mut self, value: bool) -> &mut Self {
+    pub fn broadcastable(self, value: bool) -> Self {
         self.toggle(value, NimbleProperties::BROADCAST)
     }
 
@@ -319,7 +319,7 @@ impl Characteristic {
     /// # Returns
     ///
     /// The Characteristic itself
-    pub fn indicatable(&mut self, value: bool) -> &mut Self {
+    pub fn indicatable(self, value: bool) -> Self {
         self.toggle(value, NimbleProperties::INDICATE)
     }
 
@@ -444,7 +444,7 @@ impl Descriptor {
     /// # Returns
     ///
     /// The Descriptor itself
-    fn toggle(&mut self, value: bool, flag: DescriptorProperties) -> &mut Self {
+    fn toggle(mut self, value: bool, flag: DescriptorProperties) -> Self {
         if value {
             self.properties |= flag.bits();
         } else {
@@ -464,7 +464,7 @@ impl Descriptor {
     /// # Returns
     ///
     /// The Descriptor itself
-    pub fn writable(&mut self, value: bool) -> &mut Self {
+    pub fn writable(self, value: bool) -> Self {
         self.toggle(value, DescriptorProperties::WRITE)
     }
 
@@ -479,7 +479,7 @@ impl Descriptor {
     /// # Returns
     ///
     /// The Descriptor itself
-    pub fn readable(&mut self, value: bool) -> &mut Self {
+    pub fn readable(self, value: bool) -> Self {
         self.toggle(value, DescriptorProperties::READ)
     }
 
@@ -494,7 +494,7 @@ impl Descriptor {
     /// # Returns
     ///
     /// The Descriptor itself
-    pub fn readable_enc(&mut self, value: bool) -> &mut Self {
+    pub fn readable_enc(self, value: bool) -> Self {
         self.toggle(value, DescriptorProperties::READ_ENC)
     }
 
@@ -509,7 +509,7 @@ impl Descriptor {
     /// # Returns
     ///
     /// The Descriptor itself
-    pub fn readable_authen(&mut self, value: bool) -> &mut Self {
+    pub fn readable_authen(self, value: bool) -> Self {
         self.toggle(value, DescriptorProperties::READ_AUTHEN)
     }
 
@@ -524,7 +524,7 @@ impl Descriptor {
     /// # Returns
     ///
     /// The Descriptor itself
-    pub fn readable_author(&mut self, value: bool) -> &mut Self {
+    pub fn readable_author(self, value: bool) -> Self {
         self.toggle(value, DescriptorProperties::READ_AUTHOR)
     }
 
@@ -539,7 +539,7 @@ impl Descriptor {
     /// # Returns
     ///
     /// The Descriptor itself
-    pub fn writable_enc(&mut self, value: bool) -> &mut Self {
+    pub fn writable_enc(self, value: bool) -> Self {
         self.toggle(value, DescriptorProperties::WRITE_ENC)
     }
 
@@ -554,7 +554,7 @@ impl Descriptor {
     /// # Returns
     ///
     /// The Descriptor itself
-    pub fn writable_authen(&mut self, value: bool) -> &mut Self {
+    pub fn writable_authen(self, value: bool) -> Self {
         self.toggle(value, DescriptorProperties::WRITE_AUTHEN)
     }
 
@@ -569,7 +569,7 @@ impl Descriptor {
     /// # Returns
     ///
     /// The Descriptor itself
-    pub fn writable_author(&mut self, value: bool) -> &mut Self {
+    pub fn writable_author(self, value: bool) -> Self {
         self.toggle(value, DescriptorProperties::WRITE_AUTHOR)
     }
 }

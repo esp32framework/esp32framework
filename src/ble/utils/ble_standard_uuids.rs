@@ -1,7 +1,7 @@
 /// Enums the UUIDs of standard Bluetooth Low Energy (BLE) services.
 /// Each variant corresponds to a specific service defined by the Bluetooth Special Interest Group (SIG).
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum StandarServiceId {
+pub enum StandardServiceId {
     GAP = 0x1800,
     GATT = 0x1801,
     ImmediateAlert = 0x1802,
@@ -73,7 +73,7 @@ pub enum StandarServiceId {
     MeshProxySolicitation = 0x1859,
 }
 
-impl StandarServiceId {
+impl StandardServiceId {
     /// Byte size of the StandarServiceId
     ///
     /// # Returns
@@ -87,7 +87,7 @@ impl StandarServiceId {
 /// Enums the UUIDs of standard Bluetooth Low Energy (BLE) characteristics.
 /// Each variant corresponds to a specific characteristic defined by the Bluetooth Special Interest Group (SIG).
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum StandarCharacteristicId {
+pub enum StandardCharacteristicId {
     DeviceName = 10752,
     Appearance = 10753,
     PeripheralPrivacyFlag = 10754,
@@ -541,7 +541,7 @@ pub enum StandarCharacteristicId {
     Percentage8Steps = 11269,
 }
 
-impl StandarCharacteristicId {
+impl StandardCharacteristicId {
     /// Byte size of the StandarCharacteristicId
     ///
     /// # Returns
@@ -553,7 +553,7 @@ impl StandarCharacteristicId {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum StandarDescriptorId {
+pub enum StandardDescriptorId {
     CharacteristicExtendedProperties = 10496,
     CharacteristicUserDescription = 10497,
     ClientCharacteristicConfiguration = 10498,
@@ -574,7 +574,7 @@ pub enum StandarDescriptorId {
     ValidRangeandAccuracy = 10513,
 }
 
-impl StandarDescriptorId {
+impl StandardDescriptorId {
     pub fn byte_size(&self) -> usize {
         2
     }

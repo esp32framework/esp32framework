@@ -35,8 +35,8 @@ pub enum TestExecutionFailures {
 fn get_nvs() -> Result<EspNvs<NvsDefault>, TestingErrors> {
     let nvs_default_partition: EspNvsPartition<NvsDefault> =
         EspDefaultNvsPartition::take().map_err(|_| TestingErrors::FailedToGetNvs)?;
-    Ok(EspNvs::new(nvs_default_partition, TEST_NAMESPACE, true)
-        .map_err(|_| TestingErrors::FailedToGetNvs)?)
+    EspNvs::new(nvs_default_partition, TEST_NAMESPACE, true)
+        .map_err(|_| TestingErrors::FailedToGetNvs)
 }
 
 /// Removes entries all test entries from the given NVS instance.
@@ -59,15 +59,20 @@ fn reset_testing_env(nvs: &mut EspNvs<NvsDefault>) {
 }
 
 /// Gets the test statistic from the nvs and prints them
-/// 
+///
 /// # Panics
-/// 
+///
 /// - `panic!`: If an error occured when using the `EspNvs` driver.
-fn get_and_print_test_statistics(nvs: &EspNvs<NvsDefault>, test_quantity: usize){
+fn get_and_print_test_statistics(nvs: &EspNvs<NvsDefault>, test_quantity: usize) {
     let successfull_tests = nvs.get_u8(SUCCESSFULL_TEST_LOCATION).unwrap().unwrap_or(0);
     let skipped_tests = nvs.get_u8(SKIPPED_TEST_LOCATION).unwrap().unwrap_or(0);
     let failed_tests = test_quantity as u8 - successfull_tests - skipped_tests;
-    print_tests_statistics(test_quantity as u8, failed_tests, skipped_tests, successfull_tests);
+    print_tests_statistics(
+        test_quantity as u8,
+        failed_tests,
+        skipped_tests,
+        successfull_tests,
+    );
 }
 
 /// Checks if the current test is the last and resets the testing
@@ -86,7 +91,7 @@ fn reset_if_finished(nvs: &mut EspNvs<NvsDefault>, curr_test: u8, test_quantity:
     let finished = curr_test as usize >= test_quantity;
     if finished {
         print_end_of_tests();
-        get_and_print_test_statistics(&nvs, test_quantity);
+        get_and_print_test_statistics(nvs, test_quantity);
         reset_testing_env(nvs);
     }
     finished
@@ -140,7 +145,7 @@ fn execute_next_test<T: Esp32Test>(nvs: &EspNvs<NvsDefault>, tests: &[T], curr_t
 
     reset_panic_hook();
 
-    handle_res(&nvs, t.name(), res, curr_test);
+    handle_res(nvs, t.name(), res, curr_test);
 }
 
 /// Handles the result of the current test.
@@ -151,18 +156,25 @@ fn execute_next_test<T: Esp32Test>(nvs: &EspNvs<NvsDefault>, tests: &[T], curr_t
 /// - `test_desc`: A reference to the test.
 /// - `res`: The result of the test.
 /// - `curr_test`: A mutable reference to the current test counter.
-/// 
+///
 /// # Panics
-/// 
+///
 /// - `panic!`: If an error occured when using the `EspNvs` driver.
-fn handle_res(nvs: &EspNvs<NvsDefault>, test_name: &str, res: Result<(), TestExecutionFailures>, curr_test: u8) {
+fn handle_res(
+    nvs: &EspNvs<NvsDefault>,
+    test_name: &str,
+    res: Result<(), TestExecutionFailures>,
+    curr_test: u8,
+) {
     match res {
         Ok(_) => {
             print_passing_test(curr_test, test_name);
             add_to_successfull_counter(nvs);
-        },
+        }
         Err(err) => match err {
-            TestExecutionFailures::TestFailed => print_failing_test(curr_test, test_name, "Incorrect return value"),
+            TestExecutionFailures::TestFailed => {
+                print_failing_test(curr_test, test_name, "Incorrect return value")
+            }
             TestExecutionFailures::BenchTestNotSupported => {
                 print_not_executed_test(curr_test, test_name, &format!("{:?}", err));
                 add_to_skipped_counter(nvs);
@@ -176,29 +188,31 @@ fn handle_res(nvs: &EspNvs<NvsDefault>, test_name: &str, res: Result<(), TestExe
 }
 
 /// Adds one to the amount of successfull tests
-/// 
+///
 /// # Arguments
 /// - `nvs`: An `EspNvs` driver to be able to add to the tests statistics
-/// 
+///
 /// # Panics
-/// 
+///
 /// - `panic!`: If an error occured when using the `EspNvs` driver.
-fn add_to_successfull_counter(nvs: &EspNvs<NvsDefault>){
+fn add_to_successfull_counter(nvs: &EspNvs<NvsDefault>) {
     let failed_counter = nvs.get_u8(SUCCESSFULL_TEST_LOCATION).unwrap().unwrap_or(0);
-    nvs.set_u8(SUCCESSFULL_TEST_LOCATION, failed_counter + 1).unwrap();
+    nvs.set_u8(SUCCESSFULL_TEST_LOCATION, failed_counter + 1)
+        .unwrap();
 }
 
 /// Adds one to the amount of skpped tests
-/// 
+///
 /// # Arguments
 /// - `nvs`: An `EspNvs` driver to be able to add to the tests statistics
-/// 
+///
 /// # Panics
-/// 
+///
 /// - `panic!`: If an error occured when using the `EspNvs` driver.
-fn add_to_skipped_counter(nvs: &EspNvs<NvsDefault>){
+fn add_to_skipped_counter(nvs: &EspNvs<NvsDefault>) {
     let failed_counter = nvs.get_u8(SKIPPED_TEST_LOCATION).unwrap().unwrap_or(0);
-    nvs.set_u8(SKIPPED_TEST_LOCATION, failed_counter + 1).unwrap();
+    nvs.set_u8(SKIPPED_TEST_LOCATION, failed_counter + 1)
+        .unwrap();
 }
 
 /// Custom Test Runner for ESP32 Tests. This runner restarts the ESP before executing
@@ -239,5 +253,5 @@ pub trait Esp32Test {
     fn execute(&self) -> Result<(), TestExecutionFailures>;
 
     /// Returns an `&str` that identifies the tets
-    fn name(&self)-> &str;
+    fn name(&self) -> &str;
 }
