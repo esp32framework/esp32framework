@@ -51,13 +51,13 @@ enum FixedChangeType {
 }
 
 /// Driver to handle an analog output for a particular pin
-/// - `driver`: A LedCDriver instance that handles the PWM output signals
-/// - `timer_driver`: A TimerDriver instance
+/// - `driver`: A `LedCDriver` instance that handles the PWM output signals
+/// - `timer_driver`: A `TimerDriver` instance
 /// - `duty`: The level of output duty
 /// - `change_duty_update`: ChangeDutyUpdate that indicates if a change on the duty is needed
-/// - `fixed_change_increasing`: Arc<AtomicBool> that indicates if a fixed change on the duty is needed
-/// - `fixed_change_type`: An instance of FixedChangeType that indicates the type of duty change
-/// - `amount_of_cycles`: An Option containing an u32 thath indicates the amount of desired cycles
+/// - `fixed_change_increasing`: `Arc<AtomicBool>` that indicates if a fixed change on the duty is needed
+/// - `fixed_change_type`: An instance of `FixedChangeType` that indicates the type of duty change
+/// - `amount_of_cycles`: An Option containing an `u32` thath indicates the amount of desired cycles
 struct _AnalogOut<'a> {
     driver: LedcDriver<'a>,
     timer_driver: TimerDriver<'a>,
@@ -73,7 +73,7 @@ pub struct AnalogOut<'a> {
     inner: SharableRef<_AnalogOut<'a>>,
 }
 
-/// Wrapper for simple use of an Arc<AtomicBool>
+/// Wrapper for simple use of an `Arc<AtomicBool>`
 /// in the context of the changinf of the drivers duty
 #[derive(Clone)]
 struct ChangeDutyUpdate {

@@ -10,9 +10,8 @@ use crate::{
         timer_driver::{TimerDriver, TimerDriverError},
     },
 };
-pub use esp_idf_svc::hal::gpio::InterruptType;
 use esp_idf_svc::{
-    hal::gpio::*,
+    hal::gpio::{InterruptType as SvcInterruptType, *},
     sys::{EspError, ESP_ERR_INVALID_STATE},
 };
 use sharable_reference_macro::sharable_reference_wrapper;
@@ -36,21 +35,32 @@ pub enum DigitalInError {
     TimerDriverError(TimerDriverError),
 }
 
+/// Enums the different interrupt types accepted when working with the digital in
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum InterruptType {
+    PosEdge,
+    NegEdge,
+    AnyEdgeNextEdgeIsPos,
+    AnyEdgeNextEdgeIsNeg,
+    LowLevel,
+    HighLevel,
+}
+
 /// Driver for receiving digital inputs from a particular Pin
-/// - `pin_driver`: An instance of PinDriver that implements AnyIOPin
-/// - `timer_driver`: An instance of TimerDriver
-/// - `interrupt_type`: An InterruptType to handle interrupts on the correct moment
-/// - `interrupt_update_code`: Arc<AtomicInterruptUpdateCode> that indicates how to handle the interrupt
+/// - `pin_driver`: An instance of `PinDriver` that implements AnyIOPin
+/// - `timer_driver`: An instance of `TimerDriver`
+/// - `interrupt_type`: An `InterruptType` to handle interrupts on the correct moment
+/// - `interrupt_update_code`: `Arc<AtomicInterruptUpdateCode>` that indicates how to handle the interrupt
 /// - `user_callback`: A closure to execute when the interrupt activates
-/// - `debounce_ms`: An Option containing an u64 representing the debounce time in milliseconds
-/// - `notifier`: An Option<notifier> in order to wake up the [crate::Microcontroller] after an interrupt
+/// - `debounce_ms`: An `Option` containing an u64 representing the debounce time in milliseconds
+/// - `notifier`: An `Option<notifier>` in order to wake up the [crate::Microcontroller] after an interrupt
 struct _DigitalIn<'a> {
     pin_driver: PinDriver<'a, AnyIOPin, Input>,
     timer_driver: TimerDriver<'a>,
     interrupt_type: Option<InterruptType>,
     interrupt_update_code: Arc<AtomicInterruptUpdateCode>,
-    user_callback: Box<dyn FnMut()>,
-    debounce_ms: Option<u64>,
+    user_callback: Box<dyn FnMut(Level)>,
+    debounce_us: Option<u64>,
     notifier: Option<Notifier>,
 }
 
@@ -162,8 +172,8 @@ impl<'a> _DigitalIn<'a> {
             timer_driver,
             interrupt_type: None,
             interrupt_update_code: Arc::from(InterruptUpdate::None.get_atomic_code()),
-            debounce_ms: None,
-            user_callback: Box::new(|| {}),
+            debounce_us: None,
+            user_callback: Box::new(|_| {}),
             notifier,
         };
 
@@ -190,7 +200,7 @@ impl<'a> _DigitalIn<'a> {
             .map_err(|_| DigitalInError::CannotSetPullForPin)
     }
 
-    /// Changes the interrupt type, fails if a debounce time is set and the interrupt type is AnyEdge
+    /// Changes the interrupt type.
     ///
     /// # Arguments
     ///
@@ -202,20 +212,14 @@ impl<'a> _DigitalIn<'a> {
     ///
     /// # Errors
     ///
-    /// - `DigitalInError::CannotSetDebounceOnAnyEdgeInterruptType`: If a debounce time is set and the interrupt type is `AnyEdge`.
     /// - `DigitalInError::InvalidPin`: If the pin driver is unable to support a setting of an interrupt type
     pub fn change_interrupt_type(
         &mut self,
         interrupt_type: InterruptType,
     ) -> Result<(), DigitalInError> {
-        if self.debounce_ms.is_some(){
-            if let InterruptType::AnyEdge = interrupt_type {
-                return Err(DigitalInError::CannotSetDebounceOnAnyEdgeInterruptType);
-            }
-        }
         self.interrupt_type = Some(interrupt_type);
         self.pin_driver
-            .set_interrupt_type(interrupt_type)
+            .set_interrupt_type(interrupt_type.to_svc())
             .map_err(|_| DigitalInError::InvalidPin)
     }
 
@@ -228,11 +232,8 @@ impl<'a> _DigitalIn<'a> {
     ///
     /// # Returns
     ///
-    /// A `Result` containing a closure that can be called to start the timer, or a `DigitalInError` if an error occurs.
-    fn trigger_if_mantains_after(
-        &mut self,
-        time_micro: u64,
-    ) -> Result<impl FnMut() + Send + 'static, DigitalInError> {
+    /// Closure that can be called to start the timer,
+    fn trigger_if_mantains_after(&mut self, time_micro: u64) -> impl FnMut() + Send + 'static {
         let interrupt_update_code_ref = self.interrupt_update_code.clone();
         let after_timer_cljr = move || {
             interrupt_update_code_ref
@@ -243,14 +244,12 @@ impl<'a> _DigitalIn<'a> {
             .interrupt_after(time_micro, after_timer_cljr);
 
         let interrupt_update_code_ref = self.interrupt_update_code.clone();
-        let start_timer_cljr = move || {
+        move || {
             interrupt_update_code_ref.store(
                 InterruptUpdate::EnableTimerDriver.get_code(),
                 Ordering::SeqCst,
             );
-        };
-
-        Ok(start_timer_cljr)
+        }
     }
 
     /// Subscribes the function to the pin driver interrupt and enables it
@@ -263,9 +262,10 @@ impl<'a> _DigitalIn<'a> {
     ///
     /// A `Result` indicating success or a `DigitalInError` if the subscription fails.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// When creating a new instance of a NonZeroU32 fails
+    /// - `DigitalInError::InvalidPin`: If the pin driver is unable to support a setting of an interrupt type
+    /// - `DigitalInError::StateAlreadySet`: If state was already set.
     fn subscribe_trigger<F: FnMut() + Send + 'static>(
         &mut self,
         mut func: F,
@@ -301,14 +301,20 @@ impl<'a> _DigitalIn<'a> {
     ///
     /// # Arguments
     ///
-    /// - `user_callback`: A function provided by the user that is executed when the interrupt condition is met.
+    /// - `user_callback`: A function provided by the user that is executed when the interrupt condition
+    ///                    is met. This callback receives the current level of the pin.
     /// - `callback`: A function that is called when the interrupt is triggered.
     /// - `interrupt_type`: The InterruptType to set for the pin.
     ///
     /// # Returns
     ///
     /// A `Result` indicating success or a `DigitalInError` if an error occurs while setting up the interrupt.
-    fn _trigger_on_interrupt<G: FnMut() + Send + 'static, F: FnMut() + 'static>(
+    ///
+    /// # Errors
+    ///
+    /// - `DigitalInError::InvalidPin`: If the pin driver is unable to support a setting of an interrupt type.
+    /// - `DigitalInError::StateAlreadySet`: If state was already set.
+    fn _trigger_on_interrupt<G: FnMut() + Send + 'static, F: FnMut(Level) + 'static>(
         &mut self,
         user_callback: F,
         callback: G,
@@ -316,9 +322,9 @@ impl<'a> _DigitalIn<'a> {
     ) -> Result<(), DigitalInError> {
         self.change_interrupt_type(interrupt_type)?;
         self.user_callback = Box::new(user_callback);
-        match self.debounce_ms {
+        match self.debounce_us {
             Some(debounce_ms) => {
-                let wrapper = self.trigger_if_mantains_after(debounce_ms)?;
+                let wrapper = self.trigger_if_mantains_after(debounce_ms);
                 self.subscribe_trigger(wrapper)
             }
             None => self.subscribe_trigger(callback),
@@ -331,13 +337,19 @@ impl<'a> _DigitalIn<'a> {
     ///
     /// # Arguments
     ///
-    /// - `user_callback`: A function that is executed when the interrupt condition is met.
+    /// - `user_callback`: A function provided by the user that is executed when the interrupt condition
+    ///                    is met. This callback receives the current level of the pin.
     /// - `interrupt_type`: The `InterruptType` to set for the pin.
     ///
     /// # Returns
     ///
     /// A `Result` indicating success or a `DigitalInError` if an error occurs while setting up the interrupt.
-    pub fn trigger_on_interrupt<F: FnMut() + 'static>(
+    ///
+    /// # Errors
+    ///
+    /// DigitalInError::InvalidPin: If the pin driver is unable to support a setting of an interrupt type.
+    /// DigitalInError::StateAlreadySet: If state was already set.
+    pub fn trigger_on_interrupt<F: FnMut(Level) + 'static>(
         &mut self,
         user_callback: F,
         interrupt_type: InterruptType,
@@ -357,13 +369,19 @@ impl<'a> _DigitalIn<'a> {
     /// # Arguments
     ///
     /// - `amount_of_times`: The number of times the interrupt will trigger before unsubscribing.
-    /// - `user_callback`: A function that is executed when the interrupt condition is met.
+    /// - `user_callback`: A function provided by the user that is executed when the interrupt condition
+    ///                    is met. This callback receives the current level of the pin.
     /// - `interrupt_type`: The `InterruptType` to set for the pin.
     ///
     /// # Returns
     ///
     /// A `Result` indicating success or a `DigitalInError` if an error occurs while setting up the interrupt.
-    pub fn trigger_on_interrupt_first_n_times<F: FnMut() + 'static>(
+    ///
+    /// # Errors
+    ///
+    /// - `DigitalInError::InvalidPin`: If the pin driver is unable to support a setting of an interrupt type.
+    /// - `DigitalInError::StateAlreadySet`: If state was already set.
+    pub fn trigger_on_interrupt_first_n_times<F: FnMut(Level) + 'static>(
         &mut self,
         amount_of_times: usize,
         user_callback: F,
@@ -393,7 +411,7 @@ impl<'a> _DigitalIn<'a> {
     }
 
     /// Checks if the level corresponds to the set interrupt type. If it does it means the level didnt
-    /// change from the messurement before the debounce time, so the user callback is executed
+    /// change from the messurement before the debounce time, so the user callback is executed.
     ///
     /// # Returns
     ///
@@ -401,24 +419,15 @@ impl<'a> _DigitalIn<'a> {
     ///
     /// # Errors
     ///
-    /// - `DigitalInError::CannotSetDebounceOnAnyEdgeInterruptType`: If the interrupt_type is AnyEdge
     /// - `DigitalInError::NoInterruptTypeSet`: If the interrupt_type is None
     /// - `DigitalInError::InvalidPin`: If enabling of the interrupt fails
     /// - `DigitalInError::StateAlreadySet`: If the ISR service has not been initialized
     fn timer_reached(&mut self) -> Result<(), DigitalInError> {
-        let level = match self.interrupt_type {
-            Some(InterruptType::PosEdge) => Level::High,
-            Some(InterruptType::NegEdge) => Level::Low,
-            Some(InterruptType::AnyEdge) => {
-                Err(DigitalInError::CannotSetDebounceOnAnyEdgeInterruptType)?
-            }
-            Some(InterruptType::LowLevel) => Level::Low,
-            Some(InterruptType::HighLevel) => Level::High,
-            None => Err(DigitalInError::NoInterruptTypeSet)?,
-        };
+        let level = self.get_interrupt_level()?;
 
         if self.pin_driver.get_level() == level {
-            (self.user_callback)();
+            (self.user_callback)(level);
+            self.swap_on_any_edge()?;
         }
 
         self.pin_driver
@@ -426,8 +435,49 @@ impl<'a> _DigitalIn<'a> {
             .map_err(DigitalInError::from_enable_disable_errors)
     }
 
-    /// Handles the diferent type of interrupts that, executing the user callback and reenabling the
-    /// interrupt when necesary
+    /// Change the InterruptType depending on the current InterruptType. This only apply for
+    /// "AnyEdge" type of interrupts.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating success or a `DigitalInError` if an error occurs while processing the timer.
+    ///
+    /// # Errors
+    ///
+    /// - `DigitalInError::InvalidPin`: If the pin driver is unable to support a setting of an interrupt type.
+    fn swap_on_any_edge(&mut self) -> Result<(), DigitalInError> {
+        if let Some(interrupt_type) = self.interrupt_type {
+            match interrupt_type {
+                InterruptType::AnyEdgeNextEdgeIsPos => {
+                    self.change_interrupt_type(InterruptType::AnyEdgeNextEdgeIsNeg)?
+                }
+                InterruptType::AnyEdgeNextEdgeIsNeg => {
+                    self.change_interrupt_type(InterruptType::AnyEdgeNextEdgeIsPos)?
+                }
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+
+    /// Gets the level corresponding to the currently set `self.interrupt_type`.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating success or a `DigitalInError` if no interrupt has been set.
+    ///
+    /// # Errors
+    ///
+    /// - `DigitalInError::NoInterruptTypeSet`: If the interrupt type can not be set.
+    fn get_interrupt_level(&self) -> Result<Level, DigitalInError> {
+        match self.interrupt_type {
+            Some(interrupt_type) => Ok(interrupt_type.get_level()),
+            None => Err(DigitalInError::NoInterruptTypeSet),
+        }
+    }
+
+    /// Handles the diferent type of interrupts, executing the user callback and reenabling the
+    /// interrupts when necesary.
     ///
     /// # Returns
     ///
@@ -435,9 +485,9 @@ impl<'a> _DigitalIn<'a> {
     ///
     /// # Errors
     ///
-    /// - `DigitalInError::TimerDriverError`: If the enabling of the timer driver fails
-    /// - `DigitalInError::InvalidPin`: If enabling of the interrupt fails
-    /// - `DigitalInError::StateAlreadySet`: If the ISR service has not been initialized
+    /// - `DigitalInError::TimerDriverError`: If the enabling of the timer driver fails.
+    /// - `DigitalInError::InvalidPin`: If enabling of the interrupt fails.
+    /// - `DigitalInError::StateAlreadySet`: If the ISR service has not been initialized.
     fn _update_interrupt(&mut self) -> Result<(), DigitalInError> {
         let interrupt_update = InterruptUpdate::from_atomic_code(&self.interrupt_update_code);
         self.interrupt_update_code
@@ -445,7 +495,9 @@ impl<'a> _DigitalIn<'a> {
 
         match interrupt_update {
             InterruptUpdate::ExecAndEnablePin => {
-                (self.user_callback)();
+                let level = self.get_interrupt_level()?;
+                (self.user_callback)(level);
+                self.swap_on_any_edge()?;
                 self.pin_driver
                     .enable_interrupt()
                     .map_err(DigitalInError::from_enable_disable_errors)
@@ -456,7 +508,8 @@ impl<'a> _DigitalIn<'a> {
                 .map_err(DigitalInError::TimerDriverError),
             InterruptUpdate::TimerReached => self.timer_reached(),
             InterruptUpdate::ExecAndUnsubscribePin => {
-                (self.user_callback)();
+                let level = self.get_interrupt_level()?;
+                (self.user_callback)(level);
                 self.pin_driver
                     .unsubscribe()
                     .map_err(DigitalInError::from_enable_disable_errors)
@@ -465,7 +518,7 @@ impl<'a> _DigitalIn<'a> {
         }
     }
 
-    /// Gets the current pin level
+    /// Gets the current pin level.
     ///
     /// # Returns
     ///
@@ -474,7 +527,7 @@ impl<'a> _DigitalIn<'a> {
         self.pin_driver.get_level()
     }
 
-    /// Verifies if the pin level is High
+    /// Verifies if the pin level is High.
     ///
     /// # Returns
     ///
@@ -483,7 +536,7 @@ impl<'a> _DigitalIn<'a> {
         self.pin_driver.get_level() == Level::High
     }
 
-    /// Verifies if the pin level is Low
+    /// Verifies if the pin level is Low.
     ///
     /// # Returns
     ///
@@ -494,23 +547,12 @@ impl<'a> _DigitalIn<'a> {
 
     /// Sets the debounce time to an amount of microseconds. This means that if an interrupt is set,
     /// then the level must be the same after the debounce time for the user callback to be executed.
-    /// Debounce time does not work with InterruptType::AnyEdge, an error will be returned
     ///
     /// # Arguments
     ///
     /// - `time_micro`: The debounce time in microseconds.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` indicating success or a `DigitalInError` if the debounce time cannot be set due to the interrupt type.
-    pub fn set_debounce(&mut self, time_micro: u64) -> Result<(), DigitalInError> {
-        match self.interrupt_type {
-            Some(InterruptType::AnyEdge) => {
-                Err(DigitalInError::CannotSetDebounceOnAnyEdgeInterruptType)?
-            }
-            _ => self.debounce_ms = Some(time_micro),
-        }
-        Ok(())
+    pub fn set_debounce(&mut self, time_micro: u64) {
+        self.debounce_us = Some(time_micro)
     }
 }
 
@@ -532,10 +574,7 @@ impl DigitalIn<'_> {
     /// - `DigitalInError::InvalidPeripheral`: If per parameter is not capable of transforming into an AnyIOPin,
     ///   or pin has already been used for another driver.
     /// - `DigitalInError::CannotSetPinAsInput`: If the per parameter is not capable of soportin input
-    ///
-    /// # Panics
-    ///
-    /// When setting Down the pull fails
+    /// - `DigitalInError::CannotSetPullForPin`: If the pin driver is unable to support a setting of the pull
     pub(crate) fn new(
         timer_driver: TimerDriver,
         per: Peripheral,
@@ -548,8 +587,6 @@ impl DigitalIn<'_> {
 }
 
 impl<'a> InterruptDriver<'a> for DigitalIn<'a> {
-    /// Handles the diferent type of interrupts that, executing the user callback and reenabling the
-    /// interrupt when necesary
     fn update_interrupt(&mut self) -> Result<(), Esp32FrameworkError> {
         self.inner
             .deref_mut()
@@ -586,6 +623,40 @@ impl DigitalInError {
         match err.code() {
             ESP_ERR_INVALID_STATE => DigitalInError::StateAlreadySet,
             _ => DigitalInError::InvalidPin,
+        }
+    }
+}
+
+impl InterruptType {
+    /// Converts the `Interrupt type`, into the corresponding `SvcInterruptType`.
+    ///
+    /// # Returns
+    ///
+    /// A `SvcInterruptType` instance.
+    fn to_svc(self) -> SvcInterruptType {
+        match self {
+            InterruptType::PosEdge => SvcInterruptType::PosEdge,
+            InterruptType::NegEdge => SvcInterruptType::NegEdge,
+            InterruptType::AnyEdgeNextEdgeIsPos => SvcInterruptType::PosEdge,
+            InterruptType::AnyEdgeNextEdgeIsNeg => SvcInterruptType::NegEdge,
+            InterruptType::LowLevel => SvcInterruptType::LowLevel,
+            InterruptType::HighLevel => SvcInterruptType::HighLevel,
+        }
+    }
+
+    /// Gets the corresponding `Level` according to Self.
+    ///
+    /// # Returns
+    ///
+    /// A `Level` instance.
+    fn get_level(&self) -> Level {
+        match self {
+            InterruptType::PosEdge => Level::High,
+            InterruptType::NegEdge => Level::Low,
+            InterruptType::AnyEdgeNextEdgeIsPos => Level::High,
+            InterruptType::AnyEdgeNextEdgeIsNeg => Level::Low,
+            InterruptType::LowLevel => Level::Low,
+            InterruptType::HighLevel => Level::High,
         }
     }
 }
