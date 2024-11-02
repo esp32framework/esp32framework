@@ -208,8 +208,10 @@ impl<'a> _DigitalIn<'a> {
         &mut self,
         interrupt_type: InterruptType,
     ) -> Result<(), DigitalInError> {
-        if let InterruptType::AnyEdge = interrupt_type {
-            return Err(DigitalInError::CannotSetDebounceOnAnyEdgeInterruptType);
+        if self.debounce_ms.is_some(){
+            if let InterruptType::AnyEdge = interrupt_type {
+                return Err(DigitalInError::CannotSetDebounceOnAnyEdgeInterruptType);
+            }
         }
         self.interrupt_type = Some(interrupt_type);
         self.pin_driver
@@ -306,7 +308,7 @@ impl<'a> _DigitalIn<'a> {
     /// # Returns
     ///
     /// A `Result` indicating success or a `DigitalInError` if an error occurs while setting up the interrupt.
-    pub fn _trigger_on_interrupt<G: FnMut() + Send + 'static, F: FnMut() + 'static>(
+    fn _trigger_on_interrupt<G: FnMut() + Send + 'static, F: FnMut() + 'static>(
         &mut self,
         user_callback: F,
         callback: G,
