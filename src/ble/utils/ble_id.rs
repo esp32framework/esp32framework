@@ -9,19 +9,11 @@ use super::ble_standard_uuids::{
 /// Enums the possible types of Ids:
 /// - `FromUuid16`: A way to get a BLE id from an `u16`.
 /// - `FromUuid128`: A way to get a BLE id from an `[u8;16]`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BleId {
     FromUuid16(u16),
     FromUuid128([u8; 16]),
 }
-
-impl PartialEq for BleId {
-    fn eq(&self, other: &Self) -> bool {
-        self.to_uuid() == other.to_uuid()
-    }
-}
-
-impl Eq for BleId {}
 
 impl Hash for BleId {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
