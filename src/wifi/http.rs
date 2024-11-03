@@ -22,12 +22,42 @@ pub trait Http {
     /// Returns the EspHttpConnection
     fn get_connection(&mut self) -> &mut EspHttpConnection;
 
+    /// Sends an HTTP request to a specified URI with the given method, headers, and optional body.
+    ///
+    /// # Parameters
+    /// - `method`: The HTTP method to use for the request (e.g., GET, POST).
+    /// - `uri`: A string slice that represents the URI to which the request will be sent.
+    /// - `headers`: A vector of HTTP headers to include with the request.
+    /// - `body`: An optional `String` containing the body of the request. If `None`, no body is sent.
+    ///
+    /// # Returns
+    /// Returns a `Result<(), HttpError>`. On success, it returns `Ok(())`, HttpError otherwise.
+    ///
+    /// # Errors
+    /// - `HttpError::RequestError`: If an error occurs in while creating or sending the request.
+    fn send_request<'a>(&mut self, method: Method, uri: &'a str, headers: Vec<HttpHeader<'a>>, body: Option<String>) -> Result<(), HttpError> {
+        let temp: Vec<(&'a str, &'a str)> = headers
+            .iter()
+            .map(|header| (header.header_type.to_string(), header.value))
+            .collect();
+        let connection = self.get_connection();
+        connection
+            .initiate_request(method, uri, &temp)
+            .map_err(|_| HttpError::RequestError)?;
+        if let Some(body_content) = body {
+            connection.write_all(body_content.as_bytes())
+            .map_err(|_| HttpError::RequestError)?;
+        }
+        Ok(())
+    }
+
     /// Does an HTTP POST on the desired uri with the designated headers
     ///
     /// # Arguments
     ///
     /// - `uri`: A string slice that holds the Uniform Resource Identifier (URI) of the target resource where the HTTP POST request will be sent.
     /// - `headers`: A vector of HttpHeader structs containing the headers to be included in the POST request.
+    /// - `body`: An optional `String` containing the body of the request. If `None`, no body is sent.
     ///
     /// # Returns
     ///
@@ -36,14 +66,8 @@ pub trait Http {
     /// # Errors
     ///
     /// - `HttpError::RequestError`: If the request fails.
-    fn post<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>) -> Result<(), HttpError> {
-        let temp: Vec<(&'a str, &'a str)> = headers
-            .iter()
-            .map(|header| (header.header_type.to_string(), header.value))
-            .collect();
-        self.get_connection()
-            .initiate_request(Method::Post, uri, &temp)
-            .map_err(|_| HttpError::RequestError)
+    fn post<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>, body: Option<String>) -> Result<(), HttpError> {
+        self.send_request(Method::Post, uri, headers, body)
     }
 
     /// Does an HTTP GET on the desired uri with the designated headers
@@ -52,6 +76,7 @@ pub trait Http {
     ///
     /// - `uri`: A string slice that holds the Uniform Resource Identifier (URI) of the target resource where the HTTP GET request will be sent.
     /// - `headers`: A vector of HttpHeader structs containing the headers to be included in the GET request.
+    /// - `body`: An optional `String` containing the body of the request. If `None`, no body is sent.
     ///
     /// # Returns
     ///
@@ -61,13 +86,7 @@ pub trait Http {
     ///
     /// - `HttpError::RequestError`: If the request fails.
     fn get<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>) -> Result<(), HttpError> {
-        let temp: Vec<(&'a str, &'a str)> = headers
-            .iter()
-            .map(|header| (header.header_type.to_string(), header.value))
-            .collect();
-        self.get_connection()
-            .initiate_request(Method::Get, uri, &temp)
-            .map_err(|_| HttpError::RequestError)
+        self.send_request(Method::Get, uri, headers, None)
     }
 
     /// Does an HTTP PUT on the desired uri with the designated headers
@@ -76,6 +95,7 @@ pub trait Http {
     ///
     /// - `uri`: A string slice that holds the Uniform Resource Identifier (URI) of the target resource where the HTTP PUT request will be sent.
     /// - `headers`: A vector of HttpHeader structs containing the headers to be included in the PUT request.
+    /// - `body`: An optional `String` containing the body of the request. If `None`, no body is sent.
     ///
     /// # Returns
     ///
@@ -84,14 +104,8 @@ pub trait Http {
     /// # Errors
     ///
     /// - `HttpError::RequestError`: If the request fails.
-    fn put<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>) -> Result<(), HttpError> {
-        let temp: Vec<(&'a str, &'a str)> = headers
-            .iter()
-            .map(|header| (header.header_type.to_string(), header.value))
-            .collect();
-        self.get_connection()
-            .initiate_request(Method::Put, uri, &temp)
-            .map_err(|_| HttpError::RequestError)
+    fn put<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>, body: Option<String>) -> Result<(), HttpError> {
+        self.send_request(Method::Put, uri, headers, body)
     }
 
     /// Does an HTTP DELETE on the desired uri with the designated headers
@@ -100,6 +114,7 @@ pub trait Http {
     ///
     /// - `uri`: A string slice that holds the Uniform Resource Identifier (URI) of the target resource where the HTTP DELETE request will be sent.
     /// - `headers`: A vector of HttpHeader structs containing the headers to be included in the DELETE request.
+    /// - `body`: An optional `String` containing the body of the request. If `None`, no body is sent.
     ///
     /// # Returns
     ///
@@ -108,14 +123,8 @@ pub trait Http {
     /// # Errors
     ///
     /// - `HttpError::RequestError`: If the request fails.
-    fn delete<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>) -> Result<(), HttpError> {
-        let temp: Vec<(&'a str, &'a str)> = headers
-            .iter()
-            .map(|header| (header.header_type.to_string(), header.value))
-            .collect();
-        self.get_connection()
-            .initiate_request(Method::Delete, uri, &temp)
-            .map_err(|_| HttpError::RequestError)
+    fn delete<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>, body: Option<String>) -> Result<(), HttpError> {
+        self.send_request(Method::Delete, uri, headers, body)
     }
 
     /// Does an HTTP PATCH on the desired uri with the designated headers
@@ -124,6 +133,7 @@ pub trait Http {
     ///
     /// - `uri`: A string slice that holds the Uniform Resource Identifier (URI) of the target resource where the HTTP PATCH request will be sent.
     /// - `headers`: A vector of HttpHeader structs containing the headers to be included in the PATCH request.
+    /// - `body`: An optional `String` containing the body of the request. If `None`, no body is sent.
     ///
     /// # Returns
     ///
@@ -132,14 +142,8 @@ pub trait Http {
     /// # Errors
     ///
     /// - `HttpError::RequestError`: If the request fails.
-    fn patch<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>) -> Result<(), HttpError> {
-        let temp: Vec<(&'a str, &'a str)> = headers
-            .iter()
-            .map(|header| (header.header_type.to_string(), header.value))
-            .collect();
-        self.get_connection()
-            .initiate_request(Method::Patch, uri, &temp)
-            .map_err(|_| HttpError::RequestError)
+    fn patch<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>, body: Option<String>) -> Result<(), HttpError> {
+        self.send_request(Method::Patch, uri, headers, body)
     }
 
     /// Does an HTTP HEAD on the desired uri with the designated headers
@@ -148,6 +152,7 @@ pub trait Http {
     ///
     /// - `uri`: A string slice that holds the Uniform Resource Identifier (URI) of the target resource where the HTTP HEAD request will be sent.
     /// - `headers`: A vector of HttpHeader structs containing the headers to be included in the HEAD request.
+    /// - `body`: An optional `String` containing the body of the request. If `None`, no body is sent.
     ///
     /// # Returns
     ///
@@ -157,13 +162,7 @@ pub trait Http {
     ///
     /// - `HttpError::RequestError`: If the request fails.
     fn head<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>) -> Result<(), HttpError> {
-        let temp: Vec<(&'a str, &'a str)> = headers
-            .iter()
-            .map(|header| (header.header_type.to_string(), header.value))
-            .collect();
-        self.get_connection()
-            .initiate_request(Method::Head, uri, &temp)
-            .map_err(|_| HttpError::RequestError)
+        self.send_request(Method::Patch, uri, headers, None)
     }
 
     /// Does an HTTP OPTIONS on the desired uri with the designated headers
@@ -172,6 +171,7 @@ pub trait Http {
     ///
     /// - `uri`: A string slice that holds the Uniform Resource Identifier (URI) of the target resource where the HTTP OPTIONS request will be sent.
     /// - `headers`: A vector of HttpHeader structs containing the headers to be included in the OPTIONS request.
+    /// - `body`: An optional `String` containing the body of the request. If `None`, no body is sent.
     ///
     /// # Returns
     ///
@@ -181,13 +181,7 @@ pub trait Http {
     ///
     /// - `HttpError::RequestError`: If the request fails.
     fn options<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>) -> Result<(), HttpError> {
-        let temp: Vec<(&'a str, &'a str)> = headers
-            .iter()
-            .map(|header| (header.header_type.to_string(), header.value))
-            .collect();
-        self.get_connection()
-            .initiate_request(Method::Options, uri, &temp)
-            .map_err(|_| HttpError::RequestError)
+        self.send_request(Method::Patch, uri, headers, None)
     }
 
     /// Gets the response status code of the last done request
