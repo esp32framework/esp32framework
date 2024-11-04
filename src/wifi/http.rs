@@ -22,6 +22,33 @@ pub trait Http {
     /// Returns the EspHttpConnection
     fn get_connection(&mut self) -> &mut EspHttpConnection;
 
+    /// Checks whether the necessary headers types are in the headers section, if not it adds them to it
+    /// 
+    /// # Arguments
+    /// 
+    /// - `headers`: The list of headers the user added to the HTTP request.
+    /// - `body`: An option that may contain the request body if the user set one.
+    /// 
+    /// # Returns
+    /// 
+    /// A `Vec<HttpHeader>` that will contain all the necessary headers and the ones the user added.
+    // fn check_headers<'a>(headers: Vec<HttpHeader<'a>>, body: Option<String>) -> Vec<HttpHeader<'a>> {
+    //     if let Some(body_content) = body {
+    //         let has_content_length = headers.iter().any(|header| {
+    //             header.header_type == HttpHeaderType::ContentLength
+    //         });
+
+    //         if !has_content_length {
+    //             let content_length_header = HttpHeader::new(
+    //                 HttpHeaderType::ContentLength,
+    //                 &body_content.clone().len().to_string(),
+    //             );
+    //             headers.push(content_length_header);
+    //         }
+    //     }
+    //     headers
+    // }
+
     /// Sends an HTTP request to a specified URI with the given method, headers, and optional body.
     ///
     /// # Parameters
@@ -45,6 +72,7 @@ pub trait Http {
             .initiate_request(method, uri, &temp)
             .map_err(|_| HttpError::RequestError)?;
         if let Some(body_content) = body {
+            println!("{:?}", body_content.clone());
             connection.write_all(body_content.as_bytes())
             .map_err(|_| HttpError::RequestError)?;
         }
@@ -162,7 +190,7 @@ pub trait Http {
     ///
     /// - `HttpError::RequestError`: If the request fails.
     fn head<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>) -> Result<(), HttpError> {
-        self.send_request(Method::Patch, uri, headers, None)
+        self.send_request(Method::Head, uri, headers, None)
     }
 
     /// Does an HTTP OPTIONS on the desired uri with the designated headers
@@ -181,7 +209,7 @@ pub trait Http {
     ///
     /// - `HttpError::RequestError`: If the request fails.
     fn options<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>) -> Result<(), HttpError> {
-        self.send_request(Method::Patch, uri, headers, None)
+        self.send_request(Method::Options, uri, headers, None)
     }
 
     /// Gets the response status code of the last done request
@@ -333,6 +361,7 @@ impl<'a> HttpHeader<'a> {
 }
 
 /// Standard HTTP/HTTPS headers
+#[derive(Debug, PartialEq, Eq)]
 pub enum HttpHeaderType<'a> {
     AIM,
     Accept,
