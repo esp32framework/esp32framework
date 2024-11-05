@@ -1,9 +1,11 @@
+use std::time::Duration;
+
 use esp32framework::{
     wifi::http::{Http, HttpHeader},
     Microcontroller,
 };
 
-const SSID: &str = "Fibertel WiFi588 2.4GHz";
+const SSID: &str = "Fibertel WiFi589 2.4GHz";
 const PASSWORD: &str = "0041675097";
 //const URI: &str = "http://192.168.86.37:3000/api/test";
 const URI: &str = "https://httpbin.org/put";
@@ -13,9 +15,15 @@ fn main() {
 
     // WIFI connection
     let mut wifi = micro.get_wifi_driver().unwrap();
+    println!("connecting");
     micro
-        .block_on(wifi.connect(SSID, Some(PASSWORD.to_string())))
+        .block_on(wifi.connect(
+            SSID,
+            Some(PASSWORD.to_string()),
+            Some(Duration::from_secs(2)),
+        ))
         .unwrap();
+    println!("connected");
 
     // HTTP
     let mut buf: [u8; 1024] = [0; 1024];

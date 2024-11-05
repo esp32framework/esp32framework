@@ -17,7 +17,7 @@ fn main() {
     // WIFI connection
     let mut wifi = micro.get_wifi_driver().unwrap();
     micro
-        .block_on(wifi.connect(SSID, Some(PASSWORD.to_string())))
+        .block_on(wifi.connect(SSID, Some(PASSWORD.to_string()), None))
         .unwrap();
 
     // HTTPS
