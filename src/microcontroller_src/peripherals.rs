@@ -179,8 +179,8 @@ impl Peripheral {
         }
     }
 
-    pub fn is_none(&self) -> bool{
-        match self{
+    pub fn is_none(&self) -> bool {
+        match self {
             Peripheral::None => true,
             _ => false,
         }
@@ -429,16 +429,22 @@ impl Peripherals {
         self.modem.take()
     }
 
-    fn remove_pwm_channel(&mut self, num: u8) -> Peripheral{
-        self.pwm_channels.get_mut(num as usize).unwrap_or(&mut Peripheral::None).take()
+    fn remove_pwm_channel(&mut self, num: u8) -> Peripheral {
+        self.pwm_channels
+            .get_mut(num as usize)
+            .unwrap_or(&mut Peripheral::None)
+            .take()
     }
 
-    fn remove_pwm_timer(&mut self, num: u8) -> Peripheral{
-        self.pwm_timers.get_mut(num as usize).unwrap_or(&mut Peripheral::None).take()
+    fn remove_pwm_timer(&mut self, num: u8) -> Peripheral {
+        self.pwm_timers
+            .get_mut(num as usize)
+            .unwrap_or(&mut Peripheral::None)
+            .take()
     }
 
-    pub fn remove(&mut self, peripheral: Peripheral) -> Peripheral{
-        match peripheral{
+    pub fn remove(&mut self, peripheral: Peripheral) -> Peripheral {
+        match peripheral {
             Peripheral::Pin(num) => self.get_digital_pin(num as usize),
             Peripheral::Timer(num) => self.get_timer(num as usize),
             Peripheral::PWMChannel(num) => self.remove_pwm_channel(num),

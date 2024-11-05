@@ -22,32 +22,25 @@ pub trait Http {
     /// Returns the EspHttpConnection
     fn get_connection(&mut self) -> &mut EspHttpConnection;
 
-    /// Checks whether the necessary headers types are in the headers section, if not it adds them to it
-    /// 
+    /// Checks whether the "Content-Length" header are in the headers section, if not it adds it to them.
+    ///
     /// # Arguments
-    /// 
-    /// - `headers`: The list of headers the user added to the HTTP request.
-    /// - `body`: An option that may contain the request body if the user set one.
-    /// 
-    /// # Returns
-    /// 
-    /// A `Vec<HttpHeader>` that will contain all the necessary headers and the ones the user added.
-    // fn check_headers<'a>(headers: Vec<HttpHeader<'a>>, body: Option<String>) -> Vec<HttpHeader<'a>> {
-    //     if let Some(body_content) = body {
-    //         let has_content_length = headers.iter().any(|header| {
-    //             header.header_type == HttpHeaderType::ContentLength
-    //         });
+    ///
+    /// - `headers`: The mutable reference to a vectorof headers the user added to the HTTP request.
+    /// - `body_len`: An option `usize` may contain the lenght of the request body if the user set one.
+    fn add_body_len_header(&self, headers: &mut Vec<HttpHeader>, body_len: Option<usize>) {
+        if let Some(body_len) = body_len {
+            let has_content_length = headers
+                .iter()
+                .any(|header| header.header_type == HttpHeaderType::ContentLength);
 
-    //         if !has_content_length {
-    //             let content_length_header = HttpHeader::new(
-    //                 HttpHeaderType::ContentLength,
-    //                 &body_content.clone().len().to_string(),
-    //             );
-    //             headers.push(content_length_header);
-    //         }
-    //     }
-    //     headers
-    // }
+            if !has_content_length {
+                let content_length_header =
+                    HttpHeader::new(HttpHeaderType::ContentLength, body_len.to_string());
+                headers.push(content_length_header);
+            }
+        }
+    }
 
     /// Sends an HTTP request to a specified URI with the given method, headers, and optional body.
     ///
@@ -62,10 +55,18 @@ pub trait Http {
     ///
     /// # Errors
     /// - `HttpError::RequestError`: If an error occurs in while creating or sending the request.
-    fn send_request<'a>(&mut self, method: Method, uri: &'a str, headers: Vec<HttpHeader<'a>>, body: Option<String>) -> Result<(), HttpError> {
-        let temp: Vec<(&'a str, &'a str)> = headers
+    fn send_request(
+        &mut self,
+        method: Method,
+        uri: &str,
+        mut headers: Vec<HttpHeader>,
+        body: Option<String>,
+    ) -> Result<(), HttpError> {
+        self.add_body_len_header(&mut headers, body.as_ref().map(|body| body.len()));
+
+        let temp: Vec<(&str, &str)> = headers
             .iter()
-            .map(|header| (header.header_type.to_string(), header.value))
+            .map(|header| (header.header_type.to_string(), header.value.as_str()))
             .collect();
         let connection = self.get_connection();
         connection
@@ -73,8 +74,9 @@ pub trait Http {
             .map_err(|_| HttpError::RequestError)?;
         if let Some(body_content) = body {
             println!("{:?}", body_content.clone());
-            connection.write_all(body_content.as_bytes())
-            .map_err(|_| HttpError::RequestError)?;
+            connection
+                .write_all(body_content.as_bytes())
+                .map_err(|_| HttpError::RequestError)?;
         }
         Ok(())
     }
@@ -94,7 +96,12 @@ pub trait Http {
     /// # Errors
     ///
     /// - `HttpError::RequestError`: If the request fails.
-    fn post<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>, body: Option<String>) -> Result<(), HttpError> {
+    fn post<'a>(
+        &mut self,
+        uri: &'a str,
+        headers: Vec<HttpHeader<'a>>,
+        body: Option<String>,
+    ) -> Result<(), HttpError> {
         self.send_request(Method::Post, uri, headers, body)
     }
 
@@ -132,7 +139,12 @@ pub trait Http {
     /// # Errors
     ///
     /// - `HttpError::RequestError`: If the request fails.
-    fn put<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>, body: Option<String>) -> Result<(), HttpError> {
+    fn put<'a>(
+        &mut self,
+        uri: &'a str,
+        headers: Vec<HttpHeader<'a>>,
+        body: Option<String>,
+    ) -> Result<(), HttpError> {
         self.send_request(Method::Put, uri, headers, body)
     }
 
@@ -151,7 +163,12 @@ pub trait Http {
     /// # Errors
     ///
     /// - `HttpError::RequestError`: If the request fails.
-    fn delete<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>, body: Option<String>) -> Result<(), HttpError> {
+    fn delete<'a>(
+        &mut self,
+        uri: &'a str,
+        headers: Vec<HttpHeader<'a>>,
+        body: Option<String>,
+    ) -> Result<(), HttpError> {
         self.send_request(Method::Delete, uri, headers, body)
     }
 
@@ -170,7 +187,12 @@ pub trait Http {
     /// # Errors
     ///
     /// - `HttpError::RequestError`: If the request fails.
-    fn patch<'a>(&mut self, uri: &'a str, headers: Vec<HttpHeader<'a>>, body: Option<String>) -> Result<(), HttpError> {
+    fn patch<'a>(
+        &mut self,
+        uri: &'a str,
+        headers: Vec<HttpHeader<'a>>,
+        body: Option<String>,
+    ) -> Result<(), HttpError> {
         self.send_request(Method::Patch, uri, headers, body)
     }
 
@@ -341,7 +363,7 @@ impl Http for HttpsClient {
 /// - `value`: The value associated to the header
 pub struct HttpHeader<'a> {
     header_type: HttpHeaderType<'a>,
-    value: &'a str,
+    value: String,
 }
 
 impl<'a> HttpHeader<'a> {
@@ -355,7 +377,7 @@ impl<'a> HttpHeader<'a> {
     /// # Returns
     ///
     /// The new HttpHeader instance
-    pub fn new(header_type: HttpHeaderType<'a>, value: &'a str) -> Self {
+    pub fn new(header_type: HttpHeaderType<'a>, value: String) -> Self {
         HttpHeader { header_type, value }
     }
 }

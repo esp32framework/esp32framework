@@ -26,7 +26,7 @@ fn main() {
     let mut client = wifi.get_http_client().unwrap();
     let header = HttpHeader::new(
         esp32framework::wifi::http::HttpHeaderType::Accept,
-        "text/plain",
+        String::from("text/plain"),
     );
 
     client.get(URI, vec![header]).unwrap();

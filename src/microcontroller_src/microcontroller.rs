@@ -888,12 +888,18 @@ async fn wrap_user_future<F: Future>(
     res
 }
 
-impl UseOfExternalPeripheralsExt for Microcontroller<'_>{
-    fn register_external_peripherals_use(&mut self, peripherals: Vec<Peripheral>) -> Vec<Peripheral>{
-        peripherals.into_iter().map(|p| self.register_external_peripheral_use(p)).collect()
+impl UseOfExternalPeripheralsExt for Microcontroller<'_> {
+    fn register_external_peripherals_use(
+        &mut self,
+        peripherals: Vec<Peripheral>,
+    ) -> Vec<Peripheral> {
+        peripherals
+            .into_iter()
+            .map(|p| self.register_external_peripheral_use(p))
+            .collect()
     }
 
-    fn register_external_peripheral_use(&mut self, peripheral: Peripheral) -> Peripheral{
+    fn register_external_peripheral_use(&mut self, peripheral: Peripheral) -> Peripheral {
         self.peripherals.remove(peripheral)
     }
 }

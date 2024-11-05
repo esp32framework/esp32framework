@@ -208,7 +208,7 @@ impl<'a> _DigitalIn<'a> {
         &mut self,
         interrupt_type: InterruptType,
     ) -> Result<(), DigitalInError> {
-        if self.debounce_ms.is_some(){
+        if self.debounce_ms.is_some() {
             if let InterruptType::AnyEdge = interrupt_type {
                 return Err(DigitalInError::CannotSetDebounceOnAnyEdgeInterruptType);
             }
