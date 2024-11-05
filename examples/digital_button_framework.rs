@@ -6,10 +6,10 @@ use esp32framework::{gpio::digital::InterruptType, Microcontroller};
 fn main() {
     let mut micro = Microcontroller::take();
     let mut button = micro.set_pin_as_digital_in(9).unwrap();
-    button.set_debounce(200 * 1000).unwrap();
+    button.set_debounce(200 * 1000);
 
     let mut count: u32 = 0;
-    let callback = move || {
+    let callback = move |_| {
         count += 1;
         println!("Press Count {}", count);
     };

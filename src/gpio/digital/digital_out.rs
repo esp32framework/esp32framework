@@ -69,7 +69,7 @@ impl InterruptUpdate {
     ///
     /// # Arguments
     ///
-    /// - `code`: An u8 value representing the interrupt update code.
+    /// - `code`: An `u8` value representing the interrupt update code.
     ///
     /// # Returns
     ///
@@ -85,7 +85,7 @@ impl InterruptUpdate {
     ///
     /// # Arguments
     ///
-    /// - `atomic_code`: An Arc<AtomicInterruptUpdateCode> representing the atomic interrupt update code.
+    /// - `atomic_code`: An `Arc<AtomicInterruptUpdateCode>` representing the atomic interrupt update code.
     ///
     /// # Returns
     ///

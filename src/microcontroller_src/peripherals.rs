@@ -180,10 +180,7 @@ impl Peripheral {
     }
 
     pub fn is_none(&self) -> bool {
-        match self {
-            Peripheral::None => true,
-            _ => false,
-        }
+        matches!(self, Peripheral::None)
     }
 }
 

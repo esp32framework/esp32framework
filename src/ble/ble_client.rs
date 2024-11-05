@@ -236,7 +236,7 @@ impl _BleClient {
         block_on(self.get_all_service_ids_async())
     }
 
-    /// Non blocking async version of [Self::get_all_service_ids]
+    /// Non blocking async version of [BleClient::get_all_service_ids]
     pub async fn get_all_service_ids_async(&mut self) -> Result<Vec<BleId>, BleError> {
         self.is_connected()?;
         let remote_services = self.ble_client.get_services().await?;
@@ -246,7 +246,7 @@ impl _BleClient {
         Ok(services)
     }
 
-    /// Inner version of [TimerDriver::get_characteristic]
+    /// Inner version of [BleClient::get_characteristic_async]
     async fn _get_characteristic_async(
         &mut self,
         service_id: &BleId,
@@ -268,7 +268,7 @@ impl _BleClient {
         ))
     }
 
-    /// Inner version of [TimerDriver::get_all_characteristic]
+    /// Inner version of [BleClient::get_all_characteristics_async]
     async fn _get_all_characteristics_async(
         &mut self,
         service_id: &BleId,
