@@ -8,10 +8,10 @@ fn main() {
     let mut micro = Microcontroller::take();
     let mut button = micro.set_pin_as_digital_in(9).unwrap();
     let mut led = micro.set_pin_as_digital_out(3).unwrap();
-    button.set_debounce(200 * 1000).unwrap();
+    button.set_debounce(200 * 1000);
     let mut count: i32 = 0;
 
-    let callback = move || {
+    let callback = move |_| {
         count += 1;
         println!("Press Count {}", count);
         led.toggle().unwrap();

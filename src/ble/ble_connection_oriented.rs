@@ -448,7 +448,7 @@ impl<'a> _BleServer<'a> {
     ///
     /// # Arguments
     ///
-    /// - `service`: An Arc<Mutex<BLEService>> that contains the service that has the characteristic to update
+    /// - `service`: An `Arc<Mutex<BLEService>>` that contains the service that has the characteristic to update
     /// - `characteristic`: A Characteristic struct that contains the updated information
     /// - `notify`: A boolean that indicates wheter to notify the characteristic or not.
     ///
