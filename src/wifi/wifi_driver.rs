@@ -1,7 +1,7 @@
 use crate::microcontroller_src::peripherals::PeripheralError;
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
-    hal::modem::{self},
+    hal::{task::block_on, modem::{self}},
     nvs::EspDefaultNvsPartition,
     sys::ESP_ERR_TIMEOUT,
     timer::EspTaskTimerService,
@@ -120,7 +120,17 @@ impl<'a> WifiDriver<'a> {
     /// - `WifiError::StartingError`: Error while starting wifi driver.
     /// - `WifiError::ConnectingError`: Error while connecting to wifi.
     /// - `WifiError::ConnectionTimeout`: TimedOut while trying to connect.
-    pub async fn connect(
+    pub fn connect(
+        &mut self,
+        ssid: &str,
+        password: Option<String>,
+        timeout: Option<Duration>,
+    ) -> Result<(), WifiError> {
+        block_on(self.connect_async(ssid, password, timeout))
+    }
+
+    /// Async version of [Self::connect]
+    pub async fn connect_async(
         &mut self,
         ssid: &str,
         password: Option<String>,
@@ -226,7 +236,12 @@ impl<'a> WifiDriver<'a> {
     ///
     /// - `WifiError::ScanError`: If the scan operation fails to complete successfully.
     /// - `WifiError::StartingError`: Error while starting wifi driver.
-    pub async fn scan(&mut self) -> Result<Vec<AccesPoint>, WifiError> {
+    pub fn scan(&mut self) -> Result<Vec<AccesPoint>, WifiError> {
+        block_on(self.scan_async())
+    }
+
+    /// Async version of [Self::scan]
+    pub async fn scan_async(&mut self) -> Result<Vec<AccesPoint>, WifiError> {
         if !self.is_started() {
             self.controller
                 .start()
