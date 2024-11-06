@@ -5,6 +5,7 @@ use esp32_nimble::{
 
 use super::BleId;
 
+#[derive(Debug)]
 pub struct BleAdvertisedDevice {
     device: BLEAdvertisedDevice,
 }

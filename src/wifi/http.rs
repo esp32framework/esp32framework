@@ -361,6 +361,7 @@ impl Http for HttpsClient {
 /// Simple abstraction of a header used for HTTP/HTTPS requests. It contains:
 /// - `header_type`: The tyep of header to be used
 /// - `value`: The value associated to the header
+#[derive(Debug)]
 pub struct HttpHeader<'a> {
     header_type: HttpHeaderType<'a>,
     value: String,

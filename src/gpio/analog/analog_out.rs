@@ -75,7 +75,7 @@ pub struct AnalogOut<'a> {
 
 /// Wrapper for simple use of an `Arc<AtomicBool>`
 /// in the context of the changinf of the drivers duty
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct ChangeDutyUpdate {
     change: Arc<AtomicBool>,
 }

@@ -42,8 +42,8 @@ struct _TimerDriver<'a> {
     interrupts: HashMap<u16, TimeInterrupt>,
 }
 
-#[derive(Debug, PartialEq)]
 
+#[derive(Debug, PartialEq)]
 pub enum TimerDriverError {
     CannotSetTimerCounter,
     CouldNotSetTimer,
@@ -82,7 +82,7 @@ struct Alarm {
 }
 
 /// After an interrupt is triggered an InterruptUpdate will be set and handled
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct InterruptUpdate {
     update: Arc<AtomicBool>,
 }

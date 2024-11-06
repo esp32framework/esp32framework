@@ -31,6 +31,7 @@ pub enum WifiError {
 }
 
 /// Abstraction of an Acces Point with its basic information.
+#[derive(Debug)]
 pub struct AccesPoint {
     pub ssid: String,
     pub authentication_method: String,
