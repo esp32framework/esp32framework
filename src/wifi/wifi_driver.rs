@@ -1,12 +1,13 @@
 use crate::microcontroller_src::peripherals::PeripheralError;
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
-    hal::modem::{self},
+    hal::{task::block_on, modem::{self}},
     nvs::EspDefaultNvsPartition,
+    sys::ESP_ERR_TIMEOUT,
     timer::EspTaskTimerService,
     wifi::{AccessPointInfo, AsyncWifi, AuthMethod, ClientConfiguration, Configuration, EspWifi},
 };
-use std::net::Ipv4Addr;
+use std::{net::Ipv4Addr, time::Duration};
 
 use super::http::{Http, HttpClient, HttpsClient};
 
@@ -15,6 +16,7 @@ use super::http::{Http, HttpClient, HttpsClient};
 pub enum WifiError {
     ConfigurationError,
     ConnectingError,
+    ConnectionTimeout,
     DnsNotFound,
     HttpError,
     InformationError,
@@ -96,7 +98,55 @@ impl<'a> WifiDriver<'a> {
         })
     }
 
-    /// Connects to the desired wifi network.
+    /// Attempts a connection to the desired wifi network.
+    ///
+    /// If a password is passed, it connects using the WPAWPA2Personal Authentication method.
+    /// Otherwise, it doesn't use an Authentication method.
+    /// If a timeout is passed it will timeout after attempting a connection for that time
+    ///
+    /// # Arguments
+    ///
+    /// - `ssid`: A &str representing the SSID to connect to.
+    /// - `password`: An `Option<String>` that may contain the password of the SSID.
+    /// - `timeout`: An `Option<Duration>` that may contain the dessired timeout
+    ///
+    /// # Returns
+    ///
+    /// A `Result` with Ok if the connection completed successfully, or an `WifiError` if it fails.
+    ///
+    /// # Errors
+    ///
+    /// - `WifiError::ConfigurationError`: If the configuration of the wifi driver fails.
+    /// - `WifiError::StartingError`: Error while starting wifi driver.
+    /// - `WifiError::ConnectingError`: Error while connecting to wifi.
+    /// - `WifiError::ConnectionTimeout`: TimedOut while trying to connect.
+    pub fn connect(
+        &mut self,
+        ssid: &str,
+        password: Option<String>,
+        timeout: Option<Duration>,
+    ) -> Result<(), WifiError> {
+        block_on(self.connect_async(ssid, password, timeout))
+    }
+
+    /// Async version of [Self::connect]
+    pub async fn connect_async(
+        &mut self,
+        ssid: &str,
+        password: Option<String>,
+        timeout: Option<Duration>,
+    ) -> Result<(), WifiError> {
+        self.set_connection_configuration(ssid, password)?;
+
+        self.controller
+            .start()
+            .await
+            .map_err(|_| WifiError::StartingError)?;
+
+        self._connect(timeout).await
+    }
+
+    /// Sets the necessary configurations to attempt a connection
     ///
     /// If a password is passed, it connects using the WPAWPA2Personal Authentication method.
     /// Otherwise, it doesn't use an Authentication method.
@@ -104,27 +154,25 @@ impl<'a> WifiDriver<'a> {
     /// # Arguments
     ///
     /// - `ssid`: A &str representing the SSID to connect to.
-    /// - `password`: An Option that may contain the password of the SSID.
+    /// - `password`: An `Option<String>` that may contain the password of the SSID.
     ///
     /// # Returns
     ///
-    /// A `Result` with Ok if the operation completed successfully, or an `WifiError` if it fails.
+    /// A `Result` with Ok if the configuration completed successfully, or an `WifiError` if it fails.
     ///
     /// # Errors
     ///
     /// - `WifiError::ConfigurationError`: If the configuration of the wifi driver fails.
-    /// - `WifiError::StartingError`: Error while starting wifi driver.
-    /// - `WifiError::ConnectingError`: Error while connecting to wifi.
-    pub async fn connect(&mut self, ssid: &str, password: Option<String>) -> Result<(), WifiError> {
-        let mut wifi_pass = "".to_string();
-
+    fn set_connection_configuration(
+        &mut self,
+        ssid: &str,
+        password: Option<String>,
+    ) -> Result<(), WifiError> {
         let auth_method = match password {
-            Some(pass) => {
-                wifi_pass = pass;
-                AuthMethod::WPAWPA2Personal
-            }
+            Some(_) => AuthMethod::WPAWPA2Personal,
             None => AuthMethod::None,
         };
+        let wifi_pass = password.unwrap_or("".to_string());
 
         let wifi_configuration: Configuration = Configuration::Client(ClientConfiguration {
             ssid: ssid.try_into().map_err(|_| WifiError::ConfigurationError)?,
@@ -139,23 +187,42 @@ impl<'a> WifiDriver<'a> {
 
         self.controller
             .set_configuration(&wifi_configuration)
-            .map_err(|_| WifiError::ConfigurationError)?;
+            .map_err(|_| WifiError::ConfigurationError)
+    }
 
+    /// Attempts a connection to the desired wifi network, assuming that the configuration has already been set
+    ///
+    /// If a timeout is passed it will timeout after attempting a connection for that time
+    ///
+    /// # Arguments
+    ///
+    /// - `timeout`: An `Option<Duration>` that may contain the dessired timeout
+    ///
+    /// # Returns
+    ///
+    /// A `Result` with Ok if the connection completed successfully, or an `WifiError` if it fails.
+    ///
+    /// # Errors
+    ///
+    /// - `WifiError::ConnectingError`: Error while connecting to wifi.
+    /// - `WifiError::ConnectionTimeout`: TimedOut while trying to connect.
+    async fn _connect(&mut self, timeout: Option<Duration>) -> Result<(), WifiError> {
         self.controller
-            .start()
-            .await
-            .map_err(|_| WifiError::StartingError)?;
-
-        self.controller
+            .wifi_mut()
             .connect()
-            .await
             .map_err(|_| WifiError::ConnectingError)?;
+        self.controller
+            .wifi_wait(|this| this.wifi().is_connected().map(|s| !s), timeout)
+            .await
+            .map_err(|err| match err.code() {
+                ESP_ERR_TIMEOUT => WifiError::ConnectionTimeout,
+                _ => WifiError::ConnectingError,
+            })?;
 
         self.controller
             .wait_netif_up()
             .await
             .map_err(|_| WifiError::ConnectingError)?;
-
         Ok(())
     }
 
@@ -169,7 +236,12 @@ impl<'a> WifiDriver<'a> {
     ///
     /// - `WifiError::ScanError`: If the scan operation fails to complete successfully.
     /// - `WifiError::StartingError`: Error while starting wifi driver.
-    pub async fn scan(&mut self) -> Result<Vec<AccesPoint>, WifiError> {
+    pub fn scan(&mut self) -> Result<Vec<AccesPoint>, WifiError> {
+        block_on(self.scan_async())
+    }
+
+    /// Async version of [Self::scan]
+    pub async fn scan_async(&mut self) -> Result<Vec<AccesPoint>, WifiError> {
         if !self.is_started() {
             self.controller
                 .start()

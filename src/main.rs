@@ -13,9 +13,10 @@ fn main() {
 
     // WIFI connection
     let mut wifi = micro.get_wifi_driver().unwrap();
-    micro
-        .block_on(wifi.connect(SSID, Some(PASSWORD.to_string())))
+    println!("connecting");
+    wifi.connect(SSID, Some(PASSWORD.to_string()), None)
         .unwrap();
+    println!("connected");
 
     // HTTP
     let mut buf: [u8; 1024] = [0; 1024];
