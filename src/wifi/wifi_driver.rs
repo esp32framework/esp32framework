@@ -1,7 +1,10 @@
 use crate::microcontroller_src::peripherals::PeripheralError;
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
-    hal::{task::block_on, modem::{self}},
+    hal::{
+        modem::{self},
+        task::block_on,
+    },
     nvs::EspDefaultNvsPartition,
     sys::ESP_ERR_TIMEOUT,
     timer::EspTaskTimerService,
@@ -28,6 +31,7 @@ pub enum WifiError {
 }
 
 /// Abstraction of an Acces Point with its basic information.
+#[derive(Debug)]
 pub struct AccesPoint {
     pub ssid: String,
     pub authentication_method: String,

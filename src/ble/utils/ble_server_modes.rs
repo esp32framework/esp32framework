@@ -9,6 +9,7 @@ use esp32_nimble::enums::{ConnMode, DiscMode};
 ///   must range between 20ms and 10240ms in 0.625ms units.
 /// * `max_interval`: The maximum advertising intervaltime between advertisememts. TThis value
 ///   must range between 20ms and 10240ms in 0.625ms units.
+#[derive(Debug)]
 pub enum DiscoverableMode {
     GeneralDiscoverable(u16, u16),
     NonDiscoverable,
@@ -31,6 +32,7 @@ impl DiscoverableMode {
 /// Enums the posible connection modes:
 /// * `NonConnectable`: The device does not allow connections.
 /// * `UndirectedConnectable`: The divice allows connections from any device.
+#[derive(Debug)]
 pub enum ConnectionMode {
     NonConnectable,
     UndirectedConnectable,

@@ -16,6 +16,7 @@ const MAX_PASKEY: u32 = 999999;
 ///    receive input from, for example, keyboards or buttons.
 /// - `KeyboardDisplay`: It can receive input through a keyboard and it
 ///    is capable of displaying information.
+#[derive(Debug)]
 pub enum IOCapabilities {
     DisplayOnly,
     DisplayYesNo,
@@ -46,6 +47,7 @@ impl IOCapabilities {
 /// - `passkey`: A 6-digit u32
 /// - `auth_mode`: An u8 representing the combination of authorization modes
 /// - `io_capabilities`: An IOCapabilities instance
+#[derive(Debug)]
 pub struct Security {
     pub(crate) passkey: u32,
     pub(crate) auth_mode: u8,

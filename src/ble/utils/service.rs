@@ -15,7 +15,7 @@ const PAYLOAD_FIELD_IDENTIFIER_SIZE: usize = 2;
 ///   offered by the service. Each characteristic may have its own unique properties and data.
 ///
 /// This struct is used to define and manage the services offered by a BLE device.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Service {
     pub id: BleId,
     pub data: Vec<u8>,
@@ -90,7 +90,7 @@ impl Service {
 /// - `id`: The id lets clients identified each service characteristic.
 /// - `properties`: Properties especify how the clients will be able to interact with the characteristic.
 /// - `data`: The value that the clients will be able to see or write (depending on the properties).
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Characteristic {
     pub id: BleId,
     pub(crate) properties: u16,

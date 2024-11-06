@@ -75,7 +75,7 @@ pub struct AnalogOut<'a> {
 
 /// Wrapper for simple use of an `Arc<AtomicBool>`
 /// in the context of the changinf of the drivers duty
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct ChangeDutyUpdate {
     change: Arc<AtomicBool>,
 }
@@ -831,10 +831,8 @@ impl<'a> InterruptDriver<'a> for AnalogOut<'a> {
     /// Handles the diferent type of interrupts that, executing the user callback and reenabling the
     /// interrupt when necesary
     fn update_interrupt(&mut self) -> Result<(), Esp32FrameworkError> {
-        self.inner
-            .deref_mut()
-            ._update_interrupt()
-            .map_err(Esp32FrameworkError::AnalogOut)
+        self.inner.deref_mut()._update_interrupt()?;
+        Ok(())
     }
 
     fn get_updater(&self) -> Box<dyn InterruptDriver<'a> + 'a> {

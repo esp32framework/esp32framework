@@ -42,8 +42,8 @@ struct _TimerDriver<'a> {
     interrupts: HashMap<u16, TimeInterrupt>,
 }
 
-#[derive(Debug, PartialEq)]
 
+#[derive(Debug, PartialEq)]
 pub enum TimerDriverError {
     CannotSetTimerCounter,
     CouldNotSetTimer,
@@ -82,7 +82,7 @@ struct Alarm {
 }
 
 /// After an interrupt is triggered an InterruptUpdate will be set and handled
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct InterruptUpdate {
     update: Arc<AtomicBool>,
 }
@@ -567,10 +567,8 @@ impl<'a> _TimerDriver<'a> {
 
 impl<'a> InterruptDriver<'a> for TimerDriver<'a> {
     fn update_interrupt(&mut self) -> Result<(), Esp32FrameworkError> {
-        self.inner
-            .deref_mut()
-            ._update_interrupt()
-            .map_err(Esp32FrameworkError::TimerDriver)
+        self.inner.deref_mut()._update_interrupt()?;
+        Ok(())
     }
 
     fn get_updater(&self) -> Box<dyn InterruptDriver<'a> + 'a> {

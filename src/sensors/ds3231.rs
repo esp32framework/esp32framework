@@ -59,6 +59,7 @@ const MERIDIEM_BITMASK: u8 = 0x20;
 /// - `HoursMinutesAndSeconds`: Receives (hours, minutes, seconds). The alarm activates when hour, minutes and seconds match.
 /// - `DateHoursMinutesAndSeconds`: Receives (date, hours, minutes, seconds). The alarm activates when date, hour, minutes and seconds match.
 /// - `DayHoursMinutesAndSeconds`: Receives (day, hours, minutes, seconds). The alarm activates when day, hour, minutes and seconds match.
+#[derive(Debug)]
 pub enum Alarm1Rate {
     EverySecond,
     Seconds(u8),
@@ -74,6 +75,7 @@ pub enum Alarm1Rate {
 /// - `HoursAndMinutes`: Receives (hours, minutes). The alarm activates when hour and minutes match.
 /// - `DateHoursAndMinutes`: Receives (date, hours, minutes). The alarm activates when date, hour and minutes.
 /// - `DayHoursAndMinutes`: Receives (date, hours, minutes). The alarm activates when date, hour and minutes.
+#[derive(Debug)]
 pub enum Alarm2Rate {
     EveryMinute,
     Minutes(u8),
@@ -83,7 +85,7 @@ pub enum Alarm2Rate {
 }
 
 /// Component of DateTime.
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum DateTimeComponent {
     Second,
     Minute,
@@ -102,6 +104,7 @@ pub enum DateTimeComponent {
 /// - `date`: The day of the month (1-31).
 /// - `month`: The month (1-12).
 /// - `year`: The year component (0-99, representing 2000-2099).
+#[derive(Debug)]
 pub struct DateTime {
     pub second: u8,
     pub minute: u8,

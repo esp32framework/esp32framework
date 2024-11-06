@@ -24,6 +24,7 @@ pub enum UARTError {
 }
 
 /// Represents the stop bit settings for UART communication.
+#[derive(Debug)]
 pub enum StopBit {
     One,
     OnePointFive,
@@ -31,6 +32,7 @@ pub enum StopBit {
 }
 
 /// Represents the parity settings for UART communication.
+#[derive(Debug)]
 pub enum Parity {
     Even,
     Odd,

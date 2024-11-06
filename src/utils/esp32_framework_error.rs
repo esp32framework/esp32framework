@@ -28,6 +28,38 @@ pub enum Esp32FrameworkError {
     Wifi(WifiError),
 }
 
+/// A macro to implement the `From` trait for converting different error types into
+/// the `Esp32FrameworkError` enum.
+///
+/// # Parameters
+///
+/// This macro accepts a list of pairs of variant names (which represent the variants
+/// of the `Esp32FrameworkError` enum) and error types.
+macro_rules! impl_from_for_esp32_error {
+    ($( $variant:ident => $error_type:ty ),* $(,)?) => {
+        $(
+            impl From<$error_type> for Esp32FrameworkError {
+                fn from(value: $error_type) -> Self {
+                    Self::$variant(value)
+                }
+            }
+        )*
+    };
+}
+
+impl_from_for_esp32_error! {
+    AnalogIn => AnalogInError,
+    AnalogInPwm => AnalogInPwmError,
+    AnalogOut => AnalogOutError,
+    Ble => BleError,
+    DigitalIn => DigitalInError,
+    DigitalOut => DigitalOutError,
+    I2c => I2CError,
+    TimerDriver => TimerDriverError,
+    Uart => UARTError,
+    Wifi => WifiError,
+}
+
 #[derive(Debug)]
 pub enum AdcDriverError {
     AlreadyTaken,
