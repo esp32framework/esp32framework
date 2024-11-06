@@ -216,7 +216,7 @@ impl<'a> WifiDriver<'a> {
             .await
             .map_err(|err| match err.code() {
                 ESP_ERR_TIMEOUT => WifiError::ConnectionTimeout,
-                _ => WifiError::ConnectionTimeout,
+                _ => WifiError::ConnectingError,
             })?;
 
         self.controller
