@@ -295,10 +295,8 @@ impl<'a> InterruptDriver<'a> for DigitalOut<'a> {
     /// Handles the diferent type of interrupts that, executing the user callback and reenabling the
     /// interrupt when necesary
     fn update_interrupt(&mut self) -> Result<(), Esp32FrameworkError> {
-        self.inner
-            .deref_mut()
-            ._update_interrupt()
-            .map_err(Esp32FrameworkError::DigitalOut)
+        self.inner.deref_mut()._update_interrupt()?;
+        Ok(())
     }
 
     fn get_updater(&self) -> Box<dyn InterruptDriver<'a> + 'a> {
