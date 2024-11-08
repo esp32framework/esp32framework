@@ -9,7 +9,7 @@ use crate::{
     microcontroller_src::peripherals::PeripheralError,
     serial::{i2c::I2CError, uart::UARTError},
     utils::timer_driver::TimerDriverError,
-    wifi::WifiError,
+    wifi::{http::HttpError, WifiError},
 };
 
 /// Represents various error conditions encountered in the ESP32 framework.
@@ -22,6 +22,7 @@ pub enum Esp32FrameworkError {
     CantHaveMoreThanOneMicrocontroller,
     DigitalIn(DigitalInError),
     DigitalOut(DigitalOutError),
+    HttpError(HttpError),
     I2c(I2CError),
     PeripheralError(PeripheralError),
     TimerDriver(TimerDriverError),
@@ -55,6 +56,7 @@ impl_from_for_esp32_error! {
     Ble => BleError,
     DigitalIn => DigitalInError,
     DigitalOut => DigitalOutError,
+    HttpError => HttpError,
     I2c => I2CError,
     PeripheralError => PeripheralError,
     TimerDriver => TimerDriverError,
