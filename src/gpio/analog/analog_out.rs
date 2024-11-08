@@ -35,7 +35,7 @@ pub enum AnalogOutError {
 }
 
 /// Enums the possible Duty Policies for the driver
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ExtremeDutyPolicy {
     BounceBack,
     None,
@@ -43,7 +43,7 @@ enum ExtremeDutyPolicy {
 }
 
 /// Enums Change Type of the drivers
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum FixedChangeType {
     Decrease(ExtremeDutyPolicy),
     Increase(ExtremeDutyPolicy),
@@ -357,6 +357,7 @@ impl<'a> _AnalogOut<'a> {
     }
 
     /// Changes the intensity of the signal using the High-Low level ratio
+    /// If any automatic changing of duty cycle is set this will stop it.
     ///
     /// # Arguments
     ///
@@ -369,8 +370,11 @@ impl<'a> _AnalogOut<'a> {
     /// # Errors
     ///
     /// - `AnalogOutError::ErrorSettingOutput`: If the set operation fails
+    /// - `TimerDriverError`: If an error occurs while removing the automatic change of dutty cycle
     pub fn set_high_level_output_ratio(&mut self, high_ratio: f32) -> Result<(), AnalogOutError> {
         let duty: u32 = duty_from_high_ratio(self.driver.get_max_duty(), high_ratio);
+        self.fixed_change_type = FixedChangeType::None;
+        self.timer_driver.remove_interrupt()?;
         self.duty.store(duty, Ordering::SeqCst);
         self.driver
             .set_duty(duty)
@@ -708,21 +712,16 @@ impl<'a> _AnalogOut<'a> {
     fn change_duty_on_cycle(&mut self) -> Result<(), AnalogOutError> {
         let duty = self.duty.load(Ordering::Acquire);
         let prev_duty = self.driver.get_duty();
+        println!("DUTY {duty}, PREV_DUTY {prev_duty}");
         let mut stay_subscribed = true;
 
         if prev_duty == duty {
             stay_subscribed = match self.fixed_change_type {
-                FixedChangeType::Increase(ExtremeDutyPolicy::BounceBack) => {
-                    self.attempt_turn_around()
-                }
-                FixedChangeType::Decrease(ExtremeDutyPolicy::BounceBack) => {
-                    self.attempt_turn_around()
-                }
+                FixedChangeType::Increase(ExtremeDutyPolicy::BounceBack) => self.attempt_turn_around(),
+                FixedChangeType::Decrease(ExtremeDutyPolicy::BounceBack) => self.attempt_turn_around(),
                 FixedChangeType::Increase(ExtremeDutyPolicy::Reset) => self.attempt_reset(),
                 FixedChangeType::Decrease(ExtremeDutyPolicy::Reset) => self.attempt_reset(),
-                FixedChangeType::Increase(ExtremeDutyPolicy::None) => {
-                    self.driver.get_duty() < self.driver.get_max_duty()
-                }
+                FixedChangeType::Increase(ExtremeDutyPolicy::None) => self.driver.get_duty() < self.driver.get_max_duty(),
                 FixedChangeType::Decrease(ExtremeDutyPolicy::None) => self.driver.get_duty() > 0,
                 _ => false,
             }
@@ -857,5 +856,43 @@ fn duty_from_high_ratio(max_duty: u32, high_ratio: f32) -> u32 {
 impl From<TimerDriverError> for AnalogOutError {
     fn from(value: TimerDriverError) -> Self {
         AnalogOutError::TimerDriverError(value)
+    }
+}
+
+#[cfg(test)]
+mod test{
+    use std::ops::Deref;
+
+    use crate::Microcontroller;
+
+    use super::*;
+
+    fn initialize_test<'a>(pin_num: usize)->(Microcontroller<'a>, AnalogOut<'a>){
+        let mut micro = Microcontroller::take();
+        let out = micro.set_pin_as_default_analog_out(pin_num).unwrap();
+        (micro, out)
+    }
+
+    #[test]
+    fn test0_seting_a_high_ratio_stops_increase_decrease(){
+        let (mut micro, mut out) = initialize_test(5);
+        out.start_increasing_bounce_back(1, 0.01, 0.0, None).unwrap();
+        micro.wait_for_updates(Some(10));
+        out.set_high_level_output_ratio(0.0);
+        micro.wait_for_updates(Some(10));
+        assert_eq!(out.inner.borrow().duty.load(Ordering::Acquire), 0);
+        assert_eq!(out.inner.borrow().fixed_change_type, FixedChangeType::None);
+    }
+    
+    fn test1_increase_bounce_back(){
+        let (mut micro, mut out) = initialize_test(5);
+        out.start_increasing_bounce_back(1, 0.15, 0.0, Some(1)).unwrap();
+        micro.wait_for_updates(Some(10));
+        assert!(out.inner.borrow().duty.load(Ordering::Acquire) > 0);
+        micro.wait_for_updates(Some(10));
+        assert!(out.inner.borrow().duty.load(Ordering::Acquire) < 256);
+        micro.wait_for_updates(Some(10));
+        assert_eq!(out.inner.borrow().duty.load(Ordering::Acquire), 0);
+        assert_eq!(out.inner.borrow().fixed_change_type, FixedChangeType::None);
     }
 }
