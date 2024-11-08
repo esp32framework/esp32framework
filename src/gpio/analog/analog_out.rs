@@ -356,6 +356,18 @@ impl<'a> _AnalogOut<'a> {
         .map_err(|_| AnalogOutError::InvalidArg)
     }
 
+    /// Changes the output signal to be at it maximun by calling #[Self::set_high_level_output_ratio]
+    /// with 1.0 as the high_ratio parameter.
+    pub fn set_high(&mut self)-> Result<(), AnalogOutError>{
+        self.set_high_level_output_ratio(1.0)
+    }
+    
+    /// Changes the output signal to be at it minimum by calling #[Self::set_high_level_output_ratio]
+    /// with 0.0 as the high_ratio parameter.
+    pub fn set_low(&mut self)-> Result<(), AnalogOutError>{
+        self.set_high_level_output_ratio(0.0)
+    }
+
     /// Changes the intensity of the signal using the High-Low level ratio
     /// If the driver has been set to increase or decrease automaticly then calling this function
     /// will stop this behaviour.
