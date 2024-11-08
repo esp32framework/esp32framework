@@ -357,7 +357,8 @@ impl<'a> _AnalogOut<'a> {
     }
 
     /// Changes the intensity of the signal using the High-Low level ratio
-    /// If any automatic changing of duty cycle is set this will stop it.
+    /// If the driver has been set to increase or decrease automaticly then calling this function
+    /// will stop this behaviour.
     ///
     /// # Arguments
     ///
@@ -712,16 +713,21 @@ impl<'a> _AnalogOut<'a> {
     fn change_duty_on_cycle(&mut self) -> Result<(), AnalogOutError> {
         let duty = self.duty.load(Ordering::Acquire);
         let prev_duty = self.driver.get_duty();
-        println!("DUTY {duty}, PREV_DUTY {prev_duty}");
         let mut stay_subscribed = true;
 
         if prev_duty == duty {
             stay_subscribed = match self.fixed_change_type {
-                FixedChangeType::Increase(ExtremeDutyPolicy::BounceBack) => self.attempt_turn_around(),
-                FixedChangeType::Decrease(ExtremeDutyPolicy::BounceBack) => self.attempt_turn_around(),
+                FixedChangeType::Increase(ExtremeDutyPolicy::BounceBack) => {
+                    self.attempt_turn_around()
+                }
+                FixedChangeType::Decrease(ExtremeDutyPolicy::BounceBack) => {
+                    self.attempt_turn_around()
+                }
                 FixedChangeType::Increase(ExtremeDutyPolicy::Reset) => self.attempt_reset(),
                 FixedChangeType::Decrease(ExtremeDutyPolicy::Reset) => self.attempt_reset(),
-                FixedChangeType::Increase(ExtremeDutyPolicy::None) => self.driver.get_duty() < self.driver.get_max_duty(),
+                FixedChangeType::Increase(ExtremeDutyPolicy::None) => {
+                    self.driver.get_duty() < self.driver.get_max_duty()
+                }
                 FixedChangeType::Decrease(ExtremeDutyPolicy::None) => self.driver.get_duty() > 0,
                 _ => false,
             }
@@ -731,6 +737,7 @@ impl<'a> _AnalogOut<'a> {
             .set_duty(duty)
             .map_err(|_| AnalogOutError::ErrorSettingOutput)?;
         if !stay_subscribed {
+            self.fixed_change_type = FixedChangeType::None;
             self.timer_driver
                 .remove_interrupt()
                 .map_err(AnalogOutError::TimerDriverError)?;
@@ -860,33 +867,36 @@ impl From<TimerDriverError> for AnalogOutError {
 }
 
 #[cfg(test)]
-mod test{
+mod test {
     use std::ops::Deref;
 
     use crate::Microcontroller;
 
     use super::*;
 
-    fn initialize_test<'a>(pin_num: usize)->(Microcontroller<'a>, AnalogOut<'a>){
+    fn initialize_test<'a>(pin_num: usize) -> (Microcontroller<'a>, AnalogOut<'a>) {
         let mut micro = Microcontroller::take();
         let out = micro.set_pin_as_default_analog_out(pin_num).unwrap();
         (micro, out)
     }
 
     #[test]
-    fn test0_seting_a_high_ratio_stops_increase_decrease(){
+    fn test0_seting_a_high_ratio_stops_increase_decrease() {
         let (mut micro, mut out) = initialize_test(5);
-        out.start_increasing_bounce_back(1, 0.01, 0.0, None).unwrap();
+        out.start_increasing_bounce_back(1, 0.01, 0.0, None)
+            .unwrap();
         micro.wait_for_updates(Some(10));
         out.set_high_level_output_ratio(0.0);
         micro.wait_for_updates(Some(10));
         assert_eq!(out.inner.borrow().duty.load(Ordering::Acquire), 0);
         assert_eq!(out.inner.borrow().fixed_change_type, FixedChangeType::None);
     }
-    
-    fn test1_increase_bounce_back(){
+
+    #[test]
+    fn test1_increase_bounce_back() {
         let (mut micro, mut out) = initialize_test(5);
-        out.start_increasing_bounce_back(1, 0.15, 0.0, Some(1)).unwrap();
+        out.start_increasing_bounce_back(1, 0.15, 0.0, Some(1))
+            .unwrap();
         micro.wait_for_updates(Some(10));
         assert!(out.inner.borrow().duty.load(Ordering::Acquire) > 0);
         micro.wait_for_updates(Some(10));

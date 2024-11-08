@@ -42,7 +42,6 @@ struct _TimerDriver<'a> {
     interrupts: HashMap<u16, TimeInterrupt>,
 }
 
-
 #[derive(Debug, PartialEq)]
 pub enum TimerDriverError {
     CannotSetTimerCounter,
@@ -677,10 +676,10 @@ mod test {
         )
     }
 
-    fn poll_notif(notif: &Notification)->bool{
-        for i in 0..100{
-            if notif.poll(){
-                return true
+    fn poll_notif(notif: &Notification) -> bool {
+        for i in 0..100 {
+            if notif.poll() {
+                return true;
             }
             FreeRtos::delay_ms(1);
         }
@@ -733,9 +732,9 @@ mod test {
     #[test]
     fn timer_driver_04_notification_is_sent_after_triggering_interrupt() {
         let (mut timer_driver, notif) = get_base_timer_driver();
-        timer_driver.interrupt_after(0, || {println!("Interrumpi")});
+        timer_driver.interrupt_after(0, || {});
         timer_driver.enable().unwrap();
-        
+
         assert!(poll_notif(&notif))
     }
 
