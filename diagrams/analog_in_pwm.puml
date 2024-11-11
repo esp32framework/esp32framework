@@ -1,10 +1,23 @@
 @startuml analog_in_pwm
 class AnalogInPwm {
-    -digital_in: DigitalIn,
     -sampling: u32
     +set_sampling_frequency(u32)
     +read()
     +read_percentage()
 }
 
+class DigitalIn{
+    + set_pull(Pull)
+    + change_interrupt_type(InterruptType)
+    + trigger_if_mantains_after(u64)
+    + subscribe_trigger(func)
+    + trigger_on_interrupt(func, InterruptType)
+    + trigger_on_interrupt_first_n_times(usize,func, InterruptType)
+    + get_level()
+    + is_high()
+    + is_low()
+    + set_debounce(u64)
+}
+
+AnalogInPwm *-- DigitalIn
 @enduml
