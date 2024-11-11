@@ -35,20 +35,6 @@ class _AnalogOut{
 
 }
 
-class AnalogIn {
-    -adc_channel_driver: AnalogChannels<'a>
-    +read()
-    +read_raw()
-    +smooth_read(u16)
-}
-
-class AnalogInPWM{
-    -sampling: u32
-    +set_sampling(u32)
-    +read()
-    +read_percentage()
-}
-
 class ChangeDutyUpdate{
     -change: Arc<AtomicBool>
     +change_duty()
@@ -70,7 +56,6 @@ enum ExtremeDutyPolicy{
 AnalogOut *-- _AnalogOut
 _AnalogOut *-- ChangeDutyUpdate
 _AnalogOut -> FixedChangeType
-AnalogInPWM *- AnalogIn
 FixedChangeType --> ExtremeDutyPolicy
 
 @enduml

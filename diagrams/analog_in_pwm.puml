@@ -1,0 +1,10 @@
+@startuml analog
+class AnalogInPwm {
+    -digital_in: DigitalIn<'a>,
+    -sampling: u32
+    +set_sampling_frequency(u32)
+    +read()
+    +read_percentage()
+}
+
+@enduml
