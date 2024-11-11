@@ -83,4 +83,5 @@ Service *-- BleId
 Characteristic *- Descriptor
 Characteristic *-- BleId
 Descriptor *- BleId
+
 @enduml
