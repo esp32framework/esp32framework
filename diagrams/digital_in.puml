@@ -1,0 +1,59 @@
+@startuml digital_in
+
+class DigitalIn{
+    + set_pull(Pull)
+    + change_interrupt_type(InterruptType)
+    + trigger_if_mantains_after(u64)
+    + subscribe_trigger(func)
+    + trigger_on_interrupt(func, InterruptType)
+    + trigger_on_interrupt_first_n_times(usize,func, InterruptType)
+    + get_level()
+    + is_high()
+    + is_low()
+    + set_debounce(u64)
+}
+
+class _DigitalIn {
+    - pin_driver: PinDriver<AnyIOPin, Input>
+    - timer_driver: TimerDriver
+    - debounce_ms: Option<u64>
+    - user_callback: Callback
+    + set_pull(Pull)
+    + change_interrupt_type(InterruptType)
+    + trigger_if_mantains_after(u64)
+    + subscribe_trigger(func)
+    + trigger_on_interrupt(func, InterruptType)
+    + trigger_on_interrupt_first_n_times(usize,func, InterruptType)
+    + get_level()
+    + is_high()
+    + is_low()
+    + set_debounce(u64)
+}
+
+class Notifier{
+    + notify()
+}
+
+enum InterruptType {
+    PosEdge,
+    NegEdge,
+    AnyEdgeNextEdgeIsPos,
+    AnyEdgeNextEdgeIsNeg,
+    LowLevel,
+    HighLevel,
+}
+
+enum InterruptUpdate {
+    EnableTimerDriver,
+    ExecAndEnablePin,
+    ExecAndUnsubscribePin,
+    None,
+    TimerReached,
+}
+
+DigitalIn *-- _DigitalIn
+_DigitalIn -> InterruptType
+_DigitalIn -> InterruptUpdate
+_DigitalIn -> Notifier
+
+@enduml
