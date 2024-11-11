@@ -1,38 +1,54 @@
 @startuml Microcontroller serial
 
 Interface READER {
-    +read_and_parse()
+    + read_and_parse()
+    + show_data(&mut self, operation_key: String)
+    + read_n_times_and_sum(String, usize, u32)
+    + read_n_times_and_avg(String, usize, u32)
+    + read_n_times_and_aggregate(String, usize, u32, Callback)
+    + execute_when_true( String, u32, Condition, Callback)
 }
+
 Interface WRITER {
-    +parse_and_write(u8, &[u8])
+    + parse_and_write(u8, &[u8])
+    + write_with_frecuency(u32, u8, &[u8])
+}
+
+Interface ReaderWriter{
+    + write_when_true(String, u32, u8, &[u8])
 }
 
 class I2CMaster{
-    - driver: I2cDriver<'a>
+    - driver: I2cDriver
+    + read_and_parse()
+    + parse_and_write(u8, &[u8])
     + read(u8, [u8], u32) 
     + write(u8, [u8], u32) 
     + write_read(u8 , [u8], [u8], u32) 
 }
 
 class I2CSlave{
-    - driver: I2cSlaveDriver<'a>
+    - driver: I2cSlaveDriver
+    + read_and_parse()
+    + parse_and_write(u8, &[u8])
     + read([u8], u32)
     + write([u8], u32)
 }
 
 class UART{
-    - driver: UartDriver<'a>
+    - driver: UartDriver
+    + read_and_parse()
+    + parse_and_write(u8, &[u8])
     + write([u8])
     + read([u8])
-    +read_with_timeout([u8], u32)
+    + read_with_timeout([u8], u32)
 }
 
-
-READER <|-- I2CMaster
-WRITER <|-- I2CMaster
-READER <|-- I2CSlave
-WRITER <|-- I2CSlave
-READER <|-- UART
-WRITER <|-- UART
+ReaderWriter <|-- I2CMaster
+ReaderWriter <|-- I2CSlave
+ReaderWriter <|-- UART
+READER <|-- ReaderWriter
+WRITER <|-- ReaderWriter
 
 @enduml
+
