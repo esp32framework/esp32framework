@@ -1,4 +1,4 @@
-@startuml analog
+@startuml analog_in_adc
 
 class AnalogIn {
     -adc_channel_driver: AnalogChannels<'a>

@@ -1,4 +1,4 @@
-@startuml analog
+@startuml analog_in_pwm
 class AnalogInPwm {
     -digital_in: DigitalIn<'a>,
     -sampling: u32
