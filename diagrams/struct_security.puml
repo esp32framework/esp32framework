@@ -1,0 +1,21 @@
+@startuml struct_security_diagram
+
+class Security {
+    + passkey: u32,
+    + auth_mode: u8,
+    + io_capabilities: IOCapabilities,
+    + allow_bonding(bool)
+    + man_in_the_middle(bool)
+    + secure_connection(bool)
+}
+
+enum IOCapabilities {
+    DisplayOnly,
+    DisplayYesNo,
+    KeyboardOnly,
+    KeyboardDisplay,
+    NoInputNoOutput,
+}
+
+Security *-- IOCapabilities 
+@enduml
