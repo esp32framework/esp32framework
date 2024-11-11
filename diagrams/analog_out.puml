@@ -1,4 +1,4 @@
-@startuml analog
+@startuml analog_out
 class AnalogOut {
     + duty()
     + set_high_level_output_ratio(f32)

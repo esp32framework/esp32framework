@@ -2,10 +2,10 @@
 
 class BleBeacon{
     - advertising_name: String,
-    - ble_device: &'a mut BLEDevice,
+    - ble_device: &mut BLEDevice,
     - services: SharableRef<HashMap<BleId, Service>>,
     - advertisement: SharableRef<BLEAdvertisementData>,
-    - timer_driver: TimerDriver<'a>,
+    - timer_driver: TimerDriver,
     - time_per_service: Duration,
     + set_name(String)
     + set_service(&Service)
