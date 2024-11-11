@@ -23,6 +23,7 @@ class _BleClient{
     - ble_scan: &mut BLEScan,
     - connected: bool,
     - time_between_scans: u16,
+    - notifier: Notifier,
     + find_device(Option<Duration>, condition)
     + find_device_async(Option<Duration>, condition)
     + find_device_with_service(Option<Duration>, &BleId)

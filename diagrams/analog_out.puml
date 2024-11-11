@@ -15,9 +15,9 @@ class AnalogOut {
 }
 
 class _AnalogOut{
-    -driver: LedcDriver<'a>,
-    -timer_driver: TimerDriver<'a>,
-    +duty: Arc<AtomicU32>,
+    -driver: LedcDriver,
+    -timer_driver: TimerDriver,
+    -duty: Arc<AtomicU32>,
     -fixed_change_increasing: Arc<AtomicBool>,
     -amount_of_cycles: Option<u32>,
     + duty()
@@ -32,7 +32,6 @@ class _AnalogOut{
     + start_increasing_reset(u64, f32, f32, Option<u32>)
     + start_decreasing_intensity_reset(u64, f32, f32, Option<u32>)
     + update_interrupt()
-
 }
 
 class ChangeDutyUpdate{
