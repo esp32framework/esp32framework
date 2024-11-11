@@ -1,66 +1,53 @@
 @startuml Timer Driver
 
 class TimerDriver{
-    +id: u16
-    +next_child: u16
-    +create_child_copy()
-    +delay(u32)
-    +set_interrupt_update_callback(Notifier)
-    +interrupt_after(u16,u64, callback)
-    +interrupt_after_n_times(u16, u64, Option<u32>, bool, callback)
-    +micro_to_counter(u64)
-    +activate(u16)
-    +deactivate(u16)
-    +reset()
-    +enable(u16)
-    +disable(u16)
-    +remove_interrupt(u16)
-    +set_lowest_alarm()
-    +handle_alarm_update(Alarm)
+    - id: u16
+    - next_child: u16
+    + create_child_copy()
+    + delay(u32)
+    + interrupt_after(u16,u64, callback)
+    + interrupt_after_n_times(u16, u64, Option<u32>, bool, callback)
+    + enable(u16)
+    + disable(u16)
+    + remove_interrupt(u16)
+    + update_interrupt()
 }
 
 class _TimerDriver{
-    -driver: timer::TimerDriver<'a>
-    +set_interrupt_update_callback(Notifier)
-    +interrupt_after(u16,u64, callback)
-    +interrupt_after_n_times(u16, u64, Option<u32>, bool, callback)
-    +micro_to_counter()
-    +activate(u16)
-    +deactivate(u16)
-    +reset()
-    +enable(u16)
-    +disable(u16)
-    +remove_interrupt(u16)
-    +set_lowest_alarm()
-    +handle_alarm_update(Alarm)
+    - driver: ESPTimerDriver
+    + interrupt_after(u16,u64, callback)
+    + interrupt_after_n_times(u16, u64, Option<u32>, bool, callback)
+    + enable(u16)
+    + disable(u16)
+    + remove_interrupt(u16)
+    + _update_interrupt()
 }
 
 class InterruptUpdate{
-    -update: Arc<AtomicBool>
-    +any_updates()
-    +new_update()
-    +handling_update()
-    +handle_any_updates()
+    - update: Arc<AtomicBool>
+    + any_updates()
+    + new_update()
+    + handling_update()
+    + handle_any_updates()
 }
 
 class TimeInterrupt{
-    -after: u64
-    +id: u16
-    +current_alarm_id: usize
-    +remaining_triggers: Option<u32>
-    +auto_reenable: bool
-    +callback: Box<dyn FnMut()>
-    +get_alarm(u64)
-    +disable_previouse_alarms()
-    +trigger()
-    +any_triggers_left()
+    - after: u64
+    - id: u16
+    - current_alarm_id: usize
+    - remaining_triggers: Option<u32>
+    - auto_reenable: bool
+    - callback: Callback
+    + get_alarm(u64)
+    + disable_previouse_alarms()
+    + trigger()
+    + any_triggers_left()
 }
 
 class Alarm{
     -time: u64,
     -id: u16,
     -alarm_id: usize
-    +equals()
 }
 
 class Notifier{
@@ -77,7 +64,6 @@ TimerDriver *-- _TimerDriver
 _TimerDriver *-- InterruptUpdate
 _TimerDriver --> TimeInterrupt
 _TimerDriver --> Alarm
-TimeInterrupt --> Alarm
 TimeInterrupt --> TimerInterruptStatus
 _TimerDriver -> Notifier
 
