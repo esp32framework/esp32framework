@@ -14,13 +14,18 @@ class BleServer{
     + set_services(&Vec<Service>)
     + set_characteristic(BleId, &Characteristic)
     + notify_value(BleId, &Characteristic)
+    + list_clients()
+    + disconnect_client(&ConnectionInformation)
+    + disconnect_all_clients()
+    + get_characteristic_data(&BleId, &BleId)
+    + get_all_service_characteristics_data(&BleId)
     + start()
 }
 
 class _BleServer{
     - advertising_name: String,
-    - ble_server: &'a mut BLEServer,
-    - advertisement: &'a Mutex<BLEAdvertising>
+    - ble_server: &mut BLEServer,
+    - advertisement: &Mutex<BLEAdvertising>
     + connection_handler(handler)
     + disconnect_handler(handler)
     + set_connection_settings(ConnectionInformation, u16,u16,u16,u16)
@@ -33,6 +38,11 @@ class _BleServer{
     + set_services(&Vec<Service>)
     + set_characteristic(BleId, &Characteristic)
     + notify_value(BleId, &Characteristic)
+    + list_clients()
+    + disconnect_client(&ConnectionInformation)
+    + disconnect_all_clients()
+    + get_characteristic_data(&BleId, &BleId)
+    + get_all_service_characteristics_data(&BleId)
     + start()
 }
 
@@ -53,7 +63,8 @@ class Service {
 class Characteristic{
     - properties: u16
     - data: Vec<u8>
-    + add_descriptor()
+    + add_descriptor(&Descriptor)
+    + update_data(bool)
     + writable(bool)
     + readable(bool)
     + notifiable(bool)
@@ -66,7 +77,11 @@ class Characteristic{
     + writable_author(bool)
     + broadcastable(bool)
     + indicatable(bool)
-    + update_data(bool)
+    + is_readable()
+    + is_writable()
+    + is_indicatable()
+    + is_notifiable()
+    + is_broadcastable()
 }
 
 class Descriptor{
@@ -96,13 +111,14 @@ enum ConnectionMode {
 }
 
 enum BleId {
-    ByName(String),
     FromUuid16(u16),
-    FromUuid32(u32),
     FromUuid128([u8; 16]),
-    StandardService(StandarServiceId),
-    StandarCharacteristic(StandarCharacteristicId),
-    StandarDescriptor(StandarDescriptorId),
+    --
+    + ByName(String),
+    + StandardService(StandarServiceId),
+    + StandarCharacteristic(StandarCharacteristicId),
+    + StandarDescriptor(StandarDescriptorId),
+    + byte_size()
 }
 
 BleServer *-right- _BleServer

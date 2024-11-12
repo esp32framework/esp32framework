@@ -1,37 +1,169 @@
 @startuml Microcontroller general
 
 class Microcontroller {
-    + peripherals 
-    + interrupt_drivers 
-    + adc_driver 
-    + notification 
-    + event_loop 
-    + get_timer_driver()  
-    + set_pin_as_digital_in()  
-    + set_pin_as_digital_out()  
-    + start_adc_driver()
-    + set_pin_as_analog_in_low_atten() 
-    + set_pin_as_analog_in_medium_atten() 
-    + set_pin_as_analog_in_high_atten() 
-    + set_pin_as_analog_in_no_atten() 
-    + set_pin_as_analog_out() 
-    + set_pin_as_default_analog_out() 
-    + set_pin_as_analog_in_pwm() 
-    + set_pin_as_default_analog_in_pwm() 
-    + set_pins_for_i2c_master() 
-    + set_pins_for_i2c_slave() 
-    + set_pins_for_default_uart() 
-    + set_pins_for_uart() 
-    + ble_beacon() 
-    + ble_server() 
-    + ble_secure_server() 
-    + ble_client() 
-    + wait_for_updates()
-    + update() 
-    + sleep() 
-    + wait_for_updates_until_finished()
-    + block_on()
+    - peripherals,
+    - interrupt_drivers,
+    - adc_driver,
+    - notification,
+    - event_loop,
+    + get_timer_driver(),
+    + set_pin_as_digital_in(),
+    + set_pin_as_digital_out(),
+    + set_pin_as_analog_in_low_atten(),
+    + set_pin_as_analog_in_medium_atten(),
+    + set_pin_as_analog_in_high_atten(),
+    + set_pin_as_analog_in_no_atten(),
+    + set_pin_as_analog_out(),
+    + set_pin_as_default_analog_out(),
+    + set_pin_as_analog_in_pwm(),
+    + set_pin_as_default_analog_in_pwm(),
+    + set_pins_for_i2c_master(),
+    + set_pins_for_i2c_slave(),
+    + set_pins_for_default_uart(),
+    + set_pins_for_uart(),
+    + ble_beacon(),
+    + ble_server(),
+    + ble_secure_server(),
+    + ble_client(),
+    + wait_for_updates(),
+    + update(),
+    + sleep(),
+    + wait_for_updates_until_finished(),
+    + block_on(),
     + get_wifi_driver()
+}
+
+class AnalogIn {
+    -adc_channel_driver: AnalogChannels
+    +read()
+    +read_raw()
+    +smooth_read(u16)
+    +smooth_read_during(u16)
+}
+
+class AnalogInPwm {
+    -sampling: u32
+    +set_sampling_frequency(u32)
+    +read()
+    +read_percentage()
+}
+
+class AnalogOut{
+    -driver: LedcDriver,
+    -timer_driver: TimerDriver,
+    -duty: Arc<AtomicU32>,
+    -change_duty_update: ChangeDutyUpdate,
+    -fixed_change_increasing: Arc<AtomicBool>,
+    -fixed_change_type: FixedChangeType,
+    -amount_of_cycles: Option<u32>,
+    + duty()
+    + set_high_level_output_ratio(f32)
+    + set_high()
+    + set_low()
+    + start_changing_by_fixed_amount(u64, f32, f32)
+    + start_increasing(u64, f32, f32)
+    + start_decreasing(u64, f32, f32)
+    + start_increasing_bounce_back(u64, f32, f32, Option<u32>)
+    + start_decreasing_bounce_back(u64, f32, f32, Option<u32>)
+    + start_increasing_reset(u64, f32, f32, Option<u32>)
+    + start_decreasing_intensity_reset(u64, f32, f32, Option<u32>)
+    + update_interrupt()
+}
+
+class BleBeacon{
+    - advertising_name: String,
+    - ble_device: &mut BLEDevice,
+    - services: SharableRef<HashMap<BleId, Service>>,
+    - advertisement: SharableRef<BLEAdvertisementData>,
+    - timer_driver: TimerDriver,
+    - time_per_service: Duration,
+    + set_name(String)
+    + set_service(&Service)
+    + set_services(Vec<Service>)
+    + remove_service(&BleId)
+    + remove_services(Vec<BleId>)
+    + advertise_service_data(&BleId)
+    + set_time_per_service(Duration)
+    + advertise_all_service_data()
+    + start()
+    + stop()
+}
+
+class BleClient{
+    - ble_client: BLEClient,
+    - ble_scan: &mut BLEScan,
+    - connected: bool,
+    - time_between_scans: u16,
+    - notifier: Notifier,
+    + find_device(Option<Duration>, condition)
+    + find_device_async(Option<Duration>, condition)
+    + find_device_with_service(Option<Duration>, &BleId)
+    + find_device_with_service_async(Option<Duration>, &BleId)
+    + find_device_of_name(Option<Duration>, String)
+    + find_device_of_name_async(Option<Duration>, String)
+    + connect_to_device(BleAdvertisedDevice)
+    + connect_to_device_async(BleAdvertisedDevice)
+    + get_all_service_ids()
+    + fn get_all_service_ids_async()
+    + _get_characteristics_async(&BleId, &BleId)
+    + _get_all_characteristic_async(&BleId)
+    + disconnect()
+}
+
+class BleServer{
+    - advertising_name: String,
+    - ble_server: &mut BLEServer,
+    - services: Vec<Service>,
+    - user_on_connection: Option<ConnectionCallback>,
+    - user_on_disconnection: Option<ConnectionCallback>,
+    - advertisement: &Mutex<BLEAdvertising>
+    + connection_handler(handler)
+    + disconnect_handler(handler)
+    + set_connection_settings(ConnectionInformation, u16,u16,u16,u16)
+    + set_advertising_interval(u16,u16)
+    + set_high_advertising_duty_cycle()
+    + set_low_advertising_duty_cycle()
+    + set_discoverable_mode(DiscoverableMode)
+    + set_connection_mode(ConnectionMode)
+    + set_service(&Service)
+    + set_services(&Vec<Service>)
+    + set_characteristic(BleId, &Characteristic)
+    + notify_value(BleId, &Characteristic)
+    + list_clients()
+    + disconnect_client(&ConnectionInformation)
+    + disconnect_all_clients()
+    + get_characteristic_data(&BleId, &BleId)
+    + get_all_service_characteristics_data(&BleId)
+    + start()
+}
+
+class DigitalIn {
+    - pin_driver: PinDriver<AnyIOPin, Input>
+    - timer_driver: TimerDriver
+    - debounce_ms: Option<u64>
+    - user_callback: Callback
+    + set_pull(Pull)
+    + change_interrupt_type(InterruptType)
+    + trigger_if_mantains_after(u64)
+    + subscribe_trigger(func)
+    + trigger_on_interrupt(func, InterruptType)
+    + trigger_on_interrupt_first_n_times(usize,func, InterruptType)
+    + get_level()
+    + is_high()
+    + is_low()
+    + set_debounce(u64)
+}
+
+class DigitalOut {
+    -pin_driver: PinDriver<AnyIOPin, Output>,
+    -timer_driver: TimerDriver,
+    -interrupt_update_code: Arc<AtomicInterruptUpdateCode>
+    +set_level(Level)
+    +get_level()
+    +set_high()
+    +set_low()
+    +toggle()
+    +blink(u32, u64)
 }
 
 class TimerDriver{
@@ -55,148 +187,52 @@ class TimerDriver{
     +handle_alarm_update()
 }
 
-
-class DigitalIn{
-    + pin_driver 
-    - timer_driver 
-    - interrupt_type
-    + interrupt_update_code 
-    - user_callback
-    - debounce_ms 
-    - notifier
-    + set_pull() 
-    + change_interrupt_type() 
-    + trigger_if_mantains_after() 
-    + subscribe_trigger() 
-    + trigger_on_interrupt() 
-    + trigger_on_interrupt_first_n_times() 
-    + get_level() 
-    + is_high() 
-    + is_low() 
-    + set_debounce() 
-}
-
-class DigitalOut{
-    - pin_driver
-    - timer_driver
-    - interrupt_update_code
-    + set_level() 
-    + get_level() 
-    + set_high() 
-    + set_low() 
-    + toggle() 
-    + blink() 
-}
-
-class AnalogInPwm {
-    + digital_in 
-    + sampling 
-    + set_sampling() 
-    + read() 
-    + read_percentage() 
-}
-
-class AnalogIn {
-    + adc_channel_driver
-    + adc_driver_ref
-    + read() 
-    + read_raw() 
-    + smooth_read() 
-}
-
-class AnalogOut {
-    + driver
-    + timer_driver
-    + duty
-    + interrupt_update_code
-    + fixed_change_increasing
-    + fixed_change_type
-    + amount_of_cycles
-    + duty()
-    + set_high_level_output_ratio()
-    + start_changing_by_fixed_amount()
-    + start_increasing()
-    + start_decreasing()
-    + start_increasing_bounce_back()
-    + start_decreasing_bounce_back()
-    + start_increasing_reset()
-    + start_decreasing_intensity_reset()
+class TimerDriver{
+    - id: u16,
+    - next_child: u16,
+    - inner_driver: ESPTimerDriver,
+    - interrupt_update: InterruptUpdate,
+    - alarms: BinaryHeap<Alarm>,
+    - interrupts: HashMap<u16, TimeInterrupt>,
+    + create_child_copy()
+    + delay(u32)
+    + interrupt_after(u16,u64, callback)
+    + interrupt_after_n_times(u16, u64, Option<u32>, bool, callback)
+    + enable(u16)
+    + disable(u16)
+    + remove_interrupt(u16)
     + update_interrupt()
 }
 
 class I2CMaster{
-    - driver
-    + read() 
-    + write() 
-    + write_read() 
+    - driver: I2cDriver
+    + read_and_parse()
+    + parse_and_write(u8, &[u8])
+    + read(u8, [u8], u32) 
+    + write(u8, [u8], u32) 
+    + write_read(u8 , [u8], [u8], u32) 
 }
 
 class I2CSlave{
-    - driver
-    + read()
-    + write()
+    - driver: I2cSlaveDriver
+    + read_and_parse()
+    + parse_and_write(u8, &[u8])
+    + read([u8], u32)
+    + write([u8], u32)
 }
 
 class UART{
-    - driver
-    + write()
-    + read()
-    +read_with_timeout()
-}
-
-class BleBeacon{
-    - advertising_name
-    - ble_device
-    - services
-    - advertisement
-    - timer_driver
-    - time_per_service
-    + set_name()
-    + set_service()
-    + set_services()
-    + remove_service
-    + remove_services()
-    + advertise_service_data
-    + set_time_per_service()
-    + advertise_all_service_data()
-    + start()
-    + stop()
-}
-
-class BleClient {
-    -inner: _BleClient
-    -updater: BleClientUpdater
-    + get_characteristic()
-    + get_all_characteristics()
-    + get_characteristic_async()
-    + get_all_characteristics_async()
-}
-
-
-class BleServer{
-    -advertising_name
-    -advertisement   
-    -user_on_connection
-    -user_on_disconnection
-    +services          
-    +connection_handler()
-    +disconnect_handler()
-    +set_connection_settings()
-    +set_advertising_interval()
-    +set_high_advertising_duty_cycle()
-    +set_low_advertising_duty_cycle()
-    +set_discoverable_mode()
-    +set_connection_mode()
-    +set_service()
-    +set_services()
-    +set_characteristic()
-    +notify_value()
-    +start()
+    - driver: UartDriver
+    + read_and_parse()
+    + parse_and_write(u8, &[u8])
+    + write([u8])
+    + read([u8])
+    + read_with_timeout([u8], u32)
 }
 
 class WifiDriver{
-    -controller
-    +connect()
+    -controller AsyncWifi<EspWifi>
+    +connect(&str, Option<String>)
     +is_started()
     +is_connected()
     +get_address_info()

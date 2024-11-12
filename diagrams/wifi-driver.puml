@@ -1,7 +1,7 @@
 @startuml Wifi Driver
 
 class Wifi_driver{
-    -controller: AsyncWifi<EspWifi>
+    -controller AsyncWifi<EspWifi>
     +connect(&str, Option<String>)
     +is_started()
     +is_connected()
@@ -12,6 +12,8 @@ class Wifi_driver{
 }
 
 interface Http{
+    +add_body_len_header(Vec<HttpHeader>, Option<usize>)
+    +send_request(Method, &str, Vec<HttpHeader>, Option<String>)
     +post(string, Vec<HttpHeader>)
     +get(string, Vec<HttpHeader>)
     +put(string, Vec<HttpHeader>)

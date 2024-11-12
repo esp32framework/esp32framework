@@ -2,11 +2,11 @@
 
 class BleBeacon{
     - advertising_name: String,
-    - ble_device: &'a mut BLEDevice,
+    - ble_device: &mut BLEDevice,
+    - services: SharableRef<HashMap<BleId, Service>>,
     - advertisement: SharableRef<BLEAdvertisementData>,
-    - timer_driver: TimerDriver<'a>,
+    - timer_driver: TimerDriver,
     - time_per_service: Duration,
-    - insert_service(&Service)
     + set_name(String)
     + set_service(&Service)
     + set_services(Vec<Service>)
@@ -20,13 +20,14 @@ class BleBeacon{
 }
 
 enum BleId {
-    ByName(String),
     FromUuid16(u16),
-    FromUuid32(u32),
     FromUuid128([u8; 16]),
-    StandardService(StandarServiceId),
-    StandarCharacteristic(StandarCharacteristicId),
-    StandarDescriptor(StandarDescriptorId),
+    --
+    + ByName(String),
+    + StandardService(StandarServiceId),
+    + StandarCharacteristic(StandarCharacteristicId),
+    + StandarDescriptor(StandarDescriptorId),
+    + byte_size()
 }
 
 class Service {
@@ -38,7 +39,8 @@ class Service {
 class Characteristic{
     - properties: u16
     - data: Vec<u8>
-    + add_descriptor()
+    + add_descriptor(&Descriptor)
+    + update_data(bool)
     + writable(bool)
     + readable(bool)
     + notifiable(bool)
@@ -51,7 +53,11 @@ class Characteristic{
     + writable_author(bool)
     + broadcastable(bool)
     + indicatable(bool)
-    + update_data(bool)
+    + is_readable()
+    + is_writable()
+    + is_indicatable()
+    + is_notifiable()
+    + is_broadcastable()
 }
 
 class Descriptor{
@@ -77,4 +83,5 @@ Service *-- BleId
 Characteristic *- Descriptor
 Characteristic *-- BleId
 Descriptor *- BleId
+
 @enduml

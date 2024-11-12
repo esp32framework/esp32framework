@@ -633,7 +633,7 @@ impl<'a> _AnalogOut<'a> {
     /// # Errors
     ///
     /// - `AnalogOutError::TimerDriverError`: If the timer driver cannot be enabled.
-    pub fn start_decreasing_intensity_reset(
+    pub fn start_decreasing_reset(
         &mut self,
         increase_after_miliseconds: u64,
         decrease_by_ratio: f32,

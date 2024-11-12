@@ -1,0 +1,19 @@
+@startuml struct_security_diagram
+
+struct ConnectionInformation {
+    address: BLEAddress,
+    id_address: BLEAddress,
+    conn_handle: u16,
+    interval: u16,
+    timeout: u16,
+    latency: u16,
+    mtu: u16,
+    bonded: bool,
+    encrypted: bool,
+    authenticated: bool,
+    sec_key_size: u32,
+    rssi: Result<i8, u32>,
+    disconnection_result: Option<u32>,
+}
+
+@enduml

@@ -1,0 +1,32 @@
+@startuml digital_out
+
+class DigitalOut{
+    +set_level(Level)
+    +get_level()
+    +set_high()
+    +set_low()
+    +toggle()
+    +blink(u32, u64)
+    +update_interrupt()
+}
+
+class _DigitalOut {
+    -pin_driver: PinDriver<AnyIOPin, Output>,
+    -timer_driver: TimerDriver,
+    -interrupt_update_code: Arc<AtomicInterruptUpdateCode>
+    +set_level(Level)
+    +get_level()
+    +set_high()
+    +set_low()
+    +toggle()
+    +blink(u32, u64)
+}
+
+enum InterruptUpdate {
+    Blink,
+    None,
+}
+
+_DigitalOut -> InterruptUpdate
+DigitalOut -> _DigitalOut
+@enduml

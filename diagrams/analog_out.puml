@@ -1,7 +1,9 @@
-@startuml analog
+@startuml analog_out
 class AnalogOut {
     + duty()
     + set_high_level_output_ratio(f32)
+    + set_high()
+    + set_low()
     + start_changing_by_fixed_amount(u64, f32, f32)
     + start_increasing(u64, f32, f32)
     + start_decreasing(u64, f32, f32)
@@ -13,13 +15,15 @@ class AnalogOut {
 }
 
 class _AnalogOut{
-    -driver: LedcDriver<'a>,
-    -timer_driver: TimerDriver<'a>,
-    +duty: Arc<AtomicU32>,
+    -driver: LedcDriver,
+    -timer_driver: TimerDriver,
+    -duty: Arc<AtomicU32>,
     -fixed_change_increasing: Arc<AtomicBool>,
     -amount_of_cycles: Option<u32>,
     + duty()
     + set_high_level_output_ratio(f32)
+    + set_high()
+    + set_low()
     + start_changing_by_fixed_amount(u64, f32, f32)
     + start_increasing(u64, f32, f32)
     + start_decreasing(u64, f32, f32)
@@ -28,21 +32,6 @@ class _AnalogOut{
     + start_increasing_reset(u64, f32, f32, Option<u32>)
     + start_decreasing_intensity_reset(u64, f32, f32, Option<u32>)
     + update_interrupt()
-
-}
-
-class AnalogIn {
-    -adc_channel_driver: AnalogChannels<'a>
-    +read()
-    +read_raw()
-    +smooth_read(u16)
-}
-
-class AnalogInPWM{
-    -sampling: u32
-    +set_sampling(u32)
-    +read()
-    +read_percentage()
 }
 
 class ChangeDutyUpdate{
@@ -52,7 +41,7 @@ class ChangeDutyUpdate{
 }
 
 enum FixedChangeType {
-    None(),
+    None,
     Decrease(ExtremeDutyPolicy),
     Increase(ExtremeDutyPolicy),
 }
@@ -66,7 +55,6 @@ enum ExtremeDutyPolicy{
 AnalogOut *-- _AnalogOut
 _AnalogOut *-- ChangeDutyUpdate
 _AnalogOut -> FixedChangeType
-AnalogInPWM *- AnalogIn
 FixedChangeType --> ExtremeDutyPolicy
 
 @enduml

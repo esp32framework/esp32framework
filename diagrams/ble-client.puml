@@ -1,34 +1,41 @@
 @startuml Ble client
 
 class BleClient {
-    + get_characteristic()
-    + get_all_characteristics()
-    + get_characteristic_async()
-    + get_all_characteristics_async()
-    + connect_to_device(Option<Duration>, condition)
-    + connect_to_device_with_service(Option<Duration>, &BleId)
-    + connect_to_device_of_name(Option<Duration>, string)
-    + connect_to_device_async(Option<Duration>, condition)
-    + connect_to_device_with_service_async(Option<Duration>, &BleId)
-    + connect_to_device_of_name_async(ption<Duration>, string)
+    + find_device(Option<Duration>, condition)
+    + find_device_async(Option<Duration>, condition)
+    + find_device_with_service(Option<Duration>, &BleId)
+    + find_device_with_service_async(Option<Duration>, &BleId)
+    + find_device_of_name(Option<Duration>, String)
+    + find_device_of_name_async(Option<Duration>, String)
+    + connect_to_device(BleAdvertisedDevice)
+    + connect_to_device_async(BleAdvertisedDevice)
     + get_all_service_ids()
-    + get_all_service_ids_async()
+    + fn get_all_service_ids_async()
+    + get_characteristics(&BleId, &BleId)
+    + get_all_characteristic(&BleId)
+    + get_characteristics_async(&BleId, &BleId)
+    + get_all_characteristic_async(&BleId)
     + disconnect()
 }
 
 class _BleClient{
     - ble_client: BLEClient,
-    - ble_scan: &'static mut BLEScan,
+    - ble_scan: &mut BLEScan,
     - connected: bool,
     - time_between_scans: u16,
-    + connect_to_device(Option<Duration>, condition)
-    + connect_to_device_with_service(Option<Duration>, &BleId)
-    + connect_to_device_of_name(Option<Duration>, string)
-    + connect_to_device_async(Option<Duration>, condition)
-    + connect_to_device_with_service_async(Option<Duration>, &BleId)
-    + connect_to_device_of_name_async(ption<Duration>, string)
+    - notifier: Notifier,
+    + find_device(Option<Duration>, condition)
+    + find_device_async(Option<Duration>, condition)
+    + find_device_with_service(Option<Duration>, &BleId)
+    + find_device_with_service_async(Option<Duration>, &BleId)
+    + find_device_of_name(Option<Duration>, String)
+    + find_device_of_name_async(Option<Duration>, String)
+    + connect_to_device(BleAdvertisedDevice)
+    + connect_to_device_async(BleAdvertisedDevice)
     + get_all_service_ids()
-    + get_all_service_ids_async()
+    + fn get_all_service_ids_async()
+    + _get_characteristics_async(&BleId, &BleId)
+    + _get_all_characteristic_async(&BleId)
     + disconnect()
 }
 
@@ -37,13 +44,14 @@ class BleClientUpdater{
     
 }
 
+
 class RemoteCharacteristic{
     + on_notify()
     + execute_if_notified()
 }
 
 class _RemoteCharacteristic{
-    + characteristic: BLERemoteCharacteristic
+    - characteristic: BLERemoteCharacteristic
     + id()
     + is_readable()
     + is_writable()
@@ -64,6 +72,7 @@ class _RemoteCharacteristic{
 class Notifier{
     + notify()
 }
+
 class RemoteCharacteristicUpdater{
     + notify_callback
     + notify_queue
@@ -81,13 +90,14 @@ class RemoteDescriptor{
 }
 
 enum BleId {
-    ByName(String),
     FromUuid16(u16),
-    FromUuid32(u32),
     FromUuid128([u8; 16]),
-    StandardService(StandarServiceId),
-    StandarCharacteristic(StandarCharacteristicId),
-    StandarDescriptor(StandarDescriptorId),
+    --
+    + ByName(String),
+    + StandardService(StandarServiceId),
+    + StandarCharacteristic(StandarCharacteristicId),
+    + StandarDescriptor(StandarDescriptorId),
+    + byte_size()
 }
 
 BleClient *-- _BleClient 
