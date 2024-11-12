@@ -47,6 +47,6 @@ fn main() {
             ds3231.update_alarm_1().unwrap();
         }
 
-        micro.sleep(500);
+        micro.wait_for_updates(Some(500));
     }
 }

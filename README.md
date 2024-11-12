@@ -35,9 +35,11 @@ However, this framework does not aim to optimize microcontroller resources. Ther
 - Sensors:
     - HC-SR04 (Ultrasonic Distance Sensor)
     - DS3231 (Real-Time Clock & Temperature)
-
-Each technology comes with its own set of examples that demonstrate basic configurations and common use cases.   
-This list of supported Protocols and Technologies is continuously growing, and we encourage users to create their own abstractions for new protocols or sensors to contribute to the framework.
+    
+> **Note**
+>
+> Each technology comes with its own set of examples that demonstrate basic configurations and common use cases.   
+> This list of supported Protocols and Technologies is continuously growing, and we encourage users to create their own abstractions for new protocols or sensors to contribute to the framework.
 
 ## SetUp
 
@@ -94,6 +96,10 @@ cargo build
 espflash flash target/riscv32imac-esp-espidf/debug/esp32framework
 espflash monitor
 ```
+
+> **Warning**
+> 
+> We recommend the use of `cargo run` because the `espflash` command has a default size limit for your bin file. You may need to modify the `sdkconfig` file to increase this limit.
 
 ## Tests
 This framework also provides a simple test_framework to run tests on the microcontroller. After each test the microcontroller is restarted to guarantee no leftover configurations.

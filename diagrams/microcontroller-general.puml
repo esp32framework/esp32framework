@@ -27,8 +27,7 @@ class Microcontroller {
     + ble_secure_server() 
     + ble_client() 
     + wait_for_updates()
-    + update() 
-    + sleep() 
+    + update()
     + wait_for_updates_until_finished()
     + block_on()
     + get_wifi_driver()
@@ -120,7 +119,7 @@ class AnalogOut {
     + start_increasing_bounce_back()
     + start_decreasing_bounce_back()
     + start_increasing_reset()
-    + start_decreasing_intensity_reset()
+    + start_decreasing_reset()
     + update_interrupt()
 }
 

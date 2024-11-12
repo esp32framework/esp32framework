@@ -62,7 +62,7 @@ fn main(){
         // Read of Config 2
         read_config(&mut analog_out_b, &analog_in_pwm_b, &ratio, &input_freq_b, &output_freq_b, &output_res_b);
 
-        micro.sleep(SLEEP_TIME);
+        micro.wait_for_updates(Some(SLEEP_TIME));
     }
 
     micro.wait_for_updates(None);

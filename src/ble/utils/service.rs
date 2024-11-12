@@ -55,7 +55,7 @@ impl Service {
         }
     }
 
-    /// Adds a new characteristic to thee service
+    /// Adds a new characteristic to the service
     ///
     /// # Arguments
     ///
@@ -119,6 +119,15 @@ impl Characteristic {
         }
     }
 
+    /// Adds a new descriptor to the Characteristic.
+    ///
+    /// # Arguments
+    ///
+    /// - `descriptor`: The Descriptor struct representing the BLE descriptor to add
+    ///
+    /// # Returns
+    ///
+    /// The Characteristic itself
     pub fn add_descriptor(mut self, descriptor: &Descriptor) -> Self {
         self.descriptors.push(descriptor.clone());
         self

@@ -40,6 +40,6 @@ fn main() {
             date_time["secs"]
         );
 
-        micro.sleep(1000);
+        micro.wait_for_updates(Some(1000));
     }
 }

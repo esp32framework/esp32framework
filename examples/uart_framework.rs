@@ -27,6 +27,6 @@ fn main() {
         if buffer.iter().any(|&x| x > 0) {
             uart.write(&buffer).unwrap();
         }
-        micro.sleep(100);
+        micro.wait_for_updates(Some(100));
     }
 }

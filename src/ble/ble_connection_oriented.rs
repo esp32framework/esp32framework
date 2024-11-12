@@ -284,7 +284,7 @@ impl<'a> _BleServer<'a> {
     ///
     /// # Arguments
     ///
-    /// - `disc_mode`: A DiscoverableMode that the user decisdes to set
+    /// - `disc_mode`: A DiscoverableMode that the user decides to set
     ///
     /// # Returns
     ///
