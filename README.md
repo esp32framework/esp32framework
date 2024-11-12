@@ -1,3 +1,5 @@
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+
 # Esp32framework
 
 A Esp32 Framework for developing IoT applications in a straightforward manner, requiring minimal bare-metal technical knowledge. This Framework adds further abstraction layers over the Esp-Idf-Svc(link) Rust crate, which hide some of the complexity to give a more beginner-friendly API, and introducing some extra common functionalities.
