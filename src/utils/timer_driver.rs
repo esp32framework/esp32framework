@@ -274,6 +274,10 @@ impl<'a> _TimerDriver<'a> {
     /// Sets an interrupt that triggers once after "microseconds". For this to start working [Self::enable()]
     /// must be called. After the interrupt has been trigger it can be reset by calling [Self::enable()]
     ///
+    /// Note: For the callback to be executed, the method [crate::Microcontroller::wait_for_updates] must
+    /// be called periodicly, unless using an async aproach in which case [crate::Microcontroller::block_on]
+    /// must be used.
+    ///
     /// # Arguments
     ///
     //   - `id`: id by which the interrupt will be identified. This corresponds to the id of the wrapper [TimerDriver]
@@ -292,6 +296,10 @@ impl<'a> _TimerDriver<'a> {
     /// triggers indefinitely. If autoenable is set, after triggering the callback, it will be set again
     /// if not it will have to be reenabled manually by caling [Self::enable()]. For this to start working
     /// [Self::enable()] must be called.
+    ///
+    /// Note: For the callback to be executed, the method [crate::Microcontroller::wait_for_updates] must
+    /// be called periodicly, unless using an async aproach in which case [crate::Microcontroller::block_on]
+    /// must be used.
     ///
     /// # Arguments
     ///
@@ -619,6 +627,8 @@ impl<'a> TimerDriver<'a> {
     }
 
     /// Async function to sleep on a task
+    ///
+    /// Note: For the delay to work properly, must be used [crate::Microcontroller::block_on].
     ///
     /// # Arguments
     /// - mili_secs: Amount of miliseconds for which the task will at least sleep for
