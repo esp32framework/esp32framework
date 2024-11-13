@@ -141,6 +141,10 @@ impl<'a> _BleServer<'a> {
 
     /// Sets the connection handler. The handler is a callback that will be executed when a client connects to the server
     ///
+    /// Note: For the callback to be executed, the method [crate::Microcontroller::wait_for_updates] must
+    /// be called periodicly, unless using an async aproach in which case [crate::Microcontroller::block_on]
+    /// must be used.
+    ///
     /// # Arguments
     ///
     /// - `handler`: A closure thath will be executed when a client connects to the server
@@ -168,6 +172,10 @@ impl<'a> _BleServer<'a> {
     }
 
     /// Sets the disconnection handler. The handler is a callback that will be executed when a client disconnects to the server
+    ///
+    /// Note: For the callback to be executed, the method [crate::Microcontroller::wait_for_updates] must
+    /// be called periodicly, unless using an async aproach in which case [crate::Microcontroller::block_on]
+    /// must be used.
     ///
     /// # Arguments
     ///
@@ -284,7 +292,7 @@ impl<'a> _BleServer<'a> {
     ///
     /// # Arguments
     ///
-    /// - `disc_mode`: A DiscoverableMode that the user decisdes to set
+    /// - `disc_mode`: A DiscoverableMode that the user decides to set
     ///
     /// # Returns
     ///

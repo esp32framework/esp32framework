@@ -13,6 +13,6 @@ fn main() {
 
         println!("The temperature is: {:?} °C", temp);
 
-        micro.sleep(500);
+        micro.wait_for_updates(Some(500));
     }
 }

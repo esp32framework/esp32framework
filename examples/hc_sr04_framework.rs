@@ -13,6 +13,6 @@ fn main() {
     loop {
         let distance = sensor.get_distance();
         println!("{:?} cm", distance);
-        micro.sleep(1000);
+        micro.wait_for_updates(Some(1000));
     }
 }

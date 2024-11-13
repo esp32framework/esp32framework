@@ -73,7 +73,11 @@ impl RemoteCharacteristic {
         }
     }
 
-    /// Sets the user callaback to be triggered when the characteristic gets notified
+    /// Sets the user callaback to be triggered when the characteristic gets notified.
+    ///
+    /// Note: For the callback to be executed, the method [crate::Microcontroller::wait_for_updates] must
+    /// be called periodicly, unless using an async aproach in which case [crate::Microcontroller::block_on]
+    /// must be used.
     ///
     /// # Arguments
     ///

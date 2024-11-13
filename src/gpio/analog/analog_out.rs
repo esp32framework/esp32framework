@@ -358,13 +358,13 @@ impl<'a> _AnalogOut<'a> {
 
     /// Changes the output signal to be at it maximun by calling #[Self::set_high_level_output_ratio]
     /// with 1.0 as the high_ratio parameter.
-    pub fn set_high(&mut self)-> Result<(), AnalogOutError>{
+    pub fn set_high(&mut self) -> Result<(), AnalogOutError> {
         self.set_high_level_output_ratio(1.0)
     }
-    
+
     /// Changes the output signal to be at it minimum by calling #[Self::set_high_level_output_ratio]
     /// with 0.0 as the high_ratio parameter.
-    pub fn set_low(&mut self)-> Result<(), AnalogOutError>{
+    pub fn set_low(&mut self) -> Result<(), AnalogOutError> {
         self.set_high_level_output_ratio(0.0)
     }
 
@@ -457,6 +457,10 @@ impl<'a> _AnalogOut<'a> {
 
     /// Sets the FixedChangeType to Increase. Stops when maximum ratio is reached.
     ///
+    /// Note: For the high_ratio to change, the method [crate::Microcontroller::wait_for_updates] must
+    /// be called periodicly, unless using an async aproach in which case [crate::Microcontroller::block_on]
+    /// must be used.
+    ///
     /// # Arguments
     ///
     /// - `increase_after_miliseconds`: An `u64` representing the time interval (in milliseconds) after which the duty cycle should increase.
@@ -485,6 +489,10 @@ impl<'a> _AnalogOut<'a> {
     }
 
     /// Sets the FixedChangeType to Decrease. Stops when minimum ratio is reached.
+    ///
+    /// Note: For the high_ratio to change, the method [crate::Microcontroller::wait_for_updates] must
+    /// be called periodicly, unless using an async aproach in which case [crate::Microcontroller::block_on]
+    /// must be used.
     ///
     /// # Arguments
     ///
@@ -516,6 +524,10 @@ impl<'a> _AnalogOut<'a> {
     /// Increases the PWM signal ratio by `increase_by_ratio`, starting from `starting_high_ratio` value until it reaches the maximum ratio possible.
     /// Once the maximum is reached, it bounces back and starts to decrease until the minimum value is reached. Direction changes `amount_of_bounces` times
     /// unless that parameter is set to `None`, meaning it will do it indefinitely.
+    ///
+    /// Note: For the high_ratio to change, the method [crate::Microcontroller::wait_for_updates] must
+    /// be called periodicly, unless using an async aproach in which case [crate::Microcontroller::block_on]
+    /// must be used.
     ///
     /// # Arguments
     ///
@@ -551,6 +563,10 @@ impl<'a> _AnalogOut<'a> {
     /// Once the minimum is reached, it bounces back and starts to increase until the maximum value is reached. Direction changes 'amount_of_bounces' times
     /// unless that parameter is set to None, meaning it will do it indefinitely.
     ///
+    /// Note: For the high_ratio to change, the method [crate::Microcontroller::wait_for_updates] must
+    /// be called periodicly, unless using an async aproach in which case [crate::Microcontroller::block_on]
+    /// must be used.
+    ///
     /// # Arguments
     ///
     /// - `increase_after_miliseconds`: An `u64` representing the time interval (in milliseconds) after which the duty cycle should decrease.
@@ -585,6 +601,10 @@ impl<'a> _AnalogOut<'a> {
     /// Once the maximum is reached, it goes back to the `starting_high_ratio` and starts to increase once again. This is done `amount_of_resets` times
     /// unless that parameter is set to None, meaning it will do it indefinitely.
     ///  
+    /// Note: For the high_ratio to change, the method [crate::Microcontroller::wait_for_updates] must
+    /// be called periodicly, unless using an async aproach in which case [crate::Microcontroller::block_on]
+    /// must be used.
+    ///
     /// # Arguments
     ///
     /// - `increase_after_miliseconds`: A `u64` representing the time interval (in milliseconds) after which the duty cycle should increase.
@@ -618,6 +638,10 @@ impl<'a> _AnalogOut<'a> {
     /// Decreases the PWM signal ratio by 'decrease_by_ratio', starting from 'starting_high_ratio' value until it reaches the minimum ratio possible.
     /// Once the minimum is reached, it goes back to the 'starting_high_ratio' and starts to increase once again. This is done 'amount_of_resets' times
     /// unless that parameter is set to None, meaning it will do it indefinitely.
+    ///
+    /// Note: For the high_ratio to change, the method [crate::Microcontroller::wait_for_updates] must
+    /// be called periodicly, unless using an async aproach in which case [crate::Microcontroller::block_on]
+    /// must be used.
     ///
     /// # Arguments
     ///

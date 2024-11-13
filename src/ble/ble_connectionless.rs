@@ -238,6 +238,15 @@ impl<'a> BleBeacon<'a> {
         }
     }
 
+    /// Stop looping data.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` with Ok if the change operation completed successfully, or a `BleError` if it fails.
+    ///
+    /// # Errors
+    ///
+    /// - `BleError::TimerDriverError`: If the underlying timer_driver fails.
     fn stop_looping_data(&mut self) -> Result<(), BleError> {
         self.timer_driver
             .remove_interrupt()
@@ -279,6 +288,10 @@ impl<'a> BleBeacon<'a> {
 
     /// The beacon advertises the data of each service every fixed duration. If services are added or
     /// removed this is reflected. The time per service can be set with [Self::set_time_per_service]
+    ///
+    /// Note: For the advertised data to change, the method [crate::Microcontroller::wait_for_updates] must
+    /// be called periodicly, unless using an async aproach in which case [crate::Microcontroller::block_on]
+    /// must be used.
     ///
     /// # Returns
     ///

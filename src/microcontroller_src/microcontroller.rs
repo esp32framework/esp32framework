@@ -19,7 +19,7 @@ use attenuation::adc_atten_t;
 use esp32_nimble::{enums::AuthReq, BLEDevice};
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
-    hal::{adc::*, delay::FreeRtos, task::block_on},
+    hal::{adc::*, task::block_on},
 };
 use futures::future::{join, Future};
 use oneshot::AdcDriver;
@@ -784,10 +784,14 @@ impl<'a> Microcontroller<'a> {
 
     /// Blocking function that will block for a specified time while keeping updated the microcontroller and other drivers.
     /// It is necesary to call this function from time to time, so that any interrupt that was set on any driver can be
-    /// executed properly. Another way to avoid calling this function is to use an asynchronouse aproach, see [Self::block_on]
+    /// executed properly. Another way to avoid calling this function is to use an asynchronouse aproach, see [Self::block_on].
+    ///
+    /// Note:
+    /// This function works as a sleep without the starvation of the microcontroller´s drivers. If FreeRtos::delay_ms is called
+    /// instead of this fuctions, most interrupts wont trigger.
     ///
     /// # Arguments
-    /// - milioseconds: Amount of miliseconds for which this function will at least block. If None is received then this
+    /// - milliseconds: Amount of milliseconds for which this function will at least block. If None is received then this
     ///   function will block for ever
     ///
     /// # Panics
@@ -799,16 +803,6 @@ impl<'a> Microcontroller<'a> {
             Some(milis) => self.wait_for_updates_until(milis),
             None => self.wait_for_updates_indefinitely(),
         }
-    }
-
-    /// This will block the current thread for at least the specified amount of microseconds. Take into account this
-    /// also means moast interrupts wont trigger, so if you need to block the thread while having driver interrupts
-    /// take a look at [Self::wait_for_updates]
-    ///
-    /// # Arguments
-    /// - miliseconds: The amount of miliseconds for which this function will at least block
-    pub fn sleep(&self, miliseconds: u32) {
-        FreeRtos::delay_ms(miliseconds)
     }
 
     /// Async function that will block waiting for notifications and calling [Self::update] until a signal is received.

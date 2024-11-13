@@ -209,6 +209,10 @@ impl<'a> _DigitalOut<'a> {
     /// Makes the pin blink for a certain amount of times defined by *amount_of_blinks*,
     /// the time states can be adjusted using *time_between_states_micro* (micro sec)
     ///
+    /// Note: For the blinking to occur, the method [crate::Microcontroller::wait_for_updates] must
+    /// be called periodicly, unless using an async aproach in which case [crate::Microcontroller::block_on]
+    /// must be used.
+    ///
     /// # Arguments
     ///
     /// * `amount_of_blinks` - Amount of times the pin will blink
@@ -216,7 +220,6 @@ impl<'a> _DigitalOut<'a> {
     ///
     /// # Example
     ///
-    ///  
     pub fn blink(
         &mut self,
         amount_of_blinks: u32,

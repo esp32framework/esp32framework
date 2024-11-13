@@ -1,7 +1,12 @@
 [package]
 name = "esp32framework"
 version = "0.1.0"
-authors = ["palito <jaschieri@fi.uba.ar>"]
+authors = [
+    "Juan Pablo Aschieri <jaschieri@fi.uba.ar>",
+    "Mateo Godoy Dupont <mgodoy@fi.uba.ar>",
+    "Diego Emanuel Civini <dcivini@fi.uba.ar>",
+    "Joaquin Rivero <jorivero@fi.uba.ar>"
+    ]
 edition = "2021"
 resolver = "2"
 rust-version = "1.71"

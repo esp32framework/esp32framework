@@ -27,7 +27,6 @@ class Microcontroller {
     + ble_client(),
     + wait_for_updates(),
     + update(),
-    + sleep(),
     + wait_for_updates_until_finished(),
     + block_on(),
     + get_wifi_driver()

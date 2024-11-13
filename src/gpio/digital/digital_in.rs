@@ -335,6 +335,10 @@ impl<'a> _DigitalIn<'a> {
     /// execute the user callback. If a debounce is set then the level must be mantained for the
     /// user callback to be executed.
     ///
+    /// Note: For the callback to be executed, the method [crate::Microcontroller::wait_for_updates] must
+    /// be called periodicly, unless using an async aproach in which case [crate::Microcontroller::block_on]
+    /// must be used.
+    ///
     /// # Arguments
     ///
     /// - `user_callback`: A function provided by the user that is executed when the interrupt condition
@@ -365,6 +369,10 @@ impl<'a> _DigitalIn<'a> {
     }
 
     /// Sets a callback to be triggered only n times before unsubscribing the interrupt.
+    ///
+    /// Note: For the callback to be executed, the method [crate::Microcontroller::wait_for_updates] must
+    /// be called periodicly, unless using an async aproach in which case [crate::Microcontroller::block_on]
+    /// must be used.
     ///
     /// # Arguments
     ///
