@@ -17,14 +17,19 @@ use esp32_nimble::{
 };
 use esp_idf_svc::hal::task;
 use sharable_reference_macro::sharable_reference_wrapper;
-use std::sync::Arc;
+use std::sync::{atomic::{AtomicU8, Ordering}, Arc};
+
+const DEFAULT_MAX_CLIENTS: u8 = 1;
 
 type ConnCallback<'a> = dyn FnMut(&mut BleServer<'a>, &ConnectionInformation) + 'a;
 
 /// Abstraction to create a BLE server, the side that has the information to be used in a connection
 /// oriented relationship. Contains:
 /// * `advertising_name`: Clients scanning will see the advertising name before connection.
+/// * `ble_server`: BleServer driver.
 /// * `services`: The servere will hace information for the clients to see. All this information will be encapsulated on different services.
+/// * `advertisement`: Abstraction that represents the serve's advertisement.
+/// * `remaining_connections`: maximum amount of simultaneous clients.
 /// * `user_on_connection`: Callback that will be executed for each client connected.
 /// * `user_on_disconnection`: Callback that will be executed for each client disconnected.
 struct _BleServer<'a> {
@@ -32,16 +37,13 @@ struct _BleServer<'a> {
     ble_server: &'a mut BLEServer,
     services: Vec<Service>,
     advertisement: &'a Mutex<BLEAdvertising>,
+    remaining_connections: RemainingConnections,
     user_on_connection: Option<ConnectionCallback<'a>>,
     user_on_disconnection: Option<ConnectionCallback<'a>>,
 }
 
 /// Abstraction to create a BLE server, the side that has the information to be used in a connection
-/// oriented relationship. Contains:
-/// * `advertising_name`: Clients scanning will see the advertising name before connection.
-/// * `services`: The servere will hace information for the clients to see. All this information will be encapsulated on different services.
-/// * `user_on_connection`: Callback that will be executed for each client connected.
-/// * `user_on_disconnection`: Callback that will be executed for each client disconnected.
+/// oriented relationship.
 pub struct BleServer<'a> {
     inner: SharableRef<_BleServer<'a>>,
 }
@@ -51,6 +53,66 @@ struct ConnectionCallback<'a> {
     callback: Box<ConnCallback<'a>>,
     info_queue: ISRQueue<ConnectionInformation>,
     notifier: Notifier,
+}
+
+/// Wrapper of the remaining amount of simultaneous clients. The value that it contains
+/// must be greater than one to start s new advertisement automatically on a new connection.
+#[derive(Clone, Debug)]
+struct RemainingConnections{
+    amount: Arc<AtomicU8>
+}
+
+impl RemainingConnections{
+    /// Creates a new `RemainingConnections` instance with the specified initial count.
+    ///
+    /// # Arguments
+    ///
+    /// * `amount` - The initial number of allowed simultaneous connections.
+    ///
+    /// # Returns
+    ///
+    /// A new `RemainingConnections` instance.
+    fn new(amount: u8)->Self{
+        RemainingConnections {amount: Arc::new(AtomicU8::new(amount))}
+    }
+
+    /// Retrieves the current amount of remaining connections.
+    ///
+    /// # Returns
+    ///
+    /// The current number of remaining connections as a `u8`.
+    fn amount(&self)->u8{
+        self.amount.load(Ordering::Acquire)
+    }
+
+    /// Stores a new value for the remaining connection count.
+    ///
+    /// # Arguments
+    ///
+    /// * `amount` - The new value to store as the remaining connection count.
+    fn store(&mut self, amount: u8){
+        self.amount.store(amount, Ordering::SeqCst);
+    }
+
+    /// Increases the remaining connection count by one.
+    fn add_connection(&mut self){
+        self.store(self.amount() + 1);
+    }
+    
+    /// Decreases the remaining connection count by one.
+    fn remove_connection(&mut self){
+        self.store(self.amount() - 1);
+    }
+
+    /// Checks whether the current connection count is greater than or equal to 1.
+    ///
+    /// # Returns
+    ///
+    /// * `true` if the remaining connection count is greater than or equal to 1.
+    /// * `false` otherwise.
+    fn at_least_one(&mut self)->bool{
+        self.amount() >= 1
+    }
 }
 
 impl<'a> ConnectionCallback<'a> {
@@ -71,16 +133,50 @@ impl<'a> ConnectionCallback<'a> {
         }
     }
 
-    /// Sets the a new callback
+    /// Sets the a new connection callback. When a new connection is register, 
+    /// the remaining amount of clients is reduce by one. If this amount is at 
+    /// least one, the server will start advertising automatically.
     ///
     /// # Arguments
     ///
     /// - `callback`: User callback to execute
-    fn set_callback<C: FnMut(&mut BleServer<'a>, &ConnectionInformation) + 'a>(
+    fn set_conn_callback<C: FnMut(&mut BleServer<'a>, &ConnectionInformation) + 'a>(
         &mut self,
-        callback: C,
+        mut callback: C,
+        remaining_connections: &RemainingConnections
     ) {
-        self.callback = Box::new(callback);
+        let mut remaining_ref = remaining_connections.clone();
+        let closure = move |server: &mut BleServer<'a>, conn: &ConnectionInformation|{
+            println!("on_connect: {}", remaining_ref.amount());
+            remaining_ref.remove_connection();
+            if remaining_ref.at_least_one(){
+                _ = server.start(); 
+            }
+            callback(server, conn)
+        };
+
+        self.callback = Box::new(closure);
+    }
+
+    /// Sets the a new disconnection callback. When a new disconnection is register, 
+    /// the remaining amount of clients is increased by one and it will start a new advertising.
+    ///
+    /// # Arguments
+    ///
+    /// - `callback`: User callback to execute
+    fn set_disc_callback<C: FnMut(&mut BleServer<'a>, &ConnectionInformation) + 'a>(
+        &mut self,
+        mut callback: C,
+        remaining_connections: &RemainingConnections
+    ) {
+        let mut remaining_ref = remaining_connections.clone();
+        let closure = move |server: &mut BleServer<'a>, conn: &ConnectionInformation|{
+            remaining_ref.add_connection();
+            _ = server.start();
+            callback(server, conn)
+        };
+
+        self.callback = Box::new(closure);
     }
 
     /// Continuously tries to read from the queue to know if its time to execute the user callback
@@ -97,7 +193,7 @@ impl<'a> ConnectionCallback<'a> {
 
 #[sharable_reference_wrapper]
 impl<'a> _BleServer<'a> {
-    /// Creates a new _BleServer
+    /// Creates a new _BleServer. This server will have a one client as maximum default amount
     ///
     /// # Arguments
     ///
@@ -128,6 +224,7 @@ impl<'a> _BleServer<'a> {
             ble_server: ble_device.get_server(),
             services: services.clone(),
             advertisement: ble_device.get_advertising(),
+            remaining_connections: RemainingConnections::new(DEFAULT_MAX_CLIENTS),
             user_on_connection: Some(ConnectionCallback::new(connection_notifier)),
             user_on_disconnection: Some(ConnectionCallback::new(disconnection_notifier)),
         };
@@ -159,8 +256,8 @@ impl<'a> _BleServer<'a> {
         let user_on_connection = self.user_on_connection.as_mut().unwrap();
         let notifier_ref = user_on_connection.notifier.clone();
         let mut con_info_ref = user_on_connection.info_queue.clone();
-        user_on_connection.set_callback(handler);
-
+        user_on_connection.set_conn_callback(handler, &self.remaining_connections);
+        
         self.ble_server.on_connect(move |_, info| {
             notifier_ref.notify();
             _ = con_info_ref.send_timeout(
@@ -191,7 +288,7 @@ impl<'a> _BleServer<'a> {
         let user_on_disconnection = self.user_on_disconnection.as_mut().unwrap();
         let notifier_ref = user_on_disconnection.notifier.clone();
         let mut con_info_ref = user_on_disconnection.info_queue.clone();
-        user_on_disconnection.set_callback(handler);
+        user_on_disconnection.set_disc_callback(handler, &self.remaining_connections);
 
         self.ble_server.on_disconnect(move |info, res| {
             notifier_ref.notify();
@@ -244,6 +341,12 @@ impl<'a> _BleServer<'a> {
             .map_err(BleError::from_connection_params_context)
     }
 
+    pub fn set_max_concurrent_clients(&mut self, amount: u8) ->Result<(), BleError>{
+        self.disconnect_all_clients()?;
+        self.remaining_connections.store(amount);
+        Ok(())
+    }
+    
     /// Set the advertising time parameters.
     ///
     /// # Arguments
