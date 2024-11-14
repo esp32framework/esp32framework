@@ -215,7 +215,9 @@ fn add_to_skipped_counter(nvs: &EspNvs<NvsDefault>) {
         .unwrap();
 }
 
-/// Custom Test Runner for ESP32 Tests. This runner restarts the ESP before executing
+/// Custom Test Runner for ESP32 Tests.
+///
+/// This runner restarts the ESP before executing
 /// each test to ensure a clean test environment. To archive this goal, it
 /// uses the NVS (Non-Volatile Storage), so user tests cannot access this resource
 ///

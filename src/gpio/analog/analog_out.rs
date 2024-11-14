@@ -904,8 +904,6 @@ impl From<TimerDriverError> for AnalogOutError {
 
 #[cfg(test)]
 mod test {
-    use std::ops::Deref;
-
     use crate::Microcontroller;
 
     use super::*;
@@ -922,7 +920,7 @@ mod test {
         out.start_increasing_bounce_back(1, 0.01, 0.0, None)
             .unwrap();
         micro.wait_for_updates(Some(10));
-        out.set_high_level_output_ratio(0.0);
+        out.set_high_level_output_ratio(0.0).unwrap();
         micro.wait_for_updates(Some(10));
         assert_eq!(out.inner.borrow().duty.load(Ordering::Acquire), 0);
         assert_eq!(out.inner.borrow().fixed_change_type, FixedChangeType::None);
