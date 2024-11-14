@@ -17,11 +17,15 @@ use esp32_nimble::{
 };
 use esp_idf_svc::hal::task;
 use sharable_reference_macro::sharable_reference_wrapper;
-use std::sync::{atomic::{AtomicU8, Ordering}, Arc};
+use std::sync::{
+    atomic::{AtomicU8, Ordering},
+    Arc,
+};
 
 const DEFAULT_MAX_CLIENTS: u8 = 1;
 
-type ConnCallback<'a> = dyn FnMut(&mut BleServer<'a>, &ConnectionInformation) + 'a;
+type ConnUserCallback<'a> = dyn FnMut(&mut BleServer<'a>, &ConnectionInformation) + 'a;
+type ConnCountingCallback<'a> = dyn FnMut(&mut BleServer<'a>) + 'a;
 
 /// Abstraction to create a BLE server, the side that has the information to be used in a connection
 /// oriented relationship. Contains:
@@ -50,7 +54,8 @@ pub struct BleServer<'a> {
 
 /// Wrapper to handle user connection and disconnections callbacks in a simpler way
 struct ConnectionCallback<'a> {
-    callback: Box<ConnCallback<'a>>,
+    user_callback: Box<ConnUserCallback<'a>>,
+    counting_callback: Box<ConnCountingCallback<'a>>,
     info_queue: ISRQueue<ConnectionInformation>,
     notifier: Notifier,
 }
@@ -58,11 +63,11 @@ struct ConnectionCallback<'a> {
 /// Wrapper of the remaining amount of simultaneous clients. The value that it contains
 /// must be greater than one to start s new advertisement automatically on a new connection.
 #[derive(Clone, Debug)]
-struct RemainingConnections{
-    amount: Arc<AtomicU8>
+struct RemainingConnections {
+    amount: Arc<AtomicU8>,
 }
 
-impl RemainingConnections{
+impl RemainingConnections {
     /// Creates a new `RemainingConnections` instance with the specified initial count.
     ///
     /// # Arguments
@@ -72,8 +77,10 @@ impl RemainingConnections{
     /// # Returns
     ///
     /// A new `RemainingConnections` instance.
-    fn new(amount: u8)->Self{
-        RemainingConnections {amount: Arc::new(AtomicU8::new(amount))}
+    fn new(amount: u8) -> Self {
+        RemainingConnections {
+            amount: Arc::new(AtomicU8::new(amount)),
+        }
     }
 
     /// Retrieves the current amount of remaining connections.
@@ -81,7 +88,7 @@ impl RemainingConnections{
     /// # Returns
     ///
     /// The current number of remaining connections as a `u8`.
-    fn amount(&self)->u8{
+    fn amount(&self) -> u8 {
         self.amount.load(Ordering::Acquire)
     }
 
@@ -90,17 +97,17 @@ impl RemainingConnections{
     /// # Arguments
     ///
     /// * `amount` - The new value to store as the remaining connection count.
-    fn store(&mut self, amount: u8){
+    fn store(&mut self, amount: u8) {
         self.amount.store(amount, Ordering::SeqCst);
     }
 
     /// Increases the remaining connection count by one.
-    fn add_connection(&mut self){
+    fn add_connection(&mut self) {
         self.store(self.amount() + 1);
     }
-    
+
     /// Decreases the remaining connection count by one.
-    fn remove_connection(&mut self){
+    fn remove_connection(&mut self) {
         self.store(self.amount() - 1);
     }
 
@@ -110,7 +117,7 @@ impl RemainingConnections{
     ///
     /// * `true` if the remaining connection count is greater than or equal to 1.
     /// * `false` otherwise.
-    fn at_least_one(&mut self)->bool{
+    fn at_least_one(&mut self) -> bool {
         self.amount() >= 1
     }
 }
@@ -127,67 +134,65 @@ impl<'a> ConnectionCallback<'a> {
     /// A new ConnectionCallback
     fn new(notifier: Notifier) -> Self {
         Self {
-            callback: Box::new(|_, _| {}),
+            user_callback: Box::new(|_, _| {}),
+            counting_callback: Box::new(|_| {}),
             info_queue: ISRQueue::new(1000),
             notifier,
         }
     }
 
-    /// Sets the a new connection callback. When a new connection is register, 
-    /// the remaining amount of clients is reduce by one. If this amount is at 
-    /// least one, the server will start advertising automatically.
+    /// Sets the a new user callback
     ///
     /// # Arguments
     ///
     /// - `callback`: User callback to execute
-    fn set_conn_callback<C: FnMut(&mut BleServer<'a>, &ConnectionInformation) + 'a>(
+    fn set_user_callback<C: FnMut(&mut BleServer<'a>, &ConnectionInformation) + 'a>(
         &mut self,
-        mut callback: C,
-        remaining_connections: &RemainingConnections
+        callback: C,
     ) {
-        let mut remaining_ref = remaining_connections.clone();
-        let closure = move |server: &mut BleServer<'a>, conn: &ConnectionInformation|{
-            println!("on_connect: {}", remaining_ref.amount());
-            remaining_ref.remove_connection();
-            if remaining_ref.at_least_one(){
-                _ = server.start(); 
-            }
-            callback(server, conn)
-        };
-
-        self.callback = Box::new(closure);
+        self.user_callback = Box::new(callback);
     }
 
-    /// Sets the a new disconnection callback. When a new disconnection is register, 
-    /// the remaining amount of clients is increased by one and it will start a new advertising.
-    ///
-    /// # Arguments
-    ///
-    /// - `callback`: User callback to execute
-    fn set_disc_callback<C: FnMut(&mut BleServer<'a>, &ConnectionInformation) + 'a>(
-        &mut self,
-        mut callback: C,
-        remaining_connections: &RemainingConnections
-    ) {
-        let mut remaining_ref = remaining_connections.clone();
-        let closure = move |server: &mut BleServer<'a>, conn: &ConnectionInformation|{
-            remaining_ref.add_connection();
-            _ = server.start();
-            callback(server, conn)
-        };
-
-        self.callback = Box::new(closure);
-    }
-
-    /// Continuously tries to read from the queue to know if its time to execute the user callback
+    /// Continuously tries to read from the queue to know if its time to execute the callbacks setted.
     ///
     /// # Arguments
     ///
     /// - `server`: The BleServer that is send as a parameter for the user to use in the callback
     fn handle_connection_changes(&mut self, server: &mut BleServer<'a>) {
         while let Ok(item) = self.info_queue.try_recv() {
-            (self.callback)(server, &item);
+            (self.counting_callback)(server);
+            (self.user_callback)(server, &item);
         }
+    }
+
+    /// Adds the counting callback to be executed before user callback in [Self::handle_connection_changes].
+    /// This will count down the remaining connections and start an advertising if it is > 0
+    ///
+    /// # Arguments
+    ///
+    /// - `remaining_connections`: Carries the information of the remaining connections
+    fn add_on_connection_counting(&mut self, remaining_connections: &RemainingConnections) {
+        let mut remaining_ref = remaining_connections.clone();
+        self.counting_callback = Box::new(move |server: &mut BleServer<'a>| {
+            remaining_ref.remove_connection();
+            if remaining_ref.at_least_one() {
+                _ = server.start();
+            }
+        });
+    }
+
+    /// Adds the counting callback to be executed before user callback in [Self::handle_connection_changes].
+    /// This will count up the remaining connections and start an advertising
+    ///
+    /// # Arguments
+    ///
+    /// - `remaining_connections`: Carries the information of the remaining connections
+    fn add_on_disconnection_counting(&mut self, remaining_connections: &RemainingConnections) {
+        let mut remaining_ref = remaining_connections.clone();
+        self.counting_callback = Box::new(move |server: &mut BleServer<'a>| {
+            remaining_ref.add_connection();
+            _ = server.start();
+        });
     }
 }
 
@@ -236,7 +241,36 @@ impl<'a> _BleServer<'a> {
         Ok(server)
     }
 
-    /// Sets the connection handler. The handler is a callback that will be executed when a client connects to the server
+    /// Subscribes the callback set in the field `user_on_connection` to be executed on_connections
+    fn subscribe_on_connection(&mut self) {
+        let user_on_connection = self.user_on_connection.as_mut().unwrap();
+        let notifier_ref = user_on_connection.notifier.clone();
+        let mut con_info_ref = user_on_connection.info_queue.clone();
+        self.ble_server.on_connect(move |_, info| {
+            notifier_ref.notify();
+            _ = con_info_ref.send_timeout(
+                ConnectionInformation::from_bleconn_desc(info, true, Ok(())),
+                1_000_000,
+            );
+        });
+    }
+
+    /// Subscribes the callback set in the field `user_on_disconnection` to be executed on_connections
+    fn subscribe_on_disconnection(&mut self) {
+        let user_on_disconnection = self.user_on_disconnection.as_mut().unwrap();
+        let notifier_ref = user_on_disconnection.notifier.clone();
+        let mut con_info_ref = user_on_disconnection.info_queue.clone();
+
+        self.ble_server.on_disconnect(move |info, res| {
+            notifier_ref.notify();
+            _ = con_info_ref.send_timeout(
+                ConnectionInformation::from_bleconn_desc(info, false, res),
+                1_000_000,
+            );
+        });
+    }
+
+    /// Sets the connection handler. The handler is a callback that will be executed when a client connects to the server.
     ///
     /// Note: For the callback to be executed, the method [crate::Microcontroller::wait_for_updates] must
     /// be called periodicly, unless using an async aproach in which case [crate::Microcontroller::block_on]
@@ -253,22 +287,15 @@ impl<'a> _BleServer<'a> {
         &mut self,
         handler: C,
     ) -> &mut Self {
-        let user_on_connection = self.user_on_connection.as_mut().unwrap();
-        let notifier_ref = user_on_connection.notifier.clone();
-        let mut con_info_ref = user_on_connection.info_queue.clone();
-        user_on_connection.set_conn_callback(handler, &self.remaining_connections);
-        
-        self.ble_server.on_connect(move |_, info| {
-            notifier_ref.notify();
-            _ = con_info_ref.send_timeout(
-                ConnectionInformation::from_bleconn_desc(info, true, Ok(())),
-                1_000_000,
-            );
-        });
+        self.user_on_connection
+            .as_mut()
+            .unwrap()
+            .set_user_callback(handler);
+        self.subscribe_on_connection();
         self
     }
 
-    /// Sets the disconnection handler. The handler is a callback that will be executed when a client disconnects to the server
+    /// Sets the disconnection handler. The handler is a callback that will be executed when a client disconnects to the server.
     ///
     /// Note: For the callback to be executed, the method [crate::Microcontroller::wait_for_updates] must
     /// be called periodicly, unless using an async aproach in which case [crate::Microcontroller::block_on]
@@ -285,18 +312,11 @@ impl<'a> _BleServer<'a> {
         &mut self,
         handler: C,
     ) -> &mut Self {
-        let user_on_disconnection = self.user_on_disconnection.as_mut().unwrap();
-        let notifier_ref = user_on_disconnection.notifier.clone();
-        let mut con_info_ref = user_on_disconnection.info_queue.clone();
-        user_on_disconnection.set_disc_callback(handler, &self.remaining_connections);
-
-        self.ble_server.on_disconnect(move |info, res| {
-            notifier_ref.notify();
-            _ = con_info_ref.send_timeout(
-                ConnectionInformation::from_bleconn_desc(info, false, res),
-                1_000_000,
-            );
-        });
+        self.user_on_disconnection
+            .as_mut()
+            .unwrap()
+            .set_user_callback(handler);
+        self.subscribe_on_disconnection();
         self
     }
 
@@ -319,9 +339,9 @@ impl<'a> _BleServer<'a> {
     ///
     /// # Errors
     ///
-    /// - `BleError::Disconnected`: if there is no connection stablished to go look for a service
-    /// - `BleError::DeviceNotFound`: if the device has unexpectidly disconnected
-    /// - `BleError::Code`: on other errors
+    /// - `BleError::Disconnected`: if there is no connection stablished to go look for a service.
+    /// - `BleError::DeviceNotFound`: if the device has unexpectidly disconnected.
+    /// - `BleError::Code`: on other errors.
     pub fn set_connection_settings(
         &mut self,
         info: &ConnectionInformation,
@@ -341,12 +361,35 @@ impl<'a> _BleServer<'a> {
             .map_err(BleError::from_connection_params_context)
     }
 
-    pub fn set_max_concurrent_clients(&mut self, amount: u8) ->Result<(), BleError>{
+    /// Sets the max amount of clients the server can be connected to concurrently at any given time.
+    /// After each connection a new advertisement will be made if there are still connections left to be done.
+    ///
+    /// NOTE: This function will disconnect all currently connected clients if called with already
+    /// connected clients.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` with Ok if the configuration completed successfully, or an `BleError` if it fails.
+    ///
+    /// # Errors
+    ///
+    /// - `BleError::Disconnected`: If any client fails to disconnect.
+    pub fn set_max_concurrent_clients(&mut self, amount: u8) -> Result<(), BleError> {
         self.disconnect_all_clients()?;
         self.remaining_connections.store(amount);
+        self.user_on_connection
+            .as_mut()
+            .unwrap()
+            .add_on_connection_counting(&self.remaining_connections);
+        self.user_on_disconnection
+            .as_mut()
+            .unwrap()
+            .add_on_disconnection_counting(&self.remaining_connections);
+        self.subscribe_on_connection();
+        self.subscribe_on_disconnection();
         Ok(())
     }
-    
+
     /// Set the advertising time parameters.
     ///
     /// # Arguments
