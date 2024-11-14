@@ -687,7 +687,7 @@ mod test {
     }
 
     fn poll_notif(notif: &Notification) -> bool {
-        for i in 0..100 {
+        for _i in 0..100 {
             if notif.poll() {
                 return true;
             }
