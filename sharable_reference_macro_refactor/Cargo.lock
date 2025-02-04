@@ -24,6 +24,7 @@ dependencies = [
 name = "sharable_reference_macro_refactor"
 version = "0.1.0"
 dependencies = [
+ "quote",
  "syn",
 ]
 

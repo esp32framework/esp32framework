@@ -1,21 +1,12 @@
-use syn::{FnArg, Ident, ImplItem, ImplItemFn, ItemImpl};
+use std::collections::HashSet;
+
+use syn::{parse_quote, Block, FnArg, Ident, ImplItem, ImplItemFn, ItemImpl, Signature};
+use quote::{quote, ToTokens};
 
 #[derive(Debug)]
 enum SharableReferenceMacroError{
     ExpectedTypePath,
     ExpectedSegmentInTypePath
-}
-
-trait SharableReferenceImplItemFnExt{
-    fn modify_for_sharable_ref(&mut self);
-    /// Returns wheter or not the ImplItemFn is public
-    fn is_public(&self)-> bool;
-    /// Returns wheter or not the ImplItemFn receives a reference to self, mutable or not
-    fn receives_reference_to_self(&self)->bool;
-    /// Returns whether or not this ImplItemFn should be filtered or not
-    fn filter_for_sharable_ref(&self)->bool{
-        !self.is_public() || !self.receives_reference_to_self()
-    }
 }
 
 trait SharableReferenceImplBlockExt {
@@ -30,8 +21,34 @@ trait SharableReferenceImplBlockExt {
     /// - `SharableReferenceMacroError::ExpectedTypePath`: Upon invalid type.
     /// - `SharableReferenceMacroError::ExpectedSegmentInTypePath`: If there are no segments in path.
     fn remove_first_character(&mut self)-> Result<(), SharableReferenceMacroError>;
+
     /// Filters and modifies any item of the impl block that needs changing
-    fn modify_and_filter_items(&mut self);
+    fn modify_and_filter_items(&mut self, args: &InnerArgs);
+}
+
+trait SharableReferenceImplItemFnExt{
+    /// Modifies the signature and body of the ImplItemFn
+    fn modify_for_sharable_ref(&mut self, args: &InnerArgs);
+
+    /// Returns wheter or not the ImplItemFn is public
+    fn is_public(&self)-> bool;
+
+    /// Returns wheter or not the ImplItemFn receives a reference to self, mutable or not
+    fn receives_reference_to_self(&self)->bool;
+
+    /// Returns whether or not this ImplItemFn should be filtered or not
+    fn filter_for_sharable_ref(&self)->bool{
+        !self.is_public() || !self.receives_reference_to_self()
+    }
+}
+
+trait SharableReferenceSignatureExt {
+    /// Modifies the signature removing any argument in args
+    fn modify_for_sharable_ref(&mut self, args: &InnerArgs);
+}
+
+trait SharableReferenceFnArgExt{
+    fn arg_contained_in(&self, args: &InnerArgs) -> bool;
 }
 
 impl SharableReferenceImplBlockExt for ItemImpl{
@@ -47,12 +64,16 @@ impl SharableReferenceImplBlockExt for ItemImpl{
         }
     }
 
-    fn modify_and_filter_items(&mut self) {
+    fn modify_and_filter_items(&mut self, args: &InnerArgs) {
         self.items.retain_mut(|item|
             match item {
+                
                 ImplItem::Fn(impl_item_fn) => {
-                    impl_item_fn.modify_for_sharable_ref();
-                    !impl_item_fn.filter_for_sharable_ref()
+                    let filtered = impl_item_fn.filter_for_sharable_ref();
+                    if !filtered{
+                        impl_item_fn.modify_for_sharable_ref(args);
+                    }
+                    !filtered
                 },
                 _ => true,
             }
@@ -61,7 +82,8 @@ impl SharableReferenceImplBlockExt for ItemImpl{
 }
 
 impl SharableReferenceImplItemFnExt for ImplItemFn{
-    fn modify_for_sharable_ref(&mut self) {
+    fn modify_for_sharable_ref(&mut self , args: &InnerArgs) {
+        self.sig.modify_for_sharable_ref(args);
     }
     
     fn is_public(&self)-> bool {
@@ -78,6 +100,41 @@ impl SharableReferenceImplItemFnExt for ImplItemFn{
         })
     }
 }
+
+impl SharableReferenceSignatureExt for Signature{
+    fn modify_for_sharable_ref(&mut self, args: &InnerArgs) {
+        let mut new_args = Vec::new();
+        while let Some(pair) = self.inputs.pop(){
+            if !pair.value().arg_contained_in(args){
+                new_args.push(pair.into_value());
+            }
+        }
+        for new_arg in new_args.into_iter().rev(){
+            self.inputs.push(new_arg)
+        }
+    }
+}
+
+impl SharableReferenceFnArgExt for FnArg{
+    fn arg_contained_in(&self, args: &InnerArgs) -> bool {
+        if let FnArg::Typed(pat_type) = self{
+            let arg_str = pat_type.pat.to_token_stream().to_string();
+            return args.contains(arg_str)
+        }
+        false
+    }
+}
+
+struct InnerArgs {
+    inner: HashSet<String>,
+}
+
+impl InnerArgs{
+    fn contains(&self, str: String)->bool{
+        self.inner.contains(&str)
+    }
+}
+
 /*
 pub fn sharable_reference_wrapper(args: TokenStream, item: TokenStream) -> TokenStream {
     let mut input_original = parse_macro_input!(item as ItemImpl);
