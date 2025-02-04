@@ -1,6 +1,7 @@
 /.vscode
 /.embuild
 /target
+/sharable_reference_macro_refactor/target
 /Cargo.lock
 wokwi.toml
 diagram.json
